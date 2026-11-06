@@ -4,12 +4,14 @@ import { useApp } from '@/store/AppStore'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 
 const PAGE_META: Record<string, { title: string; group: string }> = {
-  '/': { title: 'Journal', group: 'Journal' },
+  '/': { title: 'Metrics', group: 'Analytics' },
+  '/metrics': { title: 'Metrics', group: 'Analytics' },
+  '/journal': { title: 'Journal', group: 'Journal' },
   '/accounts': { title: 'Portfolio', group: 'Workspace' },
-  '/stats': { title: 'Statistics', group: 'Journal' },
-  '/entries': { title: 'Entries', group: 'Journal' },
+  '/stats': { title: 'Statistics', group: 'Analytics' },
+  '/entries': { title: 'Entries', group: 'Log' },
   '/notes': { title: 'Notes', group: 'Journal' },
-  '/reports': { title: 'Reports', group: 'Journal' },
+  '/reports': { title: 'Reports', group: 'Analytics' },
 }
 
 export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {

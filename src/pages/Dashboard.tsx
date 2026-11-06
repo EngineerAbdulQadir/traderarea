@@ -1,10 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowDownRight,
   ArrowUpRight,
   ChevronRight,
-  Flame,
   Plus,
   ShieldCheck,
   Sparkles,
@@ -17,23 +16,19 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
-import { Segmented } from '@/components/ui/Segmented'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { AccountAvatar } from '@/components/ui/AccountAvatar'
 import { DateRangePicker } from '@/components/ui/DateRangePicker'
-import { EquityChart } from '@/components/charts/EquityChart'
 import { DailyPnl } from '@/components/charts/DailyPnl'
 import { Donut } from '@/components/charts/Donut'
 import { ProfitFactorGauge } from '@/components/charts/ProfitFactorGauge'
 import { DayStrip } from '@/components/charts/DayStrip'
+import { AvgWinLossChart } from '@/components/charts/AvgWinLossChart'
 import { RadarChart } from '@/components/charts/RadarChart'
-import { Calendar } from '@/components/calendar/Calendar'
 import { usePersistentState } from '@/hooks/usePersistentState'
 import { STORAGE_KEYS } from '@/lib/persistence'
 import { accountBadge, accountGradient, accountMetaCompact, titleFor } from '@/lib/accounts'
 import {
-  buildCumulativeSeries,
-  buildInsights,
   buildRules,
   computeEdgeScore,
   computeStats,
@@ -43,8 +38,6 @@ import {
 import {
   addDays,
   dateToISO,
-  formatDateRange,
-  formatShortDate,
   isValidISODate,
   startOfDay,
   todayISO,
@@ -66,11 +59,9 @@ export function DashboardPage() {
     activeAccount,
     activeTrades,
     activeIsDemo,
-    activeNotes,
     openTradeEditor,
     openChallenge,
     addDemoAccount,
-    openDayReview,
   } = useApp()
   const navigate = useNavigate()
   const defaultFrom = useMemo(() => dateToISO(addDays(startOfDay(new Date()), -29)), [])
@@ -82,8 +73,6 @@ export function DashboardPage() {
   const to = isValidISODate(storedTo) ? storedTo : defaultTo
   const rangeTo = to > today ? today : to
   const rangeFrom = from > rangeTo ? rangeTo : from
-  const rangeLabel = formatDateRange(rangeFrom, rangeTo)
-  const [chartMode, setChartMode] = useState<'equity' | 'drawdown'>('equity')
   // Temporary design-preview switch: /?hero=a|b|c
   const heroVariant = (() => {
     if (typeof window === 'undefined') return 'a'
@@ -98,7 +87,6 @@ export function DashboardPage() {
   )
   const stats = useMemo(() => computeStats(rangeTrades, starting), [rangeTrades, starting])
   const allStats = useMemo(() => computeStats(activeTrades, starting), [activeTrades, starting])
-  const cumulative = useMemo(() => buildCumulativeSeries(stats), [stats])
   const rules = useMemo(
     () => (activeAccount ? buildRules(activeAccount, allStats) : null),
     [activeAccount, allStats],
@@ -107,14 +95,13 @@ export function DashboardPage() {
     () => (activeAccount ? computeEdgeScore(activeAccount, stats) : null),
     [activeAccount, stats],
   )
-  const insights = useMemo(() => buildInsights(rangeTrades, stats), [rangeTrades, stats])
 
   if (!activeAccount) {
     return (
       <div className="page">
         <PageHeader
-          title="Journal"
-          subtitle="Your trading command center. Open a challenge to unlock metrics, risk tracking and a day-by-day journal."
+          title="Metrics"
+          subtitle="Your trading command center. Performance metrics, risk tracking and equity analytics."
         />
         <EmptyState
           icon={<TrendingUp size={22} />}
@@ -164,15 +151,12 @@ export function DashboardPage() {
   const heroMeta = accountMetaCompact(activeAccount)
   const recentDays = stats.dayRows.slice(-20)
   const recentNet = recentDays.reduce((sum, day) => sum + day.pnl, 0)
-  const recentAverage = recentDays.length ? recentNet / recentDays.length : 0
-  const bestDay = recentDays.length ? recentDays.reduce((best, day) => (day.pnl > best.pnl ? day : best)) : null
-  const worstDay = recentDays.length ? recentDays.reduce((worst, day) => (day.pnl < worst.pnl ? day : worst)) : null
   const equal = stats.avgLoss === 0
 
   return (
     <div className="page dashboard-page">
       <PageHeader
-        title="Journal"
+        title="Metrics"
         actions={
           <>
             <DateRangePicker
@@ -387,89 +371,40 @@ export function DashboardPage() {
               <span>B/E {stats.count && stats.avgWl > 0 ? `${plainPercent((1 / (1 + stats.avgWl)) * 100, 0)}%` : '—'}</span>
             </span>
           </div>
-          <Donut
-            segments={[
-              { label: 'Avg win', value: stats.avgWin, color: 'var(--chart-blue)' },
-              { label: 'Avg loss', value: stats.avgLoss, color: 'var(--chart-blue-muted)' },
-            ]}
-            size={78}
-            thickness={8}
-            centerLabel={stats.avgWin + stats.avgLoss > 0 ? `${plainPercent((stats.avgWin / (stats.avgWin + stats.avgLoss)) * 100, 0)}%` : '—'}
-            centerSub="win share"
+          <AvgWinLossChart
+            avgWin={stats.avgWin}
+            avgLoss={stats.avgLoss}
+            avgWl={stats.avgWl}
+            count={stats.count}
           />
         </Card>
       </section>
 
       <div className="dash-grid">
-        <Card className="chart-card equity-card">
-          <div className="card-head">
-            <div className="card-head-copy">
-              <span className="card-kicker"><i className="dot" /> Performance curve</span>
-              <h3 className="card-title">Equity &amp; drawdown</h3>
-              <p className="card-sub">{rangeLabel} · {stats.dayRows.length} sessions</p>
-            </div>
-            <div className="card-actions">
-              <Segmented
-                label="Chart view"
-                value={chartMode}
-                options={[
-                  { value: 'equity', label: 'Equity' },
-                  { value: 'drawdown', label: 'Underwater' },
-                ]}
-                onChange={setChartMode}
-                size="sm"
-              />
-            </div>
-          </div>
-          <div className="chart-split">
-            <div className="equity-summary">
-              <span>{chartMode === 'equity' ? 'Net return' : 'Max drawdown'}</span>
-              <strong className={cn('num', chartMode === 'equity' ? (stats.net >= 0 ? 'is-pos' : 'is-neg') : 'is-neg')}>
-                {chartMode === 'equity'
-                  ? signedMoney(stats.net)
-                  : stats.maxDrawdown
-                    ? `−${formatMoney(stats.maxDrawdown)}`
-                    : '$0'}
-              </strong>
-              <em>{chartMode === 'equity' ? `${signedPercent(returnPct)} on starting capital` : `${stats.maxDrawdownPct.toFixed(2)}% from peak`}</em>
-            </div>
-            <EquityChart points={cumulative} mode={chartMode} height={236} />
-          </div>
-          <div className="chart-chips">
-            <span>Peak <b className="num">{signedMoney(cumulative.length ? Math.max(0, ...cumulative.map((point) => point.peak)) : 0)}</b></span>
-            <span>Max drawdown <b className="num is-neg">{stats.maxDrawdown ? `−${formatMoney(stats.maxDrawdown)}` : '$0'}</b></span>
-            <span>Recovery <b className="num">{stats.recovery > 0 ? `${stats.recovery.toFixed(2)}×` : '—'}</b></span>
-            <span>Profit factor <b className="num">{stats.grossLoss ? `${stats.pf.toFixed(2)}×` : stats.grossProfit ? '∞' : '—'}</b></span>
-          </div>
-        </Card>
-
-      </div>
-
-      <div className="dash-grid">
         <Card className="chart-card daily-card">
           <div className="card-head">
             <div className="card-head-copy">
-              <span className="card-kicker"><i className="dot" /> Session flow</span>
-              <h3 className="card-title">Daily P&amp;L</h3>
-              <p className="card-sub">
-                {recentDays.length
-                  ? `${recentDays.length} sessions · ${formatShortDate(recentDays[0].date)} — ${formatShortDate(recentDays[recentDays.length - 1].date)}`
-                  : 'No sessions in this range'}
-              </p>
+              <span className="card-kicker">Daily P&amp;L</span>
             </div>
             <div className="card-head-value">
               <b className={cn('num', recentNet > 0 && 'is-pos', recentNet < 0 && 'is-neg')}>{signedMoney(recentNet)}</b>
-              <span>recent net</span>
+              <span>{recentDays.length}-day net P&amp;L</span>
             </div>
           </div>
-          <DailyPnl days={recentDays} height={224} />
-          <div className="chart-chips">
-            <span>Best <b className="num is-pos">{bestDay ? signedMoney(bestDay.pnl) : '—'}</b>{bestDay && <em>{formatShortDate(bestDay.date)}</em>}</span>
-            <span>Worst <b className="num is-neg">{worstDay ? signedMoney(worstDay.pnl) : '—'}</b>{worstDay && <em>{formatShortDate(worstDay.date)}</em>}</span>
-            <span>Avg / session <b className={cn('num', recentAverage > 0 && 'is-pos', recentAverage < 0 && 'is-neg')}>{signedMoney(recentAverage)}</b></span>
-          </div>
+          <DailyPnl days={recentDays} type="daily" showStats={true} height={260} />
         </Card>
 
+        <Card className="chart-card daily-card">
+          <div className="card-head">
+            <div className="card-head-copy">
+              <span className="card-kicker">Cumulative P&amp;L</span>
+            </div>
+          </div>
+          <DailyPnl days={recentDays} type="cumulative" height={260} />
+        </Card>
+      </div>
+
+      <div className="dash-grid">
         <Card className="rules-card">
           <div className="card-head">
             <div className="card-head-copy">
@@ -521,110 +456,66 @@ export function DashboardPage() {
       </div>
 
       <div className="dash-grid">
-        <Card className="calendar-card">
-          <Calendar trades={activeTrades} notes={activeNotes} onOpenDay={openDayReview} />
-        </Card>
-
-        <div className="dash-side-stack">
-          <Card className="balance-card">
-            <div className="card-head">
-              <div className="card-head-copy">
-                <span className="card-kicker"><i className="dot" /> Account value</span>
-                <h3 className="card-title">Balance from base</h3>
-              </div>
-              <Wallet size={16} className="card-icon" />
+        <Card className="balance-card">
+          <div className="card-head">
+            <div className="card-head-copy">
+              <span className="card-kicker"><i className="dot" /> Account value</span>
+              <h3 className="card-title">Balance from base</h3>
             </div>
-            <div className="balance-value-row">
-              <strong className={cn('num', balance < starting && 'is-neg')}>{formatMoney(balance)}</strong>
-              <span className={cn('balance-delta', allStats.net >= 0 ? 'is-pos' : 'is-neg')}>
-                {signedPercent(starting ? (allStats.net / starting) * 100 : 0)}
+            <Wallet size={16} className="card-icon" />
+          </div>
+          <div className="balance-value-row">
+            <strong className={cn('num', balance < starting && 'is-neg')}>{formatMoney(balance)}</strong>
+            <span className={cn('balance-delta', allStats.net >= 0 ? 'is-pos' : 'is-neg')}>
+              {signedPercent(starting ? (allStats.net / starting) * 100 : 0)}
+            </span>
+          </div>
+          <div className="balance-stats">
+            <div><span>Starting</span><b className="num">{formatMoney(starting)}</b></div>
+            <div><span>Net since base</span><b className={cn('num', allStats.net > 0 && 'is-pos', allStats.net < 0 && 'is-neg')}>{signedMoney(allStats.net)}</b></div>
+            <div><span>Return</span><b className={cn('num', allStats.net >= 0 ? 'is-pos' : 'is-neg')}>{signedPercent(starting ? (allStats.net / starting) * 100 : 0)}</b></div>
+          </div>
+          <div className="balance-range">
+            <div className="balance-range-labels">
+              <div className="balance-range-label is-loss">
+                <span>Loss limit</span>
+                <b className="num">−{formatMoney(lossLimitAmount)}</b>
+              </div>
+              <div className="balance-range-label is-base">
+                <span>Base</span>
+                <b className="num">{formatMoney(starting)}</b>
+              </div>
+              <div className="balance-range-label is-gain">
+                <span>{targetAmount > 0 ? 'Target' : 'Milestone'}</span>
+                <b className="num">+{formatMoney(planTarget)}</b>
+              </div>
+            </div>
+            <div className={cn('balance-range-track', currentVsBase < 0 ? 'is-loss' : 'is-gain')}>
+              <span className="balance-range-half is-loss" aria-hidden="true" />
+              <span className="balance-range-half is-gain" aria-hidden="true" />
+              <span
+                className="balance-range-fill"
+                style={{ left: `${fillLeft}%`, width: `${fillWidth}%` }}
+                aria-hidden="true"
+              />
+              <span className="balance-range-base" aria-hidden="true" />
+              <span
+                className="balance-range-marker"
+                style={{ left: `${markerPct}%` }}
+                aria-hidden="true"
+              />
+            </div>
+            <div className="balance-range-foot">
+              <span>{lossBuffer > 0 ? `${formatMoney(lossBuffer)} buffer` : 'At loss limit'}</span>
+              <span>Current <b className="num">{formatMoney(balance)}</b></span>
+              <span>
+                {targetReached
+                  ? 'Target reached'
+                  : `${formatMoney(targetGap)} to ${targetAmount > 0 ? 'target' : 'milestone'}`}
               </span>
             </div>
-            <div className="balance-stats">
-              <div><span>Starting</span><b className="num">{formatMoney(starting)}</b></div>
-              <div><span>Net since base</span><b className={cn('num', allStats.net > 0 && 'is-pos', allStats.net < 0 && 'is-neg')}>{signedMoney(allStats.net)}</b></div>
-              <div><span>Return</span><b className={cn('num', allStats.net >= 0 ? 'is-pos' : 'is-neg')}>{signedPercent(starting ? (allStats.net / starting) * 100 : 0)}</b></div>
-            </div>
-            <div className="balance-range">
-              <div className="balance-range-labels">
-                <div className="balance-range-label is-loss">
-                  <span>Loss limit</span>
-                  <b className="num">−{formatMoney(lossLimitAmount)}</b>
-                </div>
-                <div className="balance-range-label is-base">
-                  <span>Base</span>
-                  <b className="num">{formatMoney(starting)}</b>
-                </div>
-                <div className="balance-range-label is-gain">
-                  <span>{targetAmount > 0 ? 'Target' : 'Milestone'}</span>
-                  <b className="num">+{formatMoney(planTarget)}</b>
-                </div>
-              </div>
-              <div className={cn('balance-range-track', currentVsBase < 0 ? 'is-loss' : 'is-gain')}>
-                <span className="balance-range-half is-loss" aria-hidden="true" />
-                <span className="balance-range-half is-gain" aria-hidden="true" />
-                <span
-                  className="balance-range-fill"
-                  style={{ left: `${fillLeft}%`, width: `${fillWidth}%` }}
-                  aria-hidden="true"
-                />
-                <span className="balance-range-base" aria-hidden="true" />
-                <span
-                  className="balance-range-marker"
-                  style={{ left: `${markerPct}%` }}
-                  aria-hidden="true"
-                />
-              </div>
-              <div className="balance-range-foot">
-                <span>{lossBuffer > 0 ? `${formatMoney(lossBuffer)} buffer` : 'At loss limit'}</span>
-                <span>Current <b className="num">{formatMoney(balance)}</b></span>
-                <span>
-                  {targetReached
-                    ? 'Target reached'
-                    : `${formatMoney(targetGap)} to ${targetAmount > 0 ? 'target' : 'milestone'}`}
-                </span>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="insights-card">
-            <div className="card-head">
-              <div className="card-head-copy">
-                <span className="card-kicker"><i className="dot" /> Pattern engine</span>
-                <h3 className="card-title">What the data says</h3>
-              </div>
-              <Sparkles size={15} className="card-icon" />
-            </div>
-            <div className="insight-list">
-              {insights.length ? (
-                insights.slice(0, 3).map((insight) => (
-                  <div className={cn('insight', insight.tone === 'pos' ? 'is-pos' : insight.tone === 'neg' ? 'is-neg' : 'is-warn')} key={`${insight.tag}-${insight.title}`}>
-                    <span className="insight-tag">
-                      {insight.tone === 'pos' ? <Flame size={10} /> : <Sparkles size={10} />}
-                      {insight.tag}
-                    </span>
-                    <b>{insight.title}</b>
-                    <p>{insight.text}</p>
-                  </div>
-                ))
-              ) : (
-                <div className="insight-empty">
-                  <Sparkles size={18} />
-                  <p>Not enough trades in this range to surface patterns. Keep logging.</p>
-                </div>
-              )}
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="insights-link"
-              iconRight={<ArrowUpRight size={13} />}
-              onClick={() => navigate('/stats')}
-            >
-              Open full statistics
-            </Button>
-          </Card>
-        </div>
+          </div>
+        </Card>
       </div>
 
       {activeIsDemo && (

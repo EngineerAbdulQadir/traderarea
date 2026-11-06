@@ -57,6 +57,7 @@ export interface Note {
   text: string
   updatedAt: string
   seeded?: boolean
+  images?: string[]
 }
 
 export type AccountNotes = Record<string, Note>

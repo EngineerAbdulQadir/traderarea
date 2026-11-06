@@ -60,7 +60,7 @@ interface AppContextValue {
   isDemo: (account: Account | null | undefined) => boolean
   saveTrade: (trade: Trade) => void
   deleteTrade: (id: string) => void
-  saveNote: (accountId: string, date: string, text: string) => void
+  saveNote: (accountId: string, date: string, text: string, images?: string[]) => void
   challengeOpen: boolean
   openChallenge: () => void
   closeChallenge: () => void
@@ -259,12 +259,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTrades((previous) => previous.filter((trade) => trade.id !== id))
   }, [])
 
-  const saveNote = useCallback((accountId: string, date: string, text: string) => {
+  const saveNote = useCallback((accountId: string, date: string, text: string, images?: string[]) => {
     setNotes((previous) => {
       const accountNotes = { ...(previous[accountId] ?? {}) }
       const trimmed = text.trim()
-      if (trimmed) {
-        accountNotes[date] = { text: trimmed, updatedAt: new Date().toISOString() }
+      const existing = accountNotes[date]
+      const noteImages = images !== undefined ? images : existing?.images
+      if (trimmed || (noteImages && noteImages.length > 0)) {
+        accountNotes[date] = {
+          text: trimmed,
+          updatedAt: new Date().toISOString(),
+          images: noteImages && noteImages.length > 0 ? noteImages : undefined,
+        }
       } else {
         delete accountNotes[date]
       }

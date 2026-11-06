@@ -4,8 +4,8 @@ import {
   ArrowRight,
   BarChart3,
   BookOpenText,
+  CalendarDays,
   FileBarChart,
-  LayoutDashboard,
   ListOrdered,
   Moon,
   Plus,
@@ -55,7 +55,8 @@ export function CommandPalette() {
     }
 
     const pages: CommandItem[] = [
-      { id: 'page-dashboard', label: 'Dashboard', hint: 'Performance overview', group: 'Navigate', icon: <LayoutDashboard size={15} />, run: closeAnd(() => navigate('/')) },
+      { id: 'page-metrics', label: 'Metrics', hint: 'Performance & KPI dashboard', group: 'Navigate', icon: <BarChart3 size={15} />, run: closeAnd(() => navigate('/')) },
+      { id: 'page-journal', label: 'Journal', hint: 'Session calendar & reflections', group: 'Navigate', icon: <CalendarDays size={15} />, run: closeAnd(() => navigate('/journal')) },
       { id: 'page-accounts', label: 'Accounts', hint: 'Challenges and phases', group: 'Navigate', icon: <Wallet size={15} />, run: closeAnd(() => navigate('/accounts')) },
       { id: 'page-stats', label: 'Stats', hint: 'Timing, markets, behaviour', group: 'Navigate', icon: <BarChart3 size={15} />, run: closeAnd(() => navigate('/stats')) },
       { id: 'page-entries', label: 'Entries', hint: 'Every trade in the journal', group: 'Navigate', icon: <ListOrdered size={15} />, run: closeAnd(() => navigate('/entries')) },

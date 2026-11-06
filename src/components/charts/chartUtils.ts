@@ -21,6 +21,18 @@ export function smoothPath(points: ChartPoint[], tension = 0.18): string {
   return path
 }
 
+export function stepPath(points: ChartPoint[]): string {
+  if (!points.length) return ''
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`
+  let path = `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`
+  for (let i = 0; i < points.length - 1; i++) {
+    const nextX = points[i + 1].x
+    const nextY = points[i + 1].y
+    path += ` H ${nextX.toFixed(2)} V ${nextY.toFixed(2)}`
+  }
+  return path
+}
+
 export function clampChart(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
@@ -32,3 +44,14 @@ export function axisMoney(value: number): string {
   if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(abs >= 10_000 ? 0 : 1).replace(/\.0$/, '')}K`
   return `${sign}$${Math.round(abs)}`
 }
+
+export function calculateEMA(values: number[], period = 5): number[] {
+  if (!values.length) return []
+  const k = 2 / (period + 1)
+  const result: number[] = [values[0]]
+  for (let i = 1; i < values.length; i++) {
+    result.push(values[i] * k + result[i - 1] * (1 - k))
+  }
+  return result
+}
+

@@ -7,6 +7,7 @@ import { DayReviewModal } from '@/components/modals/DayReviewModal'
 import { TradeModal } from '@/components/modals/TradeModal'
 import { AccountsPage } from '@/pages/Accounts'
 import { DashboardPage } from '@/pages/Dashboard'
+import { JournalPage } from '@/pages/Journal'
 import { EntriesPage } from '@/pages/Entries'
 import { NotesPage } from '@/pages/Notes'
 import { ReportsPage } from '@/pages/Reports'
@@ -18,6 +19,8 @@ export default function App() {
       <Routes>
         <Route element={<AppShell />}>
           <Route index element={<DashboardPage />} />
+          <Route path="metrics" element={<DashboardPage />} />
+          <Route path="journal" element={<JournalPage />} />
           <Route path="accounts" element={<AccountsPage />} />
           <Route path="stats" element={<StatsPage />} />
           <Route path="entries" element={<EntriesPage />} />

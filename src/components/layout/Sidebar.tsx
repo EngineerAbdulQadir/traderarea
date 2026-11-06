@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   Layers,
-  NotebookPen,
+  BarChart3,
+  CalendarDays,
   ChevronRight,
   PanelLeftClose,
   PanelLeftOpen,
@@ -102,7 +103,17 @@ export function Sidebar({
             className={({ isActive }) => cn('nav-item', isActive && 'active')}
             onClick={onCloseMobile}
           >
-            <NotebookPen size={16} strokeWidth={1.7} />
+            <BarChart3 size={16} strokeWidth={1.7} />
+            <span className="nav-label">Metrics</span>
+            {collapsed && !isMobile && <span className="nav-tooltip">Metrics</span>}
+          </NavLink>
+
+          <NavLink
+            to="/journal"
+            className={({ isActive }) => cn('nav-item', isActive && 'active')}
+            onClick={onCloseMobile}
+          >
+            <CalendarDays size={16} strokeWidth={1.7} />
             <span className="nav-label">Journal</span>
             {collapsed && !isMobile && <span className="nav-tooltip">Journal</span>}
           </NavLink>

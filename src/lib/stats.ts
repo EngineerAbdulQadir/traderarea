@@ -509,12 +509,37 @@ export function buildCumulativeSeries(stats: Stats): CumulativePoint[] {
   })
 }
 
-export function buildIntradaySeries(trades: Trade[]): { time: string; value: number }[] {
+export function buildIntradaySeries(trades: Trade[]): {
+  time: string
+  value: number
+  tradeId?: string
+  ticker?: string
+  pnl?: number
+  side?: string
+  playbook?: string
+}[] {
   let running = 0
-  const points = [{ time: trades[0]?.openTime || '—', value: 0 }]
+  const points: {
+    time: string
+    value: number
+    tradeId?: string
+    ticker?: string
+    pnl?: number
+    side?: string
+    playbook?: string
+  }[] = [{ time: trades[0]?.openTime || '—', value: 0 }]
+
   trades.forEach((trade) => {
     running += trade.pnl
-    points.push({ time: trade.closeTime || trade.openTime || '—', value: running })
+    points.push({
+      time: trade.closeTime || trade.openTime || '—',
+      value: running,
+      tradeId: trade.id,
+      ticker: trade.ticker,
+      pnl: trade.pnl,
+      side: trade.side,
+      playbook: trade.playbook,
+    })
   })
   return points
 }

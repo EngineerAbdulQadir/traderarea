@@ -3022,7 +3022,7 @@ body.modal-open{overflow:hidden}
 .db-view .db-bars-foot{margin-top:16px;padding-top:15px;border-top:1px solid var(--m-line-2);font-size:9.5px;gap:10px}
 
 /* ---------- calendar ---------- */
-.db-view .db-calendar-card{padding:26px 28px 22px}
+.db-view .db-calendar-card{padding:20px 22px 16px}
 .db-view .tc-title h3{font-size:22px;font-weight:650;letter-spacing:-.6px}
 .db-view .tc-sub{font-size:11px;margin-top:6px;color:var(--m-ink-3)}
 .db-view .tc-sub .is-pos{color:var(--m-pos)}
@@ -3049,7 +3049,7 @@ body.modal-open{overflow:hidden}
 .db-view .tc-grid{gap:8px}
 .db-view .tc-dows span{font-size:9px;letter-spacing:.15em;color:var(--m-ink-3)}
 .db-view .tc-day{
-  min-height:82px;padding:11px 12px 10px;border-radius:12px;
+  min-height:64px;padding:9px 10px 8px;border-radius:12px;
   border:1px solid var(--m-line-2);
   transition:transform .25s var(--m-ease),border-color .25s var(--m-ease),box-shadow .25s var(--m-ease),background .25s;
 }
@@ -3073,7 +3073,7 @@ body.modal-open{overflow:hidden}
 .db-view .tc-legend i.note{border-radius:50%}
 
 /* ---------- balance ---------- */
-.db-view .db-balance{padding:26px 28px 24px}
+.db-view .db-balance{padding:20px 22px 18px}
 .db-view .db-balance-value{font-size:42px;font-weight:650;letter-spacing:-2px;color:var(--m-ink)}
 .db-view .db-balance-main{margin-top:20px;gap:14px}
 .db-view .db-balance-badge{height:28px;padding:0 12px;border-radius:999px;font-size:9.5px;letter-spacing:.03em}
@@ -3387,7 +3387,7 @@ body.modal-open{overflow:hidden}
 .db-view .db-rules-status.is-danger{color:#ffa1b3;border-color:rgba(244,67,108,.3);background:rgba(244,67,108,.08)}
 .db-view .db-rule-list{display:flex;flex-direction:column;gap:12px;margin-top:20px;flex:1;justify-content:space-between}
 .db-view .db-rule{
-  --rc:#34d399;--rc2:#1d9c72;
+  --rc:#34d399;--rc2:#0f8a97;
   padding:15px 17px 14px;border-radius:15px;border:1px solid var(--m-line-2);
   background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.008));
   transition:border-color .3s var(--m-ease),transform .3s var(--m-ease);
@@ -3401,11 +3401,10 @@ body.modal-open{overflow:hidden}
 .db-view .db-rule-name{font-size:11.5px;font-weight:600;color:var(--m-ink-2)}
 .db-view .db-rule-top b{font-size:17px;font-weight:700;letter-spacing:-.5px;color:var(--m-ink)}
 .db-view .db-rule-top b small{font-size:10.5px;font-weight:600;letter-spacing:0;color:var(--m-ink-3)}
-.db-view .db-rule-bar{height:7px;margin-top:11px;border-radius:999px;background:rgba(255,255,255,.06);box-shadow:inset 0 1px 2px rgba(0,0,0,.5);overflow:hidden}
+.db-view .db-rule-bar{height:3px;margin-top:8px;border-radius:3px;background:rgba(255,255,255,.07);overflow:hidden}
 .db-view .db-rule-bar i{
-  display:block;height:100%;border-radius:999px;min-width:3px;
+  display:block;height:100%;border-radius:3px;min-width:3px;
   background:linear-gradient(90deg,var(--rc2),var(--rc));
-  box-shadow:0 0 14px color-mix(in srgb,var(--rc) 45%,transparent);
   animation:mBar 1s var(--m-ease) both;transform-origin:left;
 }
 @keyframes mBar{from{transform:scaleX(0)}to{transform:scaleX(1)}}
@@ -8708,3 +8707,4 @@ syncAccountUI();
 </script>
 </body>
 </html>
+

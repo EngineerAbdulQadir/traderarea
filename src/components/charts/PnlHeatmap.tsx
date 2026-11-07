@@ -203,7 +203,7 @@ export function PnlHeatmap({ days, to, onOpenDay }: PnlHeatmapProps) {
                         let tint: CSSProperties = {}
                         if (row) {
                           const ratio = Math.min(1, Math.abs(row.pnl) / model.maxAbs)
-                          const alpha = row.pnl === 0 ? 0.1 : 0.16 + Math.pow(ratio, 0.55) * 0.74
+                          const alpha = row.pnl === 0 ? 0.12 : 0.28 + Math.pow(ratio, 0.5) * 0.62
                           tint = { background: `rgb(var(--heat-blue-rgb) / ${alpha.toFixed(3)})` }
                         }
 

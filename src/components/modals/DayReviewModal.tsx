@@ -201,7 +201,7 @@ export function DayReviewModal() {
     setImages([])
     setEditing(false)
     setConfirmNoteDelete(false)
-    showToast('Note deleted', `The reflection for ${formatLongDate(dayReview.date)} was removed.`, 'info')
+    showToast('Note deleted', `The note for ${formatLongDate(dayReview.date)} was removed.`, 'info')
   }
 
   const removeImage = (indexToRemove: number) => {
@@ -252,7 +252,7 @@ export function DayReviewModal() {
             </h2>
             <p className="modal-sub">
               {date === new Date().toISOString().slice(0, 10)
-                ? 'Today’s execution, reflections and trade detail.'
+                ? 'Today’s execution, notes and trade detail.'
                 : 'A session in review — curve, results and the note you left behind.'}
             </p>
           </div>
@@ -283,7 +283,7 @@ export function DayReviewModal() {
           {editing ? (
             <section className="day-note is-editing">
               <div className="day-note-head">
-                <span><PenLine size={12} /> Journal Reflection</span>
+                <span><PenLine size={12} /> Note</span>
                 {note && <time>{noteSavedLabel(note.updatedAt)}</time>}
               </div>
               <textarea
@@ -361,7 +361,7 @@ export function DayReviewModal() {
                 <div className="form-confirm compact">
                   <div className="form-confirm-icon"><Trash2 size={14} /></div>
                   <div>
-                    <b>Delete this journal reflection?</b>
+                    <b>Delete this note?</b>
                     <span>The notes and attached screenshots for this session will be removed.</span>
                   </div>
                   <div className="form-confirm-actions">
@@ -369,7 +369,7 @@ export function DayReviewModal() {
                       Keep
                     </Button>
                     <Button variant="danger" size="sm" type="button" onClick={deleteCurrentNote}>
-                      Delete reflection
+                      Delete note
                     </Button>
                   </div>
                 </div>
@@ -378,7 +378,7 @@ export function DayReviewModal() {
           ) : hasNoteContent ? (
             <section className="day-note">
               <div className="day-note-head">
-                <span><PenLine size={12} /> Journal Reflection</span>
+                <span><PenLine size={12} /> Note</span>
                 <div className="day-note-actions">
                   {note?.seeded && <Badge tone="violet">Sample</Badge>}
                   {note?.updatedAt && <time>{noteSavedLabel(note.updatedAt)}</time>}
@@ -429,7 +429,7 @@ export function DayReviewModal() {
                 <div className="form-confirm compact">
                   <div className="form-confirm-icon"><Trash2 size={14} /></div>
                   <div>
-                    <b>Delete this journal reflection?</b>
+                    <b>Delete this note?</b>
                     <span>The notes and attached screenshots for this session will be removed.</span>
                   </div>
                   <div className="form-confirm-actions">
@@ -437,7 +437,7 @@ export function DayReviewModal() {
                       Keep
                     </Button>
                     <Button variant="danger" size="sm" type="button" onClick={deleteCurrentNote}>
-                      Delete reflection
+                      Delete note
                     </Button>
                   </div>
                 </div>
@@ -448,7 +448,7 @@ export function DayReviewModal() {
               <div className="day-note-empty-left">
                 <span className="day-note-empty-icon"><PenLine size={15} /></span>
                 <div>
-                  <b>Add session reflection &amp; chart screenshots</b>
+                  <b>Add session note &amp; chart screenshots</b>
                   <p>Record your execution plan, mistakes and market context. Press ⌘V to paste screenshots.</p>
                 </div>
               </div>

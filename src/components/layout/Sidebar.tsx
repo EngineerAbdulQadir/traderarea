@@ -3,12 +3,9 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   Layers,
   BarChart3,
-  CalendarDays,
+  NotebookPen,
   ChevronRight,
-  PanelLeftClose,
-  PanelLeftOpen,
   Plus,
-  X,
   Check,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
@@ -17,19 +14,23 @@ import { accountBadge, accountGradient, titleFor } from '@/lib/accounts'
 import { AccountAvatar } from '@/components/ui/AccountAvatar'
 import { cn } from '@/lib/cn'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { useTheme } from '@/hooks/useTheme'
+
+import logoLight from '../../../assets/logolight.png'
+import logoDark from '../../../assets/logodark.png'
 
 export function Sidebar({
   collapsed,
-  onToggleCollapsed,
   mobileOpen,
   onCloseMobile,
 }: {
   collapsed: boolean
-  onToggleCollapsed: () => void
+  onToggleCollapsed?: () => void
   mobileOpen: boolean
   onCloseMobile: () => void
 }) {
   const { accounts, activeAccount, setActiveAccount, openChallenge } = useApp()
+  const { isDark } = useTheme()
   const [switcherOpen, setSwitcherOpen] = useState(false)
   const dockRef = useRef<HTMLDivElement>(null)
   const location = useLocation()
@@ -48,39 +49,11 @@ export function Sidebar({
     return () => document.removeEventListener('mousedown', onClick)
   }, [switcherOpen])
 
-  const handleCollapse = () => {
-    if (isMobile) onCloseMobile()
-    else onToggleCollapsed()
-  }
-
   return (
     <>
       <aside className={cn('sidebar', mobileOpen && 'mobile-open')} aria-label="Primary navigation">
         <div className="sidebar-brand">
-          <div className="brand-mark">
-            <img src="/logo-theme.png" alt="" aria-hidden="true" />
-          </div>
-          <div className="brand-copy">
-            <span className="brand-name">Trader Area</span>
-            <span className="brand-sub">Performance OS</span>
-          </div>
-          <div className="brand-actions">
-            <button
-              className="collapse-btn"
-              type="button"
-              onClick={handleCollapse}
-              title={isMobile ? 'Close navigation' : collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              aria-label={isMobile ? 'Close navigation' : collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            >
-              {isMobile ? (
-                <X size={14} />
-              ) : collapsed ? (
-                <PanelLeftOpen size={14} />
-              ) : (
-                <PanelLeftClose size={14} />
-              )}
-            </button>
-          </div>
+          <img className="sidebar-logo" src={isDark ? logoDark : logoLight} alt="Trader Area" />
         </div>
 
         <div className="sidebar-scroll">
@@ -108,12 +81,13 @@ export function Sidebar({
             {collapsed && !isMobile && <span className="nav-tooltip">Metrics</span>}
           </NavLink>
 
+
           <NavLink
             to="/journal"
             className={({ isActive }) => cn('nav-item', isActive && 'active')}
             onClick={onCloseMobile}
           >
-            <CalendarDays size={16} strokeWidth={1.7} />
+            <NotebookPen size={16} strokeWidth={1.7} />
             <span className="nav-label">Journal</span>
             {collapsed && !isMobile && <span className="nav-tooltip">Journal</span>}
           </NavLink>

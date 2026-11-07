@@ -57,7 +57,6 @@ export function DashboardPage() {
     activeAccount,
     activeTrades,
     activeIsDemo,
-    openTradeEditor,
     openChallenge,
     openDayReview,
     addDemoAccount,
@@ -394,24 +393,6 @@ export function DashboardPage() {
         </Card>
 
       </div>
-
-      {activeIsDemo && (
-        <div className="demo-banner">
-          <div className="demo-banner-icon"><Sparkles size={16} /></div>
-          <div>
-            <b>You're exploring a sample workspace.</b>
-            <p>These trades are generated locally to show how Trader Area works. Log your first real trade and the sample data steps aside for your own journal.</p>
-          </div>
-          <div className="demo-banner-actions">
-            <Button variant="primary" size="sm" iconLeft={<Plus size={13} />} onClick={() => openTradeEditor()}>
-              Log first trade
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/entries')}>
-              Browse entries
-            </Button>
-          </div>
-        </div>
-      )}
 
       <div className="dash-footnote">
         <span>Today is {today}</span>

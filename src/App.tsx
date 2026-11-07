@@ -6,6 +6,7 @@ import { ChallengeModal } from '@/components/modals/ChallengeModal'
 import { DayReviewModal } from '@/components/modals/DayReviewModal'
 import { TradeModal } from '@/components/modals/TradeModal'
 import { AccountsPage } from '@/pages/Accounts'
+import { AuthPage } from '@/pages/Auth'
 import { DashboardPage } from '@/pages/Dashboard'
 import { JournalPage } from '@/pages/Journal'
 import { EntriesPage } from '@/pages/Entries'
@@ -17,6 +18,7 @@ export default function App() {
   return (
     <>
       <Routes>
+        <Route path="auth" element={<AuthPage />} />
         <Route element={<AppShell />}>
           <Route index element={<DashboardPage />} />
           <Route path="metrics" element={<DashboardPage />} />

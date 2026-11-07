@@ -7,9 +7,7 @@ import {
   Plus,
   ShieldCheck,
   Sparkles,
-  Target,
   TrendingUp,
-  Wallet,
 } from 'lucide-react'
 import { useApp } from '@/store/AppStore'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -19,7 +17,7 @@ import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { AccountAvatar } from '@/components/ui/AccountAvatar'
 import { DateRangePicker } from '@/components/ui/DateRangePicker'
-import { DailyPnl } from '@/components/charts/DailyPnl'
+import { PnlHeatmap } from '@/components/charts/PnlHeatmap'
 import { Donut } from '@/components/charts/Donut'
 import { ProfitFactorGauge } from '@/components/charts/ProfitFactorGauge'
 import { DayStrip } from '@/components/charts/DayStrip'
@@ -61,6 +59,7 @@ export function DashboardPage() {
     activeIsDemo,
     openTradeEditor,
     openChallenge,
+    openDayReview,
     addDemoAccount,
   } = useApp()
   const navigate = useNavigate()
@@ -125,57 +124,29 @@ export function DashboardPage() {
 
   const returnPct = starting ? (stats.net / starting) * 100 : 0
 
-  const targetAmount = starting * ((Number(activeAccount.rules?.target) || 0) / 100)
-  const planTarget = targetAmount > 0 ? targetAmount : starting * 0.1
-  const gainSpan = planTarget || 1
-  const lossLimitPct = Number(activeAccount.rules?.max) || 10
-  const lossLimitAmount = starting * (lossLimitPct / 100)
-  const lossSpan = lossLimitAmount || 1
   const balance = starting + allStats.net
-  const currentVsBase = balance - starting
-  const markerPct =
-    currentVsBase === 0
-      ? 50
-      : currentVsBase > 0
-        ? 50 + Math.min(1, currentVsBase / gainSpan) * 50
-        : 50 - Math.min(1, Math.abs(currentVsBase) / lossSpan) * 50
-  const fillLeft = Math.min(50, markerPct)
-  const fillWidth = Math.abs(markerPct - 50)
-  const lossBuffer = Math.max(0, lossLimitAmount + currentVsBase)
-  const targetGap = Math.max(0, planTarget - currentVsBase)
-  const targetReached = currentVsBase >= planTarget
   const earliest = activeTrades.reduce(
     (min, trade) => (trade.date && trade.date < min ? trade.date : min),
     activeAccount.startDate || rangeFrom,
   )
   const heroMeta = accountMetaCompact(activeAccount)
-  const recentDays = stats.dayRows.slice(-20)
-  const recentNet = recentDays.reduce((sum, day) => sum + day.pnl, 0)
   const equal = stats.avgLoss === 0
 
   return (
     <div className="page dashboard-page">
       <PageHeader
-        title="Metrics"
+        className="dashboard-toolbar"
         actions={
-          <>
-            <DateRangePicker
-              from={rangeFrom}
-              to={rangeTo}
-              minDate={earliest}
-              maxDate={today}
-              onChange={(nextFrom, nextTo) => {
-                setStoredFrom(nextFrom)
-                setStoredTo(nextTo)
-              }}
-            />
-            <Button variant="secondary" iconLeft={<Plus size={14} />} onClick={openChallenge}>
-              Challenge
-            </Button>
-            <Button variant="primary" iconLeft={<Plus size={14} />} onClick={() => openTradeEditor()}>
-              Log trade
-            </Button>
-          </>
+          <DateRangePicker
+            from={rangeFrom}
+            to={rangeTo}
+            minDate={earliest}
+            maxDate={today}
+            onChange={(nextFrom, nextTo) => {
+              setStoredFrom(nextFrom)
+              setStoredTo(nextTo)
+            }}
+          />
         }
       />
 
@@ -380,37 +351,15 @@ export function DashboardPage() {
         </Card>
       </section>
 
-      <div className="dash-grid">
-        <Card className="chart-card daily-card">
-          <div className="card-head">
-            <div className="card-head-copy">
-              <span className="card-kicker">Daily P&amp;L</span>
-            </div>
-            <div className="card-head-value">
-              <b className={cn('num', recentNet > 0 && 'is-pos', recentNet < 0 && 'is-neg')}>{signedMoney(recentNet)}</b>
-              <span>{recentDays.length}-day net P&amp;L</span>
-            </div>
-          </div>
-          <DailyPnl days={recentDays} type="daily" showStats={true} height={260} />
-        </Card>
+      <Card className="chart-card pnl-heat-card">
+        <PnlHeatmap days={allStats.dayRows} to={rangeTo} onOpenDay={openDayReview} />
+      </Card>
 
-        <Card className="chart-card daily-card">
-          <div className="card-head">
-            <div className="card-head-copy">
-              <span className="card-kicker">Cumulative P&amp;L</span>
-            </div>
-          </div>
-          <DailyPnl days={recentDays} type="cumulative" height={260} />
-        </Card>
-      </div>
-
-      <div className="dash-grid">
+      <div className="dash-grid dash-single">
         <Card className="rules-card">
           <div className="card-head">
             <div className="card-head-copy">
-              <span className="card-kicker"><i className="dot" /> Challenge guardrails</span>
-              <h3 className="card-title">Risk &amp; progress</h3>
-              <p className="card-sub">Full account history</p>
+              <span className="card-kicker">Rules</span>
             </div>
             {rules && (
               <Badge tone={rules.tone === 'danger' ? 'neg' : rules.tone === 'warn' ? 'warn' : rules.tone === 'done' ? 'pos' : 'accent'} dot>
@@ -423,18 +372,16 @@ export function DashboardPage() {
               rules.rows.map((row) => (
                 <div className={cn('rule-row', ruleToneClass(row.tone))} key={row.name}>
                   <div className="rule-top">
-                    <span>{row.name}</span>
-                    <b className="num">
-                      {row.value} {row.limit && <small>{row.limit}</small>}
-                    </b>
+                    <span className="rule-name">{row.name}</span>
+                    <span className="rule-figure">
+                      <b className="num">{row.value}</b>
+                      {row.limit && <small>{row.limit}</small>}
+                    </span>
                   </div>
                   <div className="rule-track">
                     <i style={{ width: `${Math.min(100, Math.max(0, row.pct))}%` }} />
                   </div>
-                  <div className="rule-sub">
-                    <span>{row.left}</span>
-                    <span>{row.right}</span>
-                  </div>
+                  <span className="rule-note">{row.left}</span>
                 </div>
               ))
             ) : (
@@ -444,78 +391,8 @@ export function DashboardPage() {
               </div>
             )}
           </div>
-          <div className="rules-foot">
-            <Target size={13} />
-            <span>
-              {rules?.rows.length
-                ? 'Limits update from the full account history, not the selected range.'
-                : 'Add a challenge with rules to track your buffers.'}
-            </span>
-          </div>
         </Card>
-      </div>
 
-      <div className="dash-grid">
-        <Card className="balance-card">
-          <div className="card-head">
-            <div className="card-head-copy">
-              <span className="card-kicker"><i className="dot" /> Account value</span>
-              <h3 className="card-title">Balance from base</h3>
-            </div>
-            <Wallet size={16} className="card-icon" />
-          </div>
-          <div className="balance-value-row">
-            <strong className={cn('num', balance < starting && 'is-neg')}>{formatMoney(balance)}</strong>
-            <span className={cn('balance-delta', allStats.net >= 0 ? 'is-pos' : 'is-neg')}>
-              {signedPercent(starting ? (allStats.net / starting) * 100 : 0)}
-            </span>
-          </div>
-          <div className="balance-stats">
-            <div><span>Starting</span><b className="num">{formatMoney(starting)}</b></div>
-            <div><span>Net since base</span><b className={cn('num', allStats.net > 0 && 'is-pos', allStats.net < 0 && 'is-neg')}>{signedMoney(allStats.net)}</b></div>
-            <div><span>Return</span><b className={cn('num', allStats.net >= 0 ? 'is-pos' : 'is-neg')}>{signedPercent(starting ? (allStats.net / starting) * 100 : 0)}</b></div>
-          </div>
-          <div className="balance-range">
-            <div className="balance-range-labels">
-              <div className="balance-range-label is-loss">
-                <span>Loss limit</span>
-                <b className="num">−{formatMoney(lossLimitAmount)}</b>
-              </div>
-              <div className="balance-range-label is-base">
-                <span>Base</span>
-                <b className="num">{formatMoney(starting)}</b>
-              </div>
-              <div className="balance-range-label is-gain">
-                <span>{targetAmount > 0 ? 'Target' : 'Milestone'}</span>
-                <b className="num">+{formatMoney(planTarget)}</b>
-              </div>
-            </div>
-            <div className={cn('balance-range-track', currentVsBase < 0 ? 'is-loss' : 'is-gain')}>
-              <span className="balance-range-half is-loss" aria-hidden="true" />
-              <span className="balance-range-half is-gain" aria-hidden="true" />
-              <span
-                className="balance-range-fill"
-                style={{ left: `${fillLeft}%`, width: `${fillWidth}%` }}
-                aria-hidden="true"
-              />
-              <span className="balance-range-base" aria-hidden="true" />
-              <span
-                className="balance-range-marker"
-                style={{ left: `${markerPct}%` }}
-                aria-hidden="true"
-              />
-            </div>
-            <div className="balance-range-foot">
-              <span>{lossBuffer > 0 ? `${formatMoney(lossBuffer)} buffer` : 'At loss limit'}</span>
-              <span>Current <b className="num">{formatMoney(balance)}</b></span>
-              <span>
-                {targetReached
-                  ? 'Target reached'
-                  : `${formatMoney(targetGap)} to ${targetAmount > 0 ? 'target' : 'milestone'}`}
-              </span>
-            </div>
-          </div>
-        </Card>
       </div>
 
       {activeIsDemo && (

@@ -26,11 +26,10 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
       </button>
       <div className="topbar-title">
         <b>{meta.title}</b>
-        <span>{meta.group}</span>
       </div>
       <div className="topbar-right">
         <button className="command-trigger" type="button" onClick={() => setCommandOpen(true)}>
-          <Search size={13} />
+          <Search size={15} strokeWidth={1.8} />
           <span>Search anything…</span>
           <kbd>⌘K</kbd>
         </button>

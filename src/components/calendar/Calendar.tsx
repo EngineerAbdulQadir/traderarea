@@ -189,6 +189,7 @@ export function Calendar({ trades, notes, onOpenDay }: CalendarProps) {
                     className={cn(
                       'calendar-day',
                       tone && `is-${tone}`,
+                      iso === today && 'is-today',
                       future && 'is-future',
                       note && 'has-note',
                       !row && 'is-empty'

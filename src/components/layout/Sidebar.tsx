@@ -1,23 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
-import {
-  Layers,
-  BarChart3,
-  NotebookPen,
-  ChevronRight,
-  Plus,
-  Check,
-} from 'lucide-react'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Layers, BarChart3, NotebookPen, LogOut, Plus, ChevronsUpDown } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useApp } from '@/store/AppStore'
-import { accountBadge, accountGradient, titleFor } from '@/lib/accounts'
-import { AccountAvatar } from '@/components/ui/AccountAvatar'
 import { cn } from '@/lib/cn'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useTheme } from '@/hooks/useTheme'
 
 import logoLight from '../../../assets/logolight.png'
 import logoDark from '../../../assets/logodark.png'
+
+const PROFILE = {
+  name: 'Alex M.',
+  email: 'alex@traderarea.local',
+  initials: 'AX',
+}
 
 export function Sidebar({
   collapsed,
@@ -29,25 +26,26 @@ export function Sidebar({
   mobileOpen: boolean
   onCloseMobile: () => void
 }) {
-  const { accounts, activeAccount, setActiveAccount, openChallenge } = useApp()
+  const { openChallenge } = useApp()
   const { isDark } = useTheme()
-  const [switcherOpen, setSwitcherOpen] = useState(false)
-  const dockRef = useRef<HTMLDivElement>(null)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const profileRef = useRef<HTMLDivElement>(null)
   const location = useLocation()
+  const navigate = useNavigate()
   const isMobile = useMediaQuery('(max-width: 900px)')
 
   useEffect(() => {
-    setSwitcherOpen(false)
+    setProfileOpen(false)
   }, [location.pathname])
 
   useEffect(() => {
-    if (!switcherOpen) return
+    if (!profileOpen) return
     const onClick = (event: MouseEvent) => {
-      if (!dockRef.current?.contains(event.target as Node)) setSwitcherOpen(false)
+      if (!profileRef.current?.contains(event.target as Node)) setProfileOpen(false)
     }
     document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
-  }, [switcherOpen])
+  }, [profileOpen])
 
   return (
     <>
@@ -81,7 +79,6 @@ export function Sidebar({
             {collapsed && !isMobile && <span className="nav-tooltip">Metrics</span>}
           </NavLink>
 
-
           <NavLink
             to="/journal"
             className={({ isActive }) => cn('nav-item', isActive && 'active')}
@@ -104,91 +101,49 @@ export function Sidebar({
         </div>
 
         <div className="sidebar-footer">
-          <div className="account-dock" ref={dockRef}>
+          <div className="sidebar-profile" ref={profileRef}>
             <AnimatePresence>
-              {switcherOpen && (
+              {profileOpen && (
                 <motion.div
-                  className="account-switcher-pop"
+                  className="profile-pop"
                   initial={{ opacity: 0, y: 6, scale: 0.98 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 6, scale: 0.98 }}
                   transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  <div className="account-switcher-head">
-                    <span>Accounts</span>
-                    <span>{accounts.length}</span>
-                  </div>
-                  {accounts.length === 0 && (
-                    <p className="px-2 py-3 text-[10px] leading-relaxed text-[var(--faint)]">
-                      No accounts yet. Start a challenge to open your first workspace.
-                    </p>
-                  )}
-                  {accounts.map((account) => {
-                    const active = activeAccount?.id === account.id
-                    return (
-                      <button
-                        key={account.id}
-                        className={cn('switcher-option', active && 'is-active')}
-                        type="button"
-                        onClick={() => {
-                          setActiveAccount(account.id)
-                          setSwitcherOpen(false)
-                        }}
-                      >
-                        <AccountAvatar
-                          badge={accountBadge(account)}
-                          gradient={accountGradient(account)}
-                          size="sm"
-                        />
-                        <span className="switcher-option-copy">
-                          <b>{titleFor(account)}</b>
-                          <span>
-                            {account.stage} · {account.platform}
-                          </span>
-                        </span>
-                        {active && <Check size={13} className="check" />}
-                      </button>
-                    )
-                  })}
                   <button
-                    className="switcher-new"
+                    className="profile-menu-item"
                     type="button"
                     onClick={() => {
-                      setSwitcherOpen(false)
-                      openChallenge()
-                      if (isMobile) onCloseMobile()
+                      setProfileOpen(false)
+                      navigate('/auth')
                     }}
                   >
-                    <Plus size={13} />
-                    Start new challenge
+                    <span className="profile-menu-icon">
+                      <LogOut size={15} />
+                    </span>
+                    <span className="profile-menu-copy">
+                      <b>Log out</b>
+                    </span>
                   </button>
                 </motion.div>
               )}
             </AnimatePresence>
 
             <button
-              className="account-dock-btn"
+              className={cn('sidebar-profile-btn', profileOpen && 'is-open')}
               type="button"
-              onClick={() => setSwitcherOpen((open) => !open)}
-              aria-haspopup="listbox"
-              aria-expanded={switcherOpen}
+              onClick={() => setProfileOpen((open) => !open)}
+              aria-haspopup="menu"
+              aria-expanded={profileOpen}
+              title={collapsed ? `${PROFILE.name} · ${PROFILE.email}` : undefined}
             >
-              {activeAccount ? (
-                <AccountAvatar
-                  badge={accountBadge(activeAccount)}
-                  gradient={accountGradient(activeAccount)}
-                  size="sm"
-                />
-              ) : (
-                <span className="account-avatar account-avatar-sm" style={{ background: 'var(--panel-3)' }}>
-                  <span>TA</span>
-                </span>
-              )}
-              <span className="account-dock-copy">
-                <b>{activeAccount ? titleFor(activeAccount) : 'No account'}</b>
-                <span>{activeAccount ? `${activeAccount.stage} · ${activeAccount.platform}` : 'Start a challenge'}</span>
+              <span className="sidebar-profile-avatar">{PROFILE.initials}</span>
+              <span className="sidebar-profile-copy">
+                <b>{PROFILE.name}</b>
+                <span>{PROFILE.email}</span>
               </span>
-              <ChevronRight size={13} style={{ transform: switcherOpen ? 'rotate(90deg)' : undefined }} />
+              <ChevronsUpDown size={13} className="sidebar-profile-chevron" />
             </button>
           </div>
         </div>

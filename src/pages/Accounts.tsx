@@ -71,7 +71,16 @@ export function AccountsPage() {
 
   return (
     <div className="page accounts-page">
-      <PageHeader />
+      <PageHeader
+        className="page-head--actions-end"
+        actions={
+          accounts.length > 0 ? (
+            <Button variant="primary" size="sm" iconLeft={<Plus size={14} />} onClick={openChallenge}>
+              Start challenge
+            </Button>
+          ) : null
+        }
+      />
 
       {viewingPhaseIndex !== null && (
         <div className="phase-view-banner">

@@ -623,9 +623,12 @@ body.sidebar-open{overflow:hidden}
   transform:translateY(-2px);
 }
 .account-card.is-active{
-  border-color:rgba(25,196,232,.3);
-  background:linear-gradient(180deg,rgba(25,196,232,.028),rgba(25,196,232,0) 38%),#07090c;
-  box-shadow:0 0 0 1px rgba(25,196,232,.04),0 12px 32px rgba(0,0,0,.28);
+  border-color:rgba(255,255,255,.08);
+  background:
+    radial-gradient(320px 220px at 100% 0%, rgba(30,58,138,.45), transparent 62%),
+    radial-gradient(180px 140px at 100% 0%, rgba(30,58,138,.6), transparent 55%),
+    #07090c;
+  box-shadow:0 12px 32px rgba(0,0,0,.28);
 }
 .account-card-head{display:flex;align-items:center;gap:12px}
 .account-card .firm-logo{width:40px;height:40px;border-radius:11px;font-size:13px}

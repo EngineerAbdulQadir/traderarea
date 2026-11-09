@@ -20,7 +20,7 @@ import { useApp } from '@/store/AppStore'
 import { IntradayCurve } from '@/components/charts/IntradayCurve'
 import { buildIntradaySeries, computeStats, getStartingBalance } from '@/lib/stats'
 import { formatLongDate, formatNumericDate, dayName } from '@/lib/dates'
-import { formatPrice, formatR, formatTime, plainPercent, signedMoney } from '@/lib/format'
+import { formatPrice, formatR, plainPercent, signedMoney } from '@/lib/format'
 import { noteSavedLabel } from '@/lib/notes'
 import { tradeGrade } from '@/lib/trades'
 import { cn } from '@/lib/cn'
@@ -546,7 +546,6 @@ export function DayReviewModal() {
               <table className="data-table day-table">
                 <thead>
                   <tr>
-                    <th>Time</th>
                     <th>Symbol</th>
                     <th>Side</th>
                     <th className="r">Qty</th>
@@ -572,10 +571,6 @@ export function DayReviewModal() {
                         onClick={() => editTrade(trade.id)}
                         title={`Click to edit ${trade.ticker} trade`}
                       >
-                        <td>
-                          <span className="entry-date">{formatTime(trade.openTime)}</span>
-                          <small>{trade.closeTime ? `${formatTime(trade.closeTime)} close` : '—'}</small>
-                        </td>
                         <td>
                           <b className="t-sym">{trade.ticker}</b>
                           <small>{trade.playbook}</small>

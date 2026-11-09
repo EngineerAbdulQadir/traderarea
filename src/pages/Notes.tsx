@@ -125,7 +125,7 @@ export function NotesPage() {
           title="A journal begins with an account"
           description="Start a challenge or open a demo workspace. Then every session can carry a note, from the plan to the lesson."
           actions={
-            <Button variant="primary" iconLeft={<Plus size={14} />} onClick={() => navigate('/accounts')}>
+            <Button variant="primary" iconLeft={<Plus size={14} />} onClick={() => navigate('/portfolio')}>
               Go to accounts
             </Button>
           }
@@ -151,7 +151,7 @@ export function NotesPage() {
         actions={
           <>
             {activeIsDemo && <Badge tone="violet">Sample data</Badge>}
-            <AccountPill account={activeAccount} onClick={() => navigate('/accounts')} />
+            <AccountPill account={activeAccount} onClick={() => navigate('/portfolio')} />
             <Button
               variant="primary"
               size="sm"

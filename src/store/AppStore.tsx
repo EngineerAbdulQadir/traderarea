@@ -9,7 +9,17 @@ import {
   type ReactNode,
 } from 'react'
 import type { Account, Note, NotesByAccount, Trade } from '@/lib/types'
-import { createDemoAccount, titleFor } from '@/lib/accounts'
+import {
+  createDemoAccount,
+  effectivePhaseHistory,
+  latestTradeKey,
+  nextStageFor,
+  titleFor,
+  tradePhaseKey,
+  tradesForPhase,
+} from '@/lib/accounts'
+import { fundedAccountSize, rulesFor } from '@/data/firms'
+import { getStartingBalance } from '@/lib/stats'
 import { seedDemoNotes } from '@/lib/notes'
 import {
   isDemoAccount,
@@ -48,17 +58,22 @@ interface AppContextValue {
   accounts: Account[]
   activeAccount: Account | null
   activeAccountId: string
+  viewingPhaseIndex: number | null
+  setViewingPhase: (index: number | null) => void
   activeTrades: Trade[]
   activeIsDemo: boolean
   activeNotes: Record<string, Note>
   workspaceTrades: Trade[]
   setActiveAccount: (id: string) => void
   addAccount: (account: Account) => void
+  advanceAccount: (id: string) => void
   removeAccount: (id: string) => void
   addDemoAccount: () => void
   getTradesForAccount: (account: Account) => Trade[]
+  getAllTradesForAccount: (account: Account) => Trade[]
   isDemo: (account: Account | null | undefined) => boolean
   saveTrade: (trade: Trade) => void
+  importTrades: (trades: Trade[]) => void
   deleteTrade: (id: string) => void
   saveNote: (accountId: string, date: string, text: string, images?: string[]) => void
   challengeOpen: boolean
@@ -72,6 +87,9 @@ interface AppContextValue {
   closeDayReview: () => void
   commandOpen: boolean
   setCommandOpen: (open: boolean) => void
+  settingsOpen: boolean
+  openSettings: () => void
+  closeSettings: () => void
   toasts: ToastItem[]
   showToast: (title: string, message: string, tone?: ToastTone) => void
   dismissToast: (id: string) => void
@@ -90,18 +108,64 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [tradeEditor, setTradeEditor] = useState<TradeEditorState | null>(null)
   const [dayReview, setDayReview] = useState<DayReviewState | null>(null)
   const [commandOpen, setCommandOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [viewingPhaseIndex, setViewingPhaseIndex] = useState<number | null>(null)
   const [toasts, setToasts] = useState<ToastItem[]>([])
   const timers = useRef<Map<string, number>>(new Map())
 
-  const activeAccount = useMemo(
+  const baseAccount = useMemo(
     () => accounts.find((account) => account.id === activeAccountId) ?? accounts[0] ?? null,
     [accounts, activeAccountId],
   )
 
-  const activeTrades = useMemo(
-    () => (activeAccount ? resolveTrades(trades, activeAccount) : []),
-    [trades, activeAccount],
-  )
+  const activeAccount = useMemo(() => {
+    if (!baseAccount || viewingPhaseIndex === null) return baseAccount
+    const history = effectivePhaseHistory(baseAccount)
+    const views = [
+      ...history.map((record) => ({
+          stage: record.stage,
+          startingBalance: record.startingBalance,
+          rules: record.rules,
+          endedAt: record.endedAt,
+        })),
+      {
+        stage: baseAccount.stage,
+        startingBalance: getStartingBalance(baseAccount),
+        rules: baseAccount.rules,
+        endedAt: '',
+      },
+    ]
+    const phase = views[viewingPhaseIndex]
+    if (!phase) return baseAccount
+    return {
+      ...baseAccount,
+      stage: phase.stage,
+      startingBalance: phase.startingBalance,
+      rules: phase.rules,
+      size: phase.startingBalance,
+    }
+  }, [baseAccount, trades, viewingPhaseIndex])
+
+  const activeTrades = useMemo(() => {
+    if (!baseAccount) return []
+    const allTrades = resolveTrades(trades, baseAccount)
+    if (viewingPhaseIndex === null) return tradesForPhase(baseAccount, allTrades)
+
+    const history = effectivePhaseHistory(baseAccount)
+    const views = [
+      ...history.map((record, index) => {
+        const previous = index > 0 ? history[index - 1] : null
+        return { endedAt: record.endedAt, previousEndedAt: previous?.endedAt ?? '' }
+      }),
+      { endedAt: '', previousEndedAt: history.length ? history[history.length - 1].endedAt : '' },
+    ]
+    const phase = views[viewingPhaseIndex]
+    if (!phase) return tradesForPhase(baseAccount, allTrades)
+    return allTrades.filter((trade) => {
+      const key = tradePhaseKey(trade)
+      return (!phase.previousEndedAt || key > phase.previousEndedAt) && (!phase.endedAt || key <= phase.endedAt)
+    })
+  }, [baseAccount, trades, viewingPhaseIndex])
 
   const activeIsDemo = useMemo(() => isDemoAccount(trades, activeAccount), [trades, activeAccount])
 
@@ -113,7 +177,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const workspaceTrades = useMemo(
     () =>
       accounts
-        .flatMap((account) => resolveTrades(trades, account))
+        .flatMap((account) => tradesForPhase(account, resolveTrades(trades, account)))
         .sort((a, b) => (a.date + a.openTime).localeCompare(b.date + b.openTime)),
     [accounts, trades],
   )
@@ -158,6 +222,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (settingsOpen) return
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault()
         setCommandOpen((previous) => !previous)
@@ -165,7 +230,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
+  }, [settingsOpen])
 
   const dismissToast = useCallback((id: string) => {
     setToasts((previous) => previous.filter((toast) => toast.id !== id))
@@ -198,13 +263,65 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const setActiveAccount = useCallback((id: string) => {
     setActiveAccountId(id)
+    setViewingPhaseIndex(null)
     setDayReview(null)
   }, [])
+
+  const setViewingPhase = useCallback((index: number | null) => setViewingPhaseIndex(index), [])
 
   const addAccount = useCallback((account: Account) => {
     setAccounts((previous) => [account, ...previous.filter((item) => item.id !== account.id)])
     setActiveAccountId(account.id)
   }, [])
+
+  const advanceAccount = useCallback(
+    (id: string) => {
+      const account = accounts.find((item) => item.id === id)
+      if (!account) return
+      const nextStage = nextStageFor(account.type, account.stage)
+      if (!nextStage) return
+
+      const phaseTrades = tradesForPhase(account, realTradesForAccount(trades, id))
+      const cutoff = latestTradeKey(phaseTrades)
+      const funded = nextStage === 'Funded'
+      const nextBalance = funded
+        ? fundedAccountSize(account.challengeSize || account.size)
+        : account.challengeSize || account.size
+      const completedPhase = {
+        stage: account.stage,
+        startingBalance: account.startingBalance,
+        rules: account.rules,
+        endedAt: cutoff || account.phaseStartedAt || '',
+        status: 'passed' as const,
+      }
+
+      setAccounts((previous) =>
+        previous.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                stage: nextStage,
+                size: nextBalance,
+                startingBalance: nextBalance,
+                rules: rulesFor(item.type, nextStage) ?? item.rules,
+                phaseStartedAt: cutoff || item.phaseStartedAt,
+                phaseHistory: [...effectivePhaseHistory(item), completedPhase],
+              }
+            : item,
+        ),
+      )
+      setActiveAccountId(id)
+      showToast(
+        funded ? 'Funded account unlocked' : 'Phase advanced',
+        `${titleFor(account)} moved to ${nextStage} with ${nextBalance.toLocaleString('en-US', {
+          style: 'currency',
+          currency: 'USD',
+          maximumFractionDigits: 0,
+        })} in starting capital.`,
+      )
+    },
+    [accounts, trades, showToast],
+  )
 
   const removeAccount = useCallback(
     (id: string) => {
@@ -230,6 +347,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [addAccount, showToast])
 
   const getTradesForAccount = useCallback(
+    (account: Account) => tradesForPhase(account, resolveTrades(trades, account)),
+    [trades],
+  )
+
+  const getAllTradesForAccount = useCallback(
     (account: Account) => resolveTrades(trades, account),
     [trades],
   )
@@ -259,6 +381,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTrades((previous) => previous.filter((trade) => trade.id !== id))
   }, [])
 
+  const importTrades = useCallback((incoming: Trade[]) => {
+    if (!incoming.length) return
+    const importedIds = new Set(incoming.map((trade) => trade.id))
+    setTrades((previous) => {
+      const kept = previous.filter((trade) => !importedIds.has(trade.id))
+      return [...kept, ...incoming].sort((a, b) =>
+        (a.date + a.openTime).localeCompare(b.date + b.openTime),
+      )
+    })
+  }, [])
+
   const saveNote = useCallback((accountId: string, date: string, text: string, images?: string[]) => {
     setNotes((previous) => {
       const accountNotes = { ...(previous[accountId] ?? {}) }
@@ -285,6 +418,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const closeChallenge = useCallback(() => setChallengeOpen(false), [])
 
+  const openSettings = useCallback(() => {
+    setCommandOpen(false)
+    setSettingsOpen(true)
+  }, [])
+
+  const closeSettings = useCallback(() => setSettingsOpen(false), [])
+
   const openTradeEditor = useCallback(
     (options?: { trade?: Trade | null; accountId?: string }) => {
       if (!accounts.length) {
@@ -309,17 +449,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       accounts,
       activeAccount,
       activeAccountId: activeAccount?.id ?? '',
+      viewingPhaseIndex,
+      setViewingPhase,
       activeTrades,
       activeIsDemo,
       activeNotes,
       workspaceTrades,
       setActiveAccount,
       addAccount,
+      advanceAccount,
       removeAccount,
       addDemoAccount,
       getTradesForAccount,
+      getAllTradesForAccount,
       isDemo,
       saveTrade,
+      importTrades,
       deleteTrade,
       saveNote,
       challengeOpen,
@@ -333,6 +478,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       closeDayReview,
       commandOpen,
       setCommandOpen,
+      settingsOpen,
+      openSettings,
+      closeSettings,
       toasts,
       showToast,
       dismissToast,
@@ -340,17 +488,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [
       accounts,
       activeAccount,
+      viewingPhaseIndex,
+      setViewingPhase,
       activeTrades,
       activeIsDemo,
       activeNotes,
       workspaceTrades,
       setActiveAccount,
       addAccount,
+      advanceAccount,
       removeAccount,
       addDemoAccount,
       getTradesForAccount,
+      getAllTradesForAccount,
       isDemo,
       saveTrade,
+      importTrades,
       deleteTrade,
       saveNote,
       challengeOpen,
@@ -363,6 +516,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       openDayReview,
       closeDayReview,
       commandOpen,
+      settingsOpen,
+      openSettings,
+      closeSettings,
       toasts,
       showToast,
       dismissToast,

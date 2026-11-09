@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, Building2, Layers3, ShieldCheck, Sparkles, Wallet } from 'lucide-react'
+import { ArrowRight, Building2, ShieldCheck, Sparkles, Wallet } from 'lucide-react'
 import { Modal, ModalClose } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Segmented } from '@/components/ui/Segmented'
@@ -100,7 +100,7 @@ export function ChallengeModal() {
     const account = createAccountFromDraft({ firmId: firm.id, type, stage, platform, size, rules })
     addAccount(account)
     closeChallenge()
-    navigate('/accounts')
+    navigate('/portfolio')
     showToast(
       'Challenge created',
       `${titleFor(account)} is ready with ${formatMoney(account.startingBalance)} in starting capital.`,
@@ -112,14 +112,13 @@ export function ChallengeModal() {
       open={challengeOpen}
       onClose={closeChallenge}
       size="lg"
+      className="challenge-modal"
       labelledBy="challenge-title"
       initialFocus="[data-autofocus]"
     >
       <form className="challenge-form" onSubmit={submit} noValidate>
         <header className="modal-head challenge-head">
-          <div className="modal-mark accent"><Layers3 size={18} /></div>
           <div className="modal-head-copy">
-            <span className="modal-eyebrow">New challenge</span>
             <h2 className="modal-title" id="challenge-title">
               Build your next workspace
             </h2>

@@ -1,16 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import {
-  CircleAlert,
-  Clock3,
-  PencilLine,
-  Plus,
-  Sparkles,
-  Trash2,
-} from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { CircleAlert, Sparkles, Trash2 } from 'lucide-react'
 import { Modal, ModalClose } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { useApp } from '@/store/AppStore'
-import { DEMO_MARKETS, DEMO_PLAYBOOKS } from '@/lib/demo'
 import { signedMoney } from '@/lib/format'
 import { todayISO } from '@/lib/dates'
 import { titleFor } from '@/lib/accounts'
@@ -32,6 +24,8 @@ interface FormState {
   close: string
   entry: string
   exit: string
+  stopLoss: string
+  takeProfit: string
   pnl: string
   fees: string
   risk: string
@@ -62,6 +56,8 @@ function blankForm(accountId: string): FormState {
     close: '',
     entry: '',
     exit: '',
+    stopLoss: '',
+    takeProfit: '',
     pnl: '',
     fees: '',
     risk: '',
@@ -84,6 +80,8 @@ function formFromTrade(trade: Trade, fallbackAccountId: string): FormState {
     close: hhmm(trade.closeTime),
     entry: trade.entry ? String(trade.entry) : '',
     exit: trade.exit ? String(trade.exit) : '',
+    stopLoss: trade.stopLoss ? String(trade.stopLoss) : '',
+    takeProfit: trade.takeProfit ? String(trade.takeProfit) : '',
     pnl: Number.isFinite(Number(trade.pnl)) ? String(trade.pnl) : '',
     fees: trade.fees ? String(trade.fees) : '',
     risk: trade.risk ? String(trade.risk) : '',
@@ -100,7 +98,6 @@ export function TradeModal() {
     closeTradeEditor,
     accounts,
     activeAccount,
-    getTradesForAccount,
     isDemo,
     saveTrade,
     deleteTrade,
@@ -124,26 +121,6 @@ export function TradeModal() {
   }, [tradeEditor, activeAccount?.id, accounts])
 
   const currentAccount = accounts.find((account) => account.id === form.accountId) ?? null
-  const changedAccount = accounts.find((account) => account.id === form.accountId)
-  const tradePool = changedAccount ? getTradesForAccount(changedAccount) : []
-
-  const symbolOptions = useMemo(() => {
-    const values = new Set<string>()
-    tradePool.forEach((trade) => {
-      if (trade.ticker && trade.ticker !== '—') values.add(trade.ticker)
-    })
-    DEMO_MARKETS.forEach((market) => values.add(market.ticker))
-    return Array.from(values).sort()
-  }, [tradePool])
-
-  const setupOptions = useMemo(() => {
-    const values = new Set<string>()
-    tradePool.forEach((trade) => {
-      if (trade.playbook && trade.playbook !== '—') values.add(trade.playbook)
-    })
-    DEMO_PLAYBOOKS.forEach((playbook) => values.add(playbook))
-    return Array.from(values).sort()
-  }, [tradePool])
 
   const handleClose = useCallback(() => {
     setConfirmDelete(false)
@@ -195,6 +172,8 @@ export function TradeModal() {
     const risk = Math.abs(Number.parseFloat(form.risk)) || 0
     const entry = Number.parseFloat(form.entry) || 0
     const exit = Number.parseFloat(form.exit) || 0
+    const stopLoss = Number.parseFloat(form.stopLoss) || 0
+    const takeProfit = Number.parseFloat(form.takeProfit) || 0
     const tags = Array.from(
       new Set(
         form.tags
@@ -220,6 +199,8 @@ export function TradeModal() {
       volume: qty,
       entry,
       exit,
+      stopLoss,
+      takeProfit,
       pnl: roundedPnl,
       gross: Math.round((pnl + fees) * 100) / 100,
       fees,
@@ -255,23 +236,20 @@ export function TradeModal() {
       open={!!tradeEditor}
       onClose={handleClose}
       size="lg"
+      className="trade-modal"
       labelledBy="trade-title"
       initialFocus={editing ? '#trade-pnl' : '#trade-symbol'}
     >
       <form className="trade-form" onSubmit={submit} noValidate autoComplete="off">
-        <header className="modal-head">
-          <div className="modal-mark accent">
-            {editing ? <PencilLine size={17} /> : <Plus size={18} />}
-          </div>
+        <header className="modal-head trade-head">
           <div className="modal-head-copy">
-            <span className="modal-eyebrow">{editing ? 'Trade journal' : 'New entry'}</span>
             <h2 className="modal-title" id="trade-title">
               {editing ? 'Edit trade' : 'Add trade'}
             </h2>
             <p className="modal-sub">
               {editing
-                ? 'Update this manually logged trade. Changes recalculate every metric.'
-                : 'Log a closed trade to the journal. Only the essentials are required.'}
+                ? 'Update this entry — every metric recalculates on save.'
+                : 'Log a closed trade. Only the essentials are required.'}
             </p>
           </div>
           <ModalClose onClick={handleClose} />
@@ -288,61 +266,34 @@ export function TradeModal() {
             </div>
           )}
 
-          <div className="field">
-            <label className="field-label" htmlFor="trade-account">Account</label>
-            <select
-              className={cn('select', error?.field === 'account' && 'invalid')}
-              id="trade-account"
-              value={form.accountId}
-              disabled={editing}
-              onChange={(event) => update('accountId', event.target.value)}
-            >
-              {accounts.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {titleFor(account)} · {account.stage}
-                </option>
-              ))}
-            </select>
+          <div className="trade-section-label">
+            <span>Details</span>
+            <i />
           </div>
 
-          <div className="field-row">
+          <div className="field-row cols-wide">
             <div className="field">
-              <label className="field-label" htmlFor="trade-symbol">Symbol</label>
-              <input
-                className={cn('input', error?.field === 'symbol' && 'invalid')}
-                id="trade-symbol"
-                value={form.symbol}
-                onChange={(event) => update('symbol', event.target.value.toUpperCase())}
-                placeholder="e.g. EURUSD, /ES, NVDA"
-                maxLength={24}
-                list="trade-symbols"
-                spellCheck={false}
-              />
-              <datalist id="trade-symbols">
-                {symbolOptions.map((symbol) => <option key={symbol} value={symbol} />)}
-              </datalist>
-            </div>
-            <div className="field">
-              <span className="field-label">Side</span>
-              <div className="option-seg" role="group" aria-label="Trade side">
-                {(['LONG', 'SHORT'] as const).map((side) => (
-                  <button
-                    key={side}
-                    className={cn('option-seg-item', form.side === side && 'is-active', side === 'SHORT' && 'is-short')}
-                    type="button"
-                    aria-pressed={form.side === side}
-                    onClick={() => update('side', side)}
-                  >
-                    {side === 'LONG' ? 'Long' : 'Short'}
-                  </button>
+              <label className="field-label" htmlFor="trade-account">
+                Account <span className="req" aria-hidden="true">*</span>
+              </label>
+              <select
+                className={cn('select', error?.field === 'account' && 'invalid')}
+                id="trade-account"
+                value={form.accountId}
+                disabled={editing}
+                onChange={(event) => update('accountId', event.target.value)}
+              >
+                {accounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {titleFor(account)} · {account.stage}
+                  </option>
                 ))}
-              </div>
+              </select>
             </div>
-          </div>
-
-          <div className="field-row">
             <div className="field">
-              <label className="field-label" htmlFor="trade-date">Date</label>
+              <label className="field-label" htmlFor="trade-date">
+                Date <span className="req" aria-hidden="true">*</span>
+              </label>
               <input
                 className={cn('input', error?.field === 'date' && 'invalid')}
                 id="trade-date"
@@ -352,8 +303,45 @@ export function TradeModal() {
                 onChange={(event) => update('date', event.target.value)}
               />
             </div>
+          </div>
+
+          <div className="field-row cols-wide">
             <div className="field">
-              <label className="field-label" htmlFor="trade-qty">Quantity / lots</label>
+              <label className="field-label" htmlFor="trade-symbol">
+                Symbol <span className="req" aria-hidden="true">*</span>
+              </label>
+              <input
+                className={cn('input', error?.field === 'symbol' && 'invalid')}
+                id="trade-symbol"
+                value={form.symbol}
+                onChange={(event) => update('symbol', event.target.value.toUpperCase())}
+                placeholder="e.g. EURUSD, /ES, NVDA"
+                maxLength={24}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </div>
+            <div className="field">
+              <label className="field-label" htmlFor="trade-side">
+                Side <span className="req" aria-hidden="true">*</span>
+              </label>
+              <select
+                className="select"
+                id="trade-side"
+                value={form.side}
+                onChange={(event) => update('side', event.target.value as Side)}
+              >
+                <option value="LONG">Long</option>
+                <option value="SHORT">Short</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="field-row cols-4">
+            <div className="field">
+              <label className="field-label" htmlFor="trade-qty">
+                Lot size <span className="req" aria-hidden="true">*</span>
+              </label>
               <input
                 className={cn('input', error?.field === 'qty' && 'invalid')}
                 id="trade-qty"
@@ -366,39 +354,9 @@ export function TradeModal() {
                 onChange={(event) => update('qty', event.target.value)}
               />
             </div>
-          </div>
-
-          <div className="field-row">
-            <div className="field">
-              <label className="field-label" htmlFor="trade-open">
-                Open time <span className="optional">Optional</span>
-              </label>
-              <input
-                className="input"
-                id="trade-open"
-                type="time"
-                value={form.open}
-                onChange={(event) => update('open', event.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label className="field-label" htmlFor="trade-close">
-                Close time <span className="optional">Optional</span>
-              </label>
-              <input
-                className={cn('input', error?.field === 'close' && 'invalid')}
-                id="trade-close"
-                type="time"
-                value={form.close}
-                onChange={(event) => update('close', event.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="field-row">
             <div className="field">
               <label className="field-label" htmlFor="trade-entry">
-                Entry price <span className="optional">Optional</span>
+                Entry <span className="req" aria-hidden="true">*</span>
               </label>
               <input
                 className="input num"
@@ -412,18 +370,33 @@ export function TradeModal() {
               />
             </div>
             <div className="field">
-              <label className="field-label" htmlFor="trade-exit">
-                Exit price <span className="optional">Optional</span>
+              <label className="field-label" htmlFor="trade-stop-loss">
+                Stop loss <span className="req" aria-hidden="true">*</span>
               </label>
               <input
                 className="input num"
-                id="trade-exit"
+                id="trade-stop-loss"
                 type="number"
                 inputMode="decimal"
                 step="any"
                 placeholder="0.00"
-                value={form.exit}
-                onChange={(event) => update('exit', event.target.value)}
+                value={form.stopLoss}
+                onChange={(event) => update('stopLoss', event.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label className="field-label" htmlFor="trade-take-profit">
+                Take profit <span className="req" aria-hidden="true">*</span>
+              </label>
+              <input
+                className="input num"
+                id="trade-take-profit"
+                type="number"
+                inputMode="decimal"
+                step="any"
+                placeholder="0.00"
+                value={form.takeProfit}
+                onChange={(event) => update('takeProfit', event.target.value)}
               />
             </div>
           </div>
@@ -433,9 +406,11 @@ export function TradeModal() {
             <i />
           </div>
 
-          <div className="field-row">
+          <div className="field-row cols-4">
             <div className="field">
-              <label className="field-label" htmlFor="trade-pnl">Net P&amp;L</label>
+              <label className="field-label" htmlFor="trade-pnl">
+                P&amp;L <span className="req" aria-hidden="true">*</span>
+              </label>
               <div className="input-wrap has-prefix">
                 <span className="prefix">$</span>
                 <input
@@ -444,16 +419,15 @@ export function TradeModal() {
                   type="number"
                   inputMode="decimal"
                   step="any"
-                  placeholder="0.00"
+                  placeholder="-250.00"
                   value={form.pnl}
                   onChange={(event) => update('pnl', event.target.value)}
                 />
               </div>
-              <span className="field-hint">Use a negative number for a loss.</span>
             </div>
             <div className="field">
               <label className="field-label" htmlFor="trade-fees">
-                Commissions &amp; fees <span className="optional">Optional</span>
+                Fees
               </label>
               <div className="input-wrap has-prefix">
                 <span className="prefix">$</span>
@@ -469,14 +443,10 @@ export function TradeModal() {
                   onChange={(event) => update('fees', event.target.value)}
                 />
               </div>
-              <span className="field-hint">Already included in net P&amp;L.</span>
             </div>
-          </div>
-
-          <div className="field-row">
             <div className="field">
               <label className="field-label" htmlFor="trade-risk">
-                Risk amount <span className="optional">Optional</span>
+                Risk
               </label>
               <div className="input-wrap has-prefix">
                 <span className="prefix">$</span>
@@ -487,27 +457,24 @@ export function TradeModal() {
                   inputMode="decimal"
                   min="0"
                   step="any"
-                  placeholder="Used to calculate R"
+                  placeholder="For R multiple"
                   value={form.risk}
                   onChange={(event) => update('risk', event.target.value)}
                 />
               </div>
             </div>
             <div className="field">
-              <span className="field-label">Execution</span>
-              <div className="option-seg three" role="group" aria-label="Execution quality">
+              <label className="field-label" htmlFor="trade-quality">Execution</label>
+              <select
+                className="select"
+                id="trade-quality"
+                value={form.quality}
+                onChange={(event) => update('quality', event.target.value as Quality)}
+              >
                 {(['good', 'ok', 'bad'] as const).map((quality) => (
-                  <button
-                    key={quality}
-                    className={cn('option-seg-item', form.quality === quality && 'is-active', `is-${quality}`)}
-                    type="button"
-                    aria-pressed={form.quality === quality}
-                    onClick={() => update('quality', quality)}
-                  >
-                    {QUALITY_LABEL[quality]}
-                  </button>
+                  <option key={quality} value={quality}>{QUALITY_LABEL[quality]}</option>
                 ))}
-              </div>
+              </select>
             </div>
           </div>
 
@@ -516,42 +483,9 @@ export function TradeModal() {
             <i />
           </div>
 
-          <div className="field-row">
-            <div className="field">
-              <label className="field-label" htmlFor="trade-setup">
-                Setup <span className="optional">Optional</span>
-              </label>
-              <input
-                className="input"
-                id="trade-setup"
-                value={form.setup}
-                onChange={(event) => update('setup', event.target.value)}
-                placeholder="e.g. VWAP Reclaim"
-                maxLength={48}
-                list="trade-setups"
-              />
-              <datalist id="trade-setups">
-                {setupOptions.map((setup) => <option key={setup} value={setup} />)}
-              </datalist>
-            </div>
-            <div className="field">
-              <label className="field-label" htmlFor="trade-tags">
-                Tags <span className="optional">Optional</span>
-              </label>
-              <input
-                className="input"
-                id="trade-tags"
-                value={form.tags}
-                onChange={(event) => update('tags', event.target.value)}
-                placeholder="news, revenge, A+"
-                maxLength={120}
-              />
-            </div>
-          </div>
-
           <div className="field">
             <label className="field-label" htmlFor="trade-note">
-              Notes <span className="optional">Optional</span>
+              Notes
             </label>
             <textarea
               className="textarea"
@@ -603,7 +537,7 @@ export function TradeModal() {
           )}
           <span className="spacer" />
           <span className="modal-foot-note">
-            <Clock3 size={12} /> {form.date || 'No date'} · {form.side === 'LONG' ? 'Long' : 'Short'}
+            {form.date || 'No date'} · {form.side === 'LONG' ? 'Long' : 'Short'}
             {form.pnl ? ` · ${signedMoney(Number(form.pnl))}` : ''}
           </span>
           <Button variant="ghost" type="button" onClick={handleClose}>

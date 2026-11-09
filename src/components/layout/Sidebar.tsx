@@ -1,20 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { Layers, BarChart3, NotebookPen, LogOut, Plus, ChevronsUpDown } from 'lucide-react'
+import { Layers, BarChart3, NotebookPen, LogOut, Plus, ChevronsUpDown, Settings } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useApp } from '@/store/AppStore'
 import { cn } from '@/lib/cn'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useTheme } from '@/hooks/useTheme'
+import { useProfile } from '@/hooks/useProfile'
+import { initialsFor } from '@/lib/profile'
 
 import logoLight from '../../../assets/logolight.png'
 import logoDark from '../../../assets/logodark.png'
-
-const PROFILE = {
-  name: 'Alex M.',
-  email: 'alex@traderarea.local',
-  initials: 'AX',
-}
 
 export function Sidebar({
   collapsed,
@@ -26,8 +22,10 @@ export function Sidebar({
   mobileOpen: boolean
   onCloseMobile: () => void
 }) {
-  const { openChallenge } = useApp()
+  const { openChallenge, openSettings } = useApp()
   const { isDark } = useTheme()
+  const profile = useProfile()
+  const initials = initialsFor(profile.name)
   const [profileOpen, setProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
   const location = useLocation()
@@ -69,7 +67,7 @@ export function Sidebar({
           </button>
 
           <NavLink
-            to="/"
+            to="/metrics"
             end
             className={({ isActive }) => cn('nav-item', isActive && 'active')}
             onClick={onCloseMobile}
@@ -90,7 +88,7 @@ export function Sidebar({
           </NavLink>
 
           <NavLink
-            to="/accounts"
+            to="/portfolio"
             className={({ isActive }) => cn('nav-item', isActive && 'active')}
             onClick={onCloseMobile}
           >
@@ -116,7 +114,25 @@ export function Sidebar({
                     type="button"
                     onClick={() => {
                       setProfileOpen(false)
-                      navigate('/auth')
+                      openSettings()
+                    }}
+                  >
+                    <span className="profile-menu-icon">
+                      <Settings size={15} />
+                    </span>
+                    <span className="profile-menu-copy">
+                      <b>Settings</b>
+                    </span>
+                  </button>
+
+                  <div className="profile-menu-sep" role="separator" />
+
+                  <button
+                    className="profile-menu-item"
+                    type="button"
+                    onClick={() => {
+                      setProfileOpen(false)
+                      navigate('/auth/login')
                     }}
                   >
                     <span className="profile-menu-icon">
@@ -136,12 +152,12 @@ export function Sidebar({
               onClick={() => setProfileOpen((open) => !open)}
               aria-haspopup="menu"
               aria-expanded={profileOpen}
-              title={collapsed ? `${PROFILE.name} · ${PROFILE.email}` : undefined}
+              title={collapsed ? `${profile.name} · ${profile.email}` : undefined}
             >
-              <span className="sidebar-profile-avatar">{PROFILE.initials}</span>
+              <span className="sidebar-profile-avatar">{initials}</span>
               <span className="sidebar-profile-copy">
-                <b>{PROFILE.name}</b>
-                <span>{PROFILE.email}</span>
+                <b>Admin</b>
+                <span>admin@tradersarea.ai</span>
               </span>
               <ChevronsUpDown size={13} className="sidebar-profile-chevron" />
             </button>

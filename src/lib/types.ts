@@ -10,6 +10,14 @@ export interface Rules {
   days: number
 }
 
+export interface PhaseRecord {
+  stage: Stage
+  startingBalance: number
+  rules: Rules
+  endedAt: string
+  status: 'passed' | 'breached'
+}
+
 export interface Account {
   id: string
   firm: string
@@ -26,6 +34,10 @@ export interface Account {
   rules: Rules
   source?: string
   createdAt: string
+  /** Trades at or before this date-time belong to a completed phase. */
+  phaseStartedAt?: string
+  /** Completed phases, oldest first, so past results stay viewable. */
+  phaseHistory?: PhaseRecord[]
 }
 
 export interface Trade {
@@ -40,6 +52,8 @@ export interface Trade {
   volume: number
   entry: number
   exit: number
+  stopLoss?: number
+  takeProfit?: number
   pnl: number
   gross: number
   fees: number
@@ -89,6 +103,10 @@ export interface Stats {
   dayRows: DayRow[]
   dayMap: Map<string, DayRow>
   greenDays: number
+  /** Days that cleared the 0.5% profitable-day threshold. */
+  profitableDays: number
+  /** Minimum P&L for one day to count as profitable. */
+  profitDayThreshold: number
   redDays: number
   flatDays: number
   dayWinRate: number

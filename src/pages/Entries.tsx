@@ -182,7 +182,7 @@ export function EntriesPage() {
           title="Your ledger needs an account"
           description="Start a challenge or open a demo workspace, then every trade you log lands here with the context around it."
           actions={
-            <Button variant="primary" iconLeft={<Plus size={14} />} onClick={() => navigate('/accounts')}>
+            <Button variant="primary" iconLeft={<Plus size={14} />} onClick={() => navigate('/portfolio')}>
               Go to accounts
             </Button>
           }
@@ -205,7 +205,7 @@ export function EntriesPage() {
         actions={
           <>
             {activeIsDemo && <Badge tone="violet">Sample data</Badge>}
-            <AccountPill account={activeAccount} onClick={() => navigate('/accounts')} />
+            <AccountPill account={activeAccount} onClick={() => navigate('/portfolio')} />
             <Button variant="secondary" size="sm" iconLeft={<Download size={13} />} onClick={exportCsv}>
               Export
             </Button>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, PenLine } from 'lucide-react'
 import type { Note, Trade } from '@/lib/types'
 import {
@@ -16,6 +16,7 @@ interface CalendarProps {
   trades: Trade[]
   notes: Record<string, Note>
   onOpenDay: (date: string) => void
+  focusDate?: string
 }
 
 interface DayTradeRow {
@@ -29,7 +30,7 @@ interface DayTradeRow {
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
-export function Calendar({ trades, notes, onOpenDay }: CalendarProps) {
+export function Calendar({ trades, notes, onOpenDay, focusDate }: CalendarProps) {
   const now = new Date()
   const [cursor, setCursor] = useState(() => {
     const current = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -40,6 +41,12 @@ export function Calendar({ trades, notes, onOpenDay }: CalendarProps) {
     const [year, month] = latest.split('-').map(Number)
     return year && month ? new Date(year, month - 1, 1) : current
   })
+
+  useEffect(() => {
+    if (!focusDate) return
+    const [year, month] = focusDate.split('-').map(Number)
+    if (year && month) setCursor(new Date(year, month - 1, 1))
+  }, [focusDate])
 
   const model = useMemo(() => {
     const year = cursor.getFullYear()

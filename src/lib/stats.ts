@@ -23,6 +23,13 @@ export const DASHBOARD_RANGES: Record<string, { days: number | null; label: stri
 export const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 export const WD_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
+/** A profitable trading day needs at least 0.5% of the account balance. */
+export const PROFIT_DAY_PCT = 0.5
+
+export function profitDayThreshold(startingBalance: number): number {
+  return (Number(startingBalance) || 0) * (PROFIT_DAY_PCT / 100)
+}
+
 export function rangeCutoff(key: string): string {
   if (key === 'all' || !DASHBOARD_RANGES[key]) return ''
   const days = DASHBOARD_RANGES[key].days ?? 0
@@ -85,7 +92,11 @@ export function computeStats(trades: Trade[], startingBalance: number): Stats {
   })
 
   const dayRows = Array.from(dayMap.values()).sort((a, b) => a.date.localeCompare(b.date))
+  const profitThreshold = profitDayThreshold(starting)
   const greenDays = dayRows.filter((day) => day.pnl > 0).length
+  const profitableDays = dayRows.filter(
+    (day) => day.pnl > 0 && day.pnl + 1e-9 >= profitThreshold,
+  ).length
   const redDays = dayRows.filter((day) => day.pnl < 0).length
   const flatDays = dayRows.filter((day) => day.pnl === 0).length
   const decisiveDays = greenDays + redDays
@@ -144,6 +155,8 @@ export function computeStats(trades: Trade[], startingBalance: number): Stats {
     dayRows,
     dayMap,
     greenDays,
+    profitableDays,
+    profitDayThreshold: profitThreshold,
     redDays,
     flatDays,
     dayWinRate,
@@ -398,39 +411,128 @@ function ruleTone(used: number): RuleRow['tone'] {
   return used >= 0.85 ? 'is-danger' : used >= 0.6 ? 'is-warn' : 'is-ok'
 }
 
+export type AccountStatus = 'active' | 'passed' | 'breached'
+
+export interface AccountEvaluation {
+  status: AccountStatus
+  starting: number
+  net: number
+  balance: number
+  targetAmount: number
+  targetHit: boolean
+  requiredDays: number
+  daysMet: boolean
+  dailyLimit: number
+  dailyBreached: boolean
+  maxLimit: number
+  maxBreached: boolean
+  reason: string
+}
+
+/**
+ * Derives the live challenge status from the phase-scoped stats.
+ * An account passes only when the profit target and the profitable-day
+ * requirement are both met. Any daily or max-loss breach takes precedence.
+ */
+export function evaluateAccount(account: Account, stats: Stats): AccountEvaluation {
+  const starting = getStartingBalance(account)
+  const rules = account.rules || { target: 0, daily: 0, max: 0, days: 0 }
+  const net = stats.net
+  const balance = starting + net
+
+  const funded = (account.stage === 'Funded') || (Number(rules.target) || 0) <= 0
+  const targetAmount = (starting * (Number(rules.target) || 0)) / 100
+  const targetHit = funded
+    ? net > 1e-9
+    : targetAmount > 0 && net + 1e-9 >= targetAmount
+
+  const requiredDays = Number(rules.days) || 0
+  const daysMet = requiredDays <= 0 || stats.profitableDays >= requiredDays
+
+  const dailyLimit = (starting * (Number(rules.daily) || 0)) / 100
+  let worstLossDay: DayRow | null = null
+  let worstLoss = 0
+  stats.dayRows.forEach((day) => {
+    const loss = Math.max(0, -day.pnl)
+    if (loss > worstLoss) {
+      worstLoss = loss
+      worstLossDay = day
+    }
+  })
+  const dailyBreached = dailyLimit > 0 && worstLoss + 1e-9 >= dailyLimit
+
+  const maxLimit = (starting * (Number(rules.max) || 0)) / 100
+  const maxBreached = maxLimit > 0 && starting - balance + 1e-9 >= maxLimit
+
+  const passed = funded ? targetHit && daysMet : targetAmount > 0 && targetHit && daysMet
+
+  let status: AccountStatus = 'active'
+  let reason = 'Challenge in progress'
+  if (dailyBreached) {
+    status = 'breached'
+    reason = worstLossDay
+      ? `Daily loss limit exceeded on ${formatShortDate((worstLossDay as DayRow).date)}`
+      : 'Daily loss limit exceeded'
+  } else if (maxBreached) {
+    status = 'breached'
+    reason = 'Maximum total loss exceeded'
+  } else if (passed) {
+    status = 'passed'
+    reason = funded ? 'Funded target reached' : 'Profit target and profitable days met'
+  } else if (targetHit) {
+    reason = 'Profit target reached — profitable days still pending'
+  }
+
+  return {
+    status,
+    starting,
+    net,
+    balance,
+    targetAmount,
+    targetHit,
+    requiredDays,
+    daysMet,
+    dailyLimit,
+    dailyBreached,
+    maxLimit,
+    maxBreached,
+    reason,
+  }
+}
+
 export function buildRules(
   account: Account,
   stats: Stats,
 ): { rows: RuleRow[]; status: string; tone: 'ok' | 'warn' | 'danger' | 'done' } {
   const starting = getStartingBalance(account)
-  const rules = account.rules || { target: 0, daily: 0, max: 0, days: 0 }
+  const evaluation = evaluateAccount(account, stats)
   const balance = starting + stats.net
   const rows: RuleRow[] = []
   let worstUsed = 0
-  let targetHit = false
 
-  const targetAmount = (starting * (Number(rules.target) || 0)) / 100
+  const targetAmount = evaluation.targetAmount
   if (targetAmount > 0) {
     const progress = stats.net / targetAmount
-    targetHit = progress >= 1
     rows.push({
       name: 'Profit target',
-      tone: targetHit ? 'is-done' : 'is-info',
+      tone: evaluation.targetHit ? 'is-done' : 'is-info',
       value: signedMoney(stats.net),
       limit: `/ ${formatMoney(targetAmount)}`,
       pct: progress * 100,
-      left: targetHit ? 'Target reached' : `${formatMoney(Math.max(0, targetAmount - stats.net))} to go`,
+      left: evaluation.targetHit ? 'Target reached' : `${formatMoney(Math.max(0, targetAmount - stats.net))} to go`,
       right: `${Math.max(0, Math.round(progress * 100))}%`,
     })
   }
 
-  const dailyLimit = (starting * (Number(rules.daily) || 0)) / 100
+  const dailyLimit = evaluation.dailyLimit
   if (dailyLimit > 0) {
     const todayRow = stats.dayMap.get(todayISO())
     const todayPnl = todayRow ? todayRow.pnl : 0
     const used = Math.max(0, -todayPnl) / dailyLimit
     const worst = stats.worstDay && stats.worstDay.pnl < 0 ? -stats.worstDay.pnl : 0
-    worstUsed = Math.max(worstUsed, used)
+    // The status still remembers the worst day of the phase, but the bar
+    // tracks today's usage so a past loss does not look like a live draw.
+    worstUsed = Math.max(worstUsed, worst / dailyLimit)
     rows.push({
       name: 'Daily loss limit',
       tone: ruleTone(used),
@@ -442,7 +544,7 @@ export function buildRules(
     })
   }
 
-  const maxLimit = (starting * (Number(rules.max) || 0)) / 100
+  const maxLimit = evaluation.maxLimit
   if (maxLimit > 0) {
     const floor = starting - maxLimit
     const used = Math.max(0, starting - balance) / maxLimit
@@ -458,31 +560,36 @@ export function buildRules(
     })
   }
 
-  const requiredDays = Number(rules.days) || 0
+  const requiredDays = evaluation.requiredDays
   if (requiredDays > 0) {
-    const green = stats.greenDays
+    const green = stats.profitableDays
     rows.push({
       name: 'Profitable days',
       tone: green >= requiredDays ? 'is-done' : 'is-info',
       value: `${green} / ${requiredDays}`,
       limit: 'days',
       pct: (green / requiredDays) * 100,
-      left: green >= requiredDays ? 'Requirement met' : `${requiredDays - green} more needed`,
-      right: `${stats.dayRows.length} sessions`,
+      left: green >= requiredDays
+        ? 'Requirement met'
+        : `${requiredDays - green} more needed`,
+      right: `${formatMoney(stats.profitDayThreshold)} min/day`,
     })
   }
 
   let status = 'On track'
   let tone: 'ok' | 'warn' | 'danger' | 'done' = 'ok'
-  if (worstUsed >= 1) {
+  if (evaluation.status === 'breached') {
     status = 'Rule breached'
     tone = 'danger'
+  } else if (evaluation.status === 'passed') {
+    status = 'Passed'
+    tone = 'done'
   } else if (worstUsed >= 0.7) {
     status = 'Close to limit'
     tone = 'warn'
-  } else if (targetHit) {
-    status = 'Target reached'
-    tone = 'done'
+  } else if (evaluation.targetHit) {
+    status = evaluation.daysMet ? 'Target reached' : 'Profitable days pending'
+    tone = 'warn'
   }
   return { rows, status, tone }
 }

@@ -128,11 +128,11 @@ export function ReportsPage() {
         />
         <EmptyState
           icon={<FileBarChart size={22} />}
-          eyebrow="No accounts yet"
+
           title="Reports need a workspace"
           description="Start a challenge or open a demo account. Report periods, breakdowns and exports will populate automatically."
           actions={
-            <Button variant="primary" iconLeft={<Wallet size={14} />} onClick={() => navigate('/accounts')}>
+            <Button variant="primary" iconLeft={<Wallet size={14} />} onClick={() => navigate('/portfolio')}>
               Go to accounts
             </Button>
           }

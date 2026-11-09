@@ -6,8 +6,7 @@ import {
   ChevronRight,
   Plus,
   ShieldCheck,
-  Sparkles,
-  TrendingUp,
+  BarChart3,
 } from 'lucide-react'
 import { useApp } from '@/store/AppStore'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -59,7 +58,8 @@ export function DashboardPage() {
     activeIsDemo,
     openChallenge,
     openDayReview,
-    addDemoAccount,
+    viewingPhaseIndex,
+    setViewingPhase,
   } = useApp()
   const navigate = useNavigate()
   const defaultFrom = useMemo(() => dateToISO(addDays(startOfDay(new Date()), -29)), [])
@@ -97,24 +97,14 @@ export function DashboardPage() {
   if (!activeAccount) {
     return (
       <div className="page">
-        <PageHeader
-          title="Metrics"
-          subtitle="Your trading command center. Performance metrics, risk tracking and equity analytics."
-        />
         <EmptyState
-          icon={<TrendingUp size={22} />}
-          eyebrow="First run"
+          icon={<BarChart3 size={22} />}
           title="Build your performance terminal"
-          description="Start a challenge to track rules, equity and every decision. Or load a demo workspace and explore the terminal with sample trades."
+          description="Start a challenge to track rules, equity and every decision."
           actions={
-            <>
-              <Button variant="primary" iconLeft={<Plus size={14} />} onClick={openChallenge}>
-                Start a challenge
-              </Button>
-              <Button variant="secondary" iconLeft={<Sparkles size={14} />} onClick={addDemoAccount}>
-                Load demo workspace
-              </Button>
-            </>
+            <Button variant="primary" iconLeft={<Plus size={14} />} onClick={openChallenge}>
+              Start a challenge
+            </Button>
           }
         />
       </div>
@@ -149,10 +139,22 @@ export function DashboardPage() {
         }
       />
 
+      {viewingPhaseIndex !== null && (
+        <div className="phase-view-banner">
+          <span>
+            Reviewing {activeAccount?.stage ?? 'previous phase'} history for{' '}
+            {activeAccount ? titleFor(activeAccount) : 'this account'}.
+          </span>
+          <Button variant="ghost" size="sm" onClick={() => setViewingPhase(null)}>
+            Back to current phase
+          </Button>
+        </div>
+      )}
+
       <section className="hero-card card card-glow" data-hero={heroVariant}>
         <div className="hero-main">
           <div className="hero-top">
-            <button className="hero-account" type="button" onClick={() => navigate('/accounts')}>
+            <button className="hero-account" type="button" onClick={() => navigate('/portfolio')}>
               <span className="hero-avatar-wrap">
                 <AccountAvatar
                   badge={accountBadge(activeAccount)}

@@ -40,6 +40,8 @@ export function normalizeTrade(
     volume: Number(raw.volume || raw.qty || raw.quantity) || 0,
     entry: Number(raw.entry) || 0,
     exit: Number(raw.exit) || 0,
+    stopLoss: Number(raw.stopLoss) || 0,
+    takeProfit: Number(raw.takeProfit) || 0,
     pnl: Number.isFinite(pnl) ? pnl : 0,
     gross,
     fees,

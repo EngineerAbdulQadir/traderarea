@@ -7,7 +7,7 @@ const PAGE_META: Record<string, { title: string; group: string }> = {
   '/': { title: 'Metrics', group: 'Analytics' },
   '/metrics': { title: 'Metrics', group: 'Analytics' },
   '/journal': { title: 'Journal', group: 'Journal' },
-  '/accounts': { title: 'Portfolio', group: 'Workspace' },
+  '/portfolio': { title: 'Portfolio', group: 'Workspace' },
   '/stats': { title: 'Statistics', group: 'Analytics' },
   '/entries': { title: 'Entries', group: 'Log' },
   '/notes': { title: 'Notes', group: 'Journal' },

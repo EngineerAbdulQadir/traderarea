@@ -222,7 +222,7 @@ export function StatsPage() {
           title="Statistics need trades"
           description="Start a challenge to open a journal, then log trades. Trader Area will surface your best hours, markets and habits."
           actions={
-            <Button variant="primary" onClick={() => navigate('/accounts')} iconRight={<ArrowUpRight size={14} />}>
+            <Button variant="primary" onClick={() => navigate('/portfolio')} iconRight={<ArrowUpRight size={14} />}>
               Go to accounts
             </Button>
           }
@@ -316,7 +316,7 @@ export function StatsPage() {
         actions={
           <>
             {activeIsDemo && <Badge tone="violet">Sample data</Badge>}
-            <AccountPill account={activeAccount} onClick={() => navigate('/accounts')} />
+            <AccountPill account={activeAccount} onClick={() => navigate('/portfolio')} />
             <Segmented
               label="Stats range"
               value={rangeKey}

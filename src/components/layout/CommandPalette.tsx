@@ -10,6 +10,7 @@ import {
   Moon,
   Plus,
   Search,
+  Settings,
   Sparkles,
   Sun,
   Wallet,
@@ -31,7 +32,7 @@ interface CommandItem {
 }
 
 export function CommandPalette() {
-  const { commandOpen, setCommandOpen, accounts, setActiveAccount, openChallenge, openTradeEditor } = useApp()
+  const { commandOpen, setCommandOpen, accounts, setActiveAccount, openChallenge, openTradeEditor, openSettings } = useApp()
   const { isDark, toggleTheme } = useTheme()
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
@@ -55,13 +56,14 @@ export function CommandPalette() {
     }
 
     const pages: CommandItem[] = [
-      { id: 'page-metrics', label: 'Metrics', hint: 'Performance & KPI dashboard', group: 'Navigate', icon: <BarChart3 size={15} />, run: closeAnd(() => navigate('/')) },
+      { id: 'page-metrics', label: 'Metrics', hint: 'Performance & KPI dashboard', group: 'Navigate', icon: <BarChart3 size={15} />, run: closeAnd(() => navigate('/metrics')) },
       { id: 'page-journal', label: 'Journal', hint: 'Session calendar & reflections', group: 'Navigate', icon: <CalendarDays size={15} />, run: closeAnd(() => navigate('/journal')) },
-      { id: 'page-accounts', label: 'Accounts', hint: 'Challenges and phases', group: 'Navigate', icon: <Wallet size={15} />, run: closeAnd(() => navigate('/accounts')) },
+      { id: 'page-accounts', label: 'Portfolio', hint: 'Challenges and phases', group: 'Navigate', icon: <Wallet size={15} />, run: closeAnd(() => navigate('/portfolio')) },
       { id: 'page-stats', label: 'Stats', hint: 'Timing, markets, behaviour', group: 'Navigate', icon: <BarChart3 size={15} />, run: closeAnd(() => navigate('/stats')) },
       { id: 'page-entries', label: 'Entries', hint: 'Every trade in the journal', group: 'Navigate', icon: <ListOrdered size={15} />, run: closeAnd(() => navigate('/entries')) },
       { id: 'page-notes', label: 'Notes', hint: 'Daily session reflections', group: 'Navigate', icon: <BookOpenText size={15} />, run: closeAnd(() => navigate('/notes')) },
       { id: 'page-reports', label: 'Reports', hint: 'Where your edge lives', group: 'Navigate', icon: <FileBarChart size={15} />, run: closeAnd(() => navigate('/reports')) },
+      { id: 'action-settings', label: 'Open settings', hint: 'Profile, appearance and data', group: 'Actions', icon: <Settings size={15} />, run: closeAnd(openSettings) },
     ]
 
     const actions: CommandItem[] = [
@@ -90,7 +92,7 @@ export function CommandPalette() {
     const all = [...pages, ...actions, ...accountItems]
     if (!q) return all
     return all.filter((item) => `${item.label} ${item.hint ?? ''} ${item.group}`.toLowerCase().includes(q))
-  }, [accounts, navigate, openChallenge, openTradeEditor, query, setActiveAccount, setCommandOpen, isDark, toggleTheme])
+  }, [accounts, navigate, openChallenge, openTradeEditor, openSettings, query, setActiveAccount, setCommandOpen, isDark, toggleTheme])
 
   useEffect(() => {
     setActiveIndex(0)

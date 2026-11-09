@@ -9,8 +9,7 @@ const THEME_META: Record<Theme, string> = {
 const listeners = new Set<() => void>()
 
 function systemTheme(): Theme {
-  if (typeof window === 'undefined') return 'dark'
-  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+  return 'light'
 }
 
 function storedTheme(): Theme | null {

@@ -10,13 +10,13 @@ import {
 } from 'react'
 import type { Account, Note, NotesByAccount, Trade } from '@/lib/types'
 import {
-  createDemoAccount,
   effectivePhaseHistory,
   latestTradeKey,
   nextStageFor,
   titleFor,
   tradePhaseKey,
   tradesForPhase,
+  createDemoAccount,
 } from '@/lib/accounts'
 import { fundedAccountSize, rulesFor } from '@/data/firms'
 import { getStartingBalance } from '@/lib/stats'
@@ -104,6 +104,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [trades, setTrades] = useState<Trade[]>(() => readTrades())
   const [notes, setNotes] = useState<NotesByAccount>(() => readNotes())
   const [activeAccountId, setActiveAccountId] = useState<string>(() => readActiveAccountId())
+  useEffect(() => {
+    if (readAccounts().length === 0) {
+      const account = createDemoAccount()
+      setAccounts([account])
+      setActiveAccountId(account.id)
+    }
+  }, [])
   const [challengeOpen, setChallengeOpen] = useState(false)
   const [tradeEditor, setTradeEditor] = useState<TradeEditorState | null>(null)
   const [dayReview, setDayReview] = useState<DayReviewState | null>(null)

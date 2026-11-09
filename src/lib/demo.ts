@@ -61,7 +61,7 @@ export function generateDemoTrades(account: Account): Trade[] {
   const seed = hashString(`${account.id}|${account.startingBalance || account.size || 0}`)
   const rng = mulberry32(seed)
   const starting = Number(account.startingBalance) || Number(account.size) || 100_000
-  const baseRisk = Math.max(35, Math.round(starting * 0.0024))
+  const baseRisk = Math.max(8, Math.round(starting * 0.001))
   const today = startOfDay(new Date())
   const trades: Trade[] = []
 

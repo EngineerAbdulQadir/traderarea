@@ -10,7 +10,7 @@ import type {
 } from '@/lib/types'
 import { tradeHoldMinutes, tradeHour } from '@/lib/trades'
 import { addDays, clamp, dateToISO, formatShortDate, parseISODate, startOfDay, todayISO } from '@/lib/dates'
-import { formatHold, formatMoney, plainPercent, signedMoney } from '@/lib/format'
+import { formatHold, formatUsd2, plainPercent, signedMoney } from '@/lib/format'
 
 export const DASHBOARD_RANGES: Record<string, { days: number | null; label: string }> = {
   '30': { days: 30, label: 'Last 30 days' },
@@ -101,11 +101,13 @@ export function computeStats(trades: Trade[], startingBalance: number): Stats {
   const flatDays = dayRows.filter((day) => day.pnl === 0).length
   const decisiveDays = greenDays + redDays
   const dayWinRate = decisiveDays ? (greenDays / decisiveDays) * 100 : 0
-  const bestDay = dayRows.length
-    ? dayRows.reduce((best, day) => (day.pnl > best.pnl ? day : best))
+  const positiveDays = dayRows.filter((day) => day.pnl > 0)
+  const negativeDays = dayRows.filter((day) => day.pnl < 0)
+  const bestDay = positiveDays.length
+    ? positiveDays.reduce((best, day) => (day.pnl > best.pnl ? day : best))
     : null
-  const worstDay = dayRows.length
-    ? dayRows.reduce((worst, day) => (day.pnl < worst.pnl ? day : worst))
+  const worstDay = negativeDays.length
+    ? negativeDays.reduce((worst, day) => (day.pnl < worst.pnl ? day : worst))
     : null
 
   let equity = 0
@@ -517,10 +519,10 @@ export function buildRules(
       name: 'Profit target',
       tone: evaluation.targetHit ? 'is-done' : 'is-info',
       value: signedMoney(stats.net),
-      limit: `/ ${formatMoney(targetAmount)}`,
+      limit: `/ ${formatUsd2(targetAmount)}`,
       pct: progress * 100,
-      left: evaluation.targetHit ? 'Target reached' : `${formatMoney(Math.max(0, targetAmount - stats.net))} to go`,
-      right: `${Math.max(0, Math.round(progress * 100))}%`,
+      left: evaluation.targetHit ? 'Target reached' : `${formatUsd2(Math.max(0, targetAmount - stats.net))} to go`,
+      right: `${Math.max(0, progress * 100).toFixed(1)}%`,
     })
   }
 
@@ -536,11 +538,11 @@ export function buildRules(
     rows.push({
       name: 'Daily loss limit',
       tone: ruleTone(used),
-      value: formatMoney(Math.max(0, -todayPnl)),
-      limit: `/ ${formatMoney(dailyLimit)}`,
+      value: formatUsd2(Math.max(0, -todayPnl)),
+      limit: `/ ${formatUsd2(dailyLimit)}`,
       pct: used * 100,
       left: `Today ${signedMoney(todayPnl)}`,
-      right: `Worst day ${worst ? `−${formatMoney(worst)}` : '$0'}`,
+      right: `Worst day ${worst ? `−${formatUsd2(worst)}` : '$0'}`,
     })
   }
 
@@ -552,11 +554,11 @@ export function buildRules(
     rows.push({
       name: 'Max total loss',
       tone: ruleTone(used),
-      value: formatMoney(Math.max(0, balance - floor)),
+      value: formatUsd2(Math.max(0, balance - floor)),
       limit: 'buffer',
       pct: used * 100,
-      left: `Floor ${formatMoney(floor)}`,
-      right: `${Math.round(used * 100)}% used`,
+      left: `Floor ${formatUsd2(floor)}`,
+      right: `${(used * 100).toFixed(1)}% used`,
     })
   }
 
@@ -572,7 +574,7 @@ export function buildRules(
       left: green >= requiredDays
         ? 'Requirement met'
         : `${requiredDays - green} more needed`,
-      right: `${formatMoney(stats.profitDayThreshold)} min/day`,
+      right: `${formatUsd2(stats.profitDayThreshold)} min/day`,
     })
   }
 

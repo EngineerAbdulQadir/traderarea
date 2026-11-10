@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  CalendarDays,
   Clock3,
   ImagePlus,
   Maximize2,
@@ -242,15 +241,13 @@ export function DayReviewModal() {
         className="day-modal"
         initialFocus={dayReview?.editNote ? '#day-note-input' : undefined}
       >
-        {/* Sleek, Clean Modal Header */}
         <header className="modal-head day-modal-head">
-          <div className="modal-mark accent"><CalendarDays size={18} /></div>
           <div className="modal-head-copy">
-            <span className="modal-eyebrow day-eyebrow">{date ? dayName(date) : 'Day review'}</span>
             <h2 className="modal-title" id="day-review-title">
               {date ? formatNumericDate(date) : 'Day review'}
             </h2>
             <p className="modal-sub">
+              {date ? dayName(date) : 'Day review'} ·{' '}
               {date === new Date().toISOString().slice(0, 10)
                 ? 'Today’s execution, notes and trade detail.'
                 : 'A session in review — curve, results and the note you left behind.'}
@@ -519,13 +516,9 @@ export function DayReviewModal() {
           {/* Session Ledger Header */}
           <div className="day-trades-head">
             <div className="day-trades-title">
-              <span className="card-kicker"><i className="dot" /> Session ledger</span>
               <h3>{dayTrades.length} Trade{dayTrades.length === 1 ? '' : 's'} recorded</h3>
             </div>
             <div className="day-trades-actions">
-              <span className="day-trades-hint">
-                Hover trade to highlight on curve · Click row to edit
-              </span>
               <button
                 type="button"
                 className="day-trades-add-btn"

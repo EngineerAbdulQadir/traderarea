@@ -32,7 +32,19 @@ export function formatUsd2(amount: number | undefined | null): string {
 export function signedMoney(amount: number | undefined | null, currency = 'USD'): string {
   const value = Number(amount) || 0
   if (!value) return formatMoney(0, currency)
-  return `${value > 0 ? '+' : '-'}${formatMoney(Math.abs(value), currency)}`
+  const abs = Math.abs(value)
+  const sign = value > 0 ? '+' : '-'
+  if (currency === 'USD') return `${sign}${usd2.format(abs)}`
+  try {
+    return `${sign}${new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(abs)}`
+  } catch {
+    return `${sign}${currency} ${abs.toFixed(2)}`
+  }
 }
 
 export function compactSignedMoney(amount: number | undefined | null, currency = 'USD'): string {
@@ -43,7 +55,7 @@ export function compactSignedMoney(amount: number | undefined | null, currency =
   let body: string
   if (abs >= 1_000_000) body = `${(abs / 1_000_000).toFixed(abs >= 10_000_000 ? 0 : 1).replace(/\.0$/, '')}M`
   else if (abs >= 1_000) body = `${(abs / 1_000).toFixed(abs >= 10_000 ? 0 : 1).replace(/\.0$/, '')}K`
-  else body = String(Math.round(abs))
+  else body = abs.toFixed(2)
   return `${sign}${symbol}${body}`
 }
 

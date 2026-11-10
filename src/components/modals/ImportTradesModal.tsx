@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react'
 import {
+  ArrowRight,
   CircleAlert,
   FileText,
   Loader2,
+  RefreshCw,
   Upload,
+  X,
 } from 'lucide-react'
 import { Modal, ModalClose } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
@@ -113,6 +116,17 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
     if (file) void readFile(file)
   }
 
+  const resetFile = () => {
+    setResult(null)
+    setFileName('')
+    setError('')
+  }
+
+  const replaceFile = () => {
+    resetFile()
+    inputRef.current?.click()
+  }
+
   const handleImport = () => {
     if (!result || !accountId) return
     const account = accounts.find((item) => item.id === accountId)
@@ -161,6 +175,9 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
 
   const previewTrades = result?.trades.slice(0, 6) ?? []
   const remaining = (result?.trades.length ?? 0) - previewTrades.length
+  const wins = result?.trades.filter((trade) => trade.pnl > 0).length ?? 0
+  const losses = result?.trades.filter((trade) => trade.pnl < 0).length ?? 0
+  const breakEven = (result?.trades.length ?? 0) - wins - losses
 
   return (
     <Modal
@@ -184,9 +201,11 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
 
       <div className="modal-body import-body">
         <div className="field">
-          <label className="field-label" htmlFor="import-account">Import into account</label>
+          <label className="field-label" htmlFor="import-account">
+            Import into account
+          </label>
           <select
-            className="select"
+            className="select import-target-select"
             id="import-account"
             value={accountId}
             onChange={(event) => setAccountId(event.target.value)}
@@ -208,9 +227,9 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
           onChange={onPick}
         />
 
-        {!result && (
+        {!result && !busy && (
           <label
-            className={cn('import-drop', dragging && 'is-dragging', busy && 'is-busy')}
+            className={cn('import-drop', dragging && 'is-dragging')}
             htmlFor="import-file"
             onDragOver={(event) => {
               event.preventDefault()
@@ -220,18 +239,32 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
             onDrop={onDrop}
           >
             <span className="import-drop-icon">
-              {busy ? <Loader2 size={22} className="auth-spin" /> : <Upload size={22} />}
+              <Upload size={22} />
             </span>
-            <b>{busy ? 'Reading statement…' : 'Drop your MetaTrader statement here'}</b>
+            <b>Drop your MetaTrader statement here</b>
             <span>
-              or <em>browse files</em> — HTML, CSV or TSV export
+              or <em>browse files</em> to choose a statement
             </span>
-            <small>MT4 / MT5 · Closed trades only</small>
+            <div className="import-formats">
+              <span>HTML</span>
+              <span>CSV</span>
+              <span>TSV</span>
+            </div>
           </label>
         )}
 
+        {busy && (
+          <div className="import-drop is-busy" role="status" aria-live="polite">
+            <span className="import-drop-icon">
+              <Loader2 size={22} className="auth-spin" />
+            </span>
+            <b>Reading statement…</b>
+            <span>Parsing closed trades and matching columns.</span>
+          </div>
+        )}
+
         {result && (
-          <>
+          <div className="import-review">
             <div className="import-file-row">
               <span className="import-file-icon">
                 <FileText size={16} />
@@ -242,58 +275,69 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
                   {result.platform === 'Unknown' ? 'MetaTrader' : result.platform} · {result.format} statement
                 </span>
               </div>
-              <Badge tone="accent">{result.trades.length} trades</Badge>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setResult(null)
-                  setFileName('')
-                  setError('')
-                  inputRef.current?.click()
-                }}
-              >
-                Change file
-              </Button>
+              <Badge tone="accent">
+                {result.trades.length} trade{result.trades.length === 1 ? '' : 's'}
+              </Badge>
+              <div className="import-file-actions">
+                <button type="button" className="import-icon-btn" onClick={replaceFile} aria-label="Replace file">
+                  <RefreshCw size={14} />
+                </button>
+                <button type="button" className="import-icon-btn" onClick={resetFile} aria-label="Remove file">
+                  <X size={14} />
+                </button>
+              </div>
             </div>
 
-            <div className="import-summary">
-              <div className="import-summary-item">
-                <span>Trades found</span>
+            <div className="import-stats">
+              <div className="import-stat">
+                <span>Trades</span>
                 <b>{result.trades.length}</b>
+                <small>
+                  {wins}W · {losses}L{breakEven ? ` · ${breakEven}BE` : ''}
+                </small>
               </div>
-              <div className="import-summary-item">
+              <div className="import-stat">
                 <span>Net P&amp;L</span>
                 <b className={result.totalPnl >= 0 ? 'is-pos' : 'is-neg'}>{signedMoney(result.totalPnl)}</b>
+                <small>Across the statement</small>
               </div>
-              <div className="import-summary-item">
+              <div className="import-stat">
                 <span>Period</span>
-                <b>
+                <b className="import-period">
                   {result.from && result.to
                     ? `${formatNumericDate(result.from)} – ${formatNumericDate(result.to)}`
                     : '—'}
                 </b>
+                <small>{result.skipped ? `${result.skipped} skipped` : 'All rows read'}</small>
               </div>
             </div>
 
             <div className="import-preview">
               <div className="import-preview-head">
-                <span>Preview</span>
+                <span>Date</span>
+                <span>Symbol</span>
+                <span>Side</span>
+                <span>Size</span>
                 <span>P&amp;L</span>
               </div>
               {previewTrades.map((trade) => (
-                <div className="import-preview-row" key={`${trade.ticket}-${trade.date}-${trade.symbol}-${trade.pnl}`}>
+                <div
+                  className="import-preview-row"
+                  key={`${trade.ticket}-${trade.date}-${trade.symbol}-${trade.pnl}`}
+                >
                   <span className="import-preview-date">{formatNumericDate(trade.date)}</span>
                   <span className="import-preview-symbol">{trade.symbol}</span>
                   <Badge tone={trade.side === 'LONG' ? 'pos' : 'neg'}>
                     {trade.side === 'LONG' ? 'Long' : 'Short'}
                   </Badge>
-                  <span className="import-preview-volume">{trade.volume || '—'} lots</span>
+                  <span className="import-preview-volume">{trade.volume || '—'}</span>
                   <b className={trade.pnl >= 0 ? 'is-pos' : 'is-neg'}>{signedMoney(trade.pnl)}</b>
                 </div>
               ))}
               {remaining > 0 && (
-                <p className="import-preview-more">+ {remaining} more trade{remaining === 1 ? '' : 's'}</p>
+                <p className="import-preview-more">
+                  + {remaining} more trade{remaining === 1 ? '' : 's'} in this statement
+                </p>
               )}
             </div>
 
@@ -302,7 +346,7 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
                 {result.skipped} row{result.skipped === 1 ? '' : 's'} could not be read and will be skipped.
               </p>
             )}
-          </>
+          </div>
         )}
 
         {error && (
@@ -313,13 +357,17 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
         )}
 
         <p className="import-note">
-          Export from MetaTrader: open <b>Account History</b>, right-click the history, then choose{' '}
+          Export from MetaTrader: open <b>Account History</b>, right-click, then choose{' '}
           <b>Save as Report</b> (HTML) or <b>Export</b> (CSV).
         </p>
       </div>
 
-      <footer className="modal-foot">
-        <span className="spacer" />
+      <footer className="modal-foot import-foot">
+        <span className="modal-foot-note">
+          {result
+            ? `${result.trades.length} trade${result.trades.length === 1 ? '' : 's'} ready to import`
+            : 'No statement selected'}
+        </span>
         <Button variant="ghost" type="button" onClick={onClose}>
           Cancel
         </Button>
@@ -328,6 +376,7 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
           type="button"
           onClick={handleImport}
           disabled={!result || !accountId}
+          iconRight={<ArrowRight size={14} />}
         >
           {result ? `Import ${result.trades.length} trade${result.trades.length === 1 ? '' : 's'}` : 'Import trades'}
         </Button>

@@ -7835,7 +7835,7 @@ button.calendar-day:hover:not(:disabled) {
 .day-modal-head {
   flex: none;
   align-items: center;
-  padding: 16px 19px 14px;
+  padding: 20px 22px 16px;
 }
 
 .day-modal-head .modal-head-copy {
@@ -7847,7 +7847,7 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .day-modal-head .modal-title {
-  font-size: 18px;
+  font-size: 19px;
 }
 
 .day-modal-head .modal-sub {
@@ -13228,7 +13228,7 @@ button.calendar-day:hover {
 
 /* -------------------------  MetaTrader import  ------------------------- */
 .import-modal {
-  width: min(100%, 720px);
+  width: min(100%, 760px);
   border-radius: 18px;
   background:
     radial-gradient(640px 190px at 16% -30%, rgb(var(--accent-rgb) / 0.1), transparent 72%),
@@ -13272,7 +13272,21 @@ button.calendar-day:hover {
 .import-body {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 11px;
+  padding: 16px 22px 18px;
+}
+
+.import-body .field {
+  gap: 5px;
+}
+
+.import-body .field-label {
+  gap: 5px;
+  color: var(--faint);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.085em;
+  text-transform: uppercase;
 }
 
 .import-file-input {
@@ -13287,15 +13301,34 @@ button.calendar-day:hover {
   border: 0;
 }
 
+/* ---------- Target account ---------- */
+.import-target-select {
+  height: 36px;
+  background-color: var(--panel-2);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238e9a97' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+}
+
+.import-target-select:focus {
+  background-color: var(--panel-2);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238e9a97' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+}
+
+/* ---------- Drop zone ---------- */
 .import-drop {
   display: flex;
   align-items: center;
   flex-direction: column;
-  gap: 5px;
-  padding: 34px 22px;
-  border-radius: 12px;
+  gap: 6px;
+  padding: 38px 24px 30px;
+  border-radius: 13px;
   border: 1px dashed var(--line-strong);
-  background: rgb(var(--overlay-rgb) / 0.022);
+  background:
+    radial-gradient(420px 140px at 50% 0%, rgb(var(--accent-rgb) / 0.05), transparent 70%),
+    var(--panel-2);
   text-align: center;
   cursor: pointer;
   transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s var(--ease-out);
@@ -13318,18 +13351,18 @@ button.calendar-day:hover {
 .import-drop-icon {
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
-  margin-bottom: 6px;
-  border-radius: 12px;
-  border: 1px solid rgb(var(--accent-rgb) / 0.17);
-  background: rgb(var(--accent-rgb) / 0.08);
+  width: 50px;
+  height: 50px;
+  margin-bottom: 8px;
+  border-radius: 14px;
+  border: 1px solid rgb(var(--accent-rgb) / 0.18);
+  background: rgb(var(--accent-rgb) / 0.09);
   color: var(--accent);
 }
 
 .import-drop b {
   color: var(--text);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 570;
 }
 
@@ -13344,31 +13377,47 @@ button.calendar-day:hover {
   font-weight: 550;
 }
 
-.import-drop small {
-  margin-top: 5px;
+.import-formats {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.import-formats span {
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
   color: var(--faint);
-  font-size: 9px;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+
+/* ---------- Review ---------- */
+.import-review {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .import-file-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
   padding: 11px 12px;
-  border-radius: 10px;
+  border-radius: 11px;
   border: 1px solid var(--line);
-  background: rgb(var(--overlay-rgb) / 0.024);
+  background: var(--panel-2);
 }
 
 .import-file-icon {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   flex: none;
-  border-radius: 8px;
+  border-radius: 9px;
   border: 1px solid var(--line);
   background: var(--panel-2);
   color: var(--muted);
@@ -13400,20 +13449,50 @@ button.calendar-day:hover {
   flex: none;
 }
 
-.import-summary {
+.import-file-actions {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+
+.import-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.import-icon-btn:hover {
+  border-color: var(--line);
+  background: var(--panel-3);
+  color: var(--text);
+}
+
+.import-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.import-summary-item {
-  padding: 12px 14px;
-  border-radius: 9px;
+  overflow: hidden;
+  border-radius: 10px;
   border: 1px solid var(--line);
-  background: rgb(var(--overlay-rgb) / 0.025);
+  background: var(--panel-2);
 }
 
-.import-summary-item span {
+.import-stat {
+  min-width: 0;
+  padding: 11px 14px;
+}
+
+.import-stat + .import-stat {
+  border-left: 1px solid var(--line);
+}
+
+.import-stat span {
   display: block;
   color: var(--muted);
   font-size: 8.5px;
@@ -13422,36 +13501,63 @@ button.calendar-day:hover {
   text-transform: uppercase;
 }
 
-.import-summary-item b {
+.import-stat b {
   display: block;
-  margin-top: 5px;
+  margin-top: 4px;
+  overflow: hidden;
   color: var(--text);
   font-size: 15px;
   font-weight: 570;
   letter-spacing: -0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.import-summary-item b.is-pos {
+.import-stat b.import-period {
+  font-size: 12px;
+  letter-spacing: -0.01em;
+}
+
+.import-stat small {
+  display: block;
+  margin-top: 2px;
+  color: var(--faint);
+  font-size: 9.5px;
+}
+
+.import-stat b.is-pos,
+.import-preview-row > b.is-pos {
   color: var(--pos-text);
 }
 
-.import-summary-item b.is-neg {
+.import-stat b.is-neg,
+.import-preview-row > b.is-neg {
   color: var(--neg-text);
+}
+
+.import-period {
+  font-variant-numeric: tabular-nums;
 }
 
 .import-preview {
   overflow: hidden;
   border-radius: 10px;
   border: 1px solid var(--line);
+  background: var(--panel-2);
+}
+
+.import-preview-head,
+.import-preview-row {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) 74px 56px 90px;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 13px;
 }
 
 .import-preview-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
   border-bottom: 1px solid var(--line);
-  background: rgb(var(--overlay-rgb) / 0.03);
+  background: transparent;
   color: var(--faint);
   font-size: 8.5px;
   font-weight: 600;
@@ -13459,12 +13565,12 @@ button.calendar-day:hover {
   text-transform: uppercase;
 }
 
+.import-preview-head span:last-child,
+.import-preview-row > b {
+  text-align: right;
+}
+
 .import-preview-row {
-  display: grid;
-  grid-template-columns: 94px minmax(0, 1fr) auto auto 82px;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
   border-bottom: 1px solid var(--line-soft);
 }
 
@@ -13475,6 +13581,7 @@ button.calendar-day:hover {
 .import-preview-date {
   color: var(--muted);
   font-size: 10px;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -13490,32 +13597,23 @@ button.calendar-day:hover {
 .import-preview-volume {
   color: var(--faint);
   font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
   white-space: nowrap;
 }
 
 .import-preview-row > b {
-  text-align: right;
   font-size: 11px;
   font-weight: 570;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.import-preview-row > b.is-pos,
-.import-summary-item b.is-pos {
-  color: var(--pos-text);
-}
-
-.import-preview-row > b.is-neg,
-.import-summary-item b.is-neg {
-  color: var(--neg-text);
-}
-
 .import-preview-more {
   margin: 0;
-  padding: 9px 12px;
+  padding: 9px 13px;
   border-top: 1px solid var(--line);
-  background: rgb(var(--overlay-rgb) / 0.018);
+  background: transparent;
   color: var(--faint);
   font-size: 10px;
   text-align: center;
@@ -13528,9 +13626,10 @@ button.calendar-day:hover {
   line-height: 1.5;
 }
 
+/* ---------- Help note ---------- */
 .import-note {
   margin: 0;
-  padding-top: 14px;
+  padding-top: 12px;
   border-top: 1px solid var(--line);
   color: var(--faint);
   font-size: 10px;
@@ -13542,9 +13641,22 @@ button.calendar-day:hover {
   font-weight: 560;
 }
 
+.import-foot {
+  align-items: center;
+}
+
+.import-foot .modal-foot-note {
+  margin-right: auto;
+}
+
 @media (max-width: 560px) {
-  .import-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .import-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .import-stat + .import-stat {
+    border-top: 1px solid var(--line);
+    border-left: 0;
   }
 
   .import-file-row {
@@ -13552,18 +13664,21 @@ button.calendar-day:hover {
   }
 
   .import-file-copy {
-    flex-basis: calc(100% - 42px);
+    flex-basis: calc(100% - 45px);
   }
 
+  .import-file-actions {
+    margin-left: auto;
+  }
+
+  .import-preview-head,
   .import-preview-row {
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) 54px 78px;
   }
 
-  .import-preview-date {
-    grid-column: 1 / -1;
-    font-size: 9px;
-  }
-
+  .import-preview-head span:nth-child(1),
+  .import-preview-date,
+  .import-preview-head span:nth-child(4),
   .import-preview-volume {
     display: none;
   }
@@ -13981,7 +14096,7 @@ button.calendar-day:hover {
   height: 36px;
   border-radius: var(--radius-sm);
   border-color: var(--line);
-  background-color: var(--input-bg);
+  background-color: var(--panel-2);
   font-size: 12px;
   transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
@@ -14004,7 +14119,7 @@ button.calendar-day:hover {
 .trade-form .select:focus,
 .trade-form .textarea:focus {
   border-color: var(--accent);
-  background-color: var(--input-bg);
+  background-color: var(--panel-2);
   box-shadow: 0 0 0 3px var(--focus-ring-soft);
 }
 
@@ -14013,7 +14128,7 @@ button.calendar-day:hover {
   padding: 8px 11px;
   border-radius: var(--radius-sm);
   border-color: var(--line);
-  background: var(--input-bg);
+  background: var(--panel-2);
   font-size: 12px;
   line-height: 1.5;
 }

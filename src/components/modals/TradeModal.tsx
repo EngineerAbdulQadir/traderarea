@@ -248,7 +248,7 @@ export function TradeModal() {
             </h2>
             <p className="modal-sub">
               {editing
-                ? 'Update this entry — every metric recalculates on save.'
+                ? 'Update this entry. Every metric recalculates on save.'
                 : 'Log a closed trade. Only the essentials are required.'}
             </p>
           </div>
@@ -265,11 +265,6 @@ export function TradeModal() {
               </span>
             </div>
           )}
-
-          <div className="trade-section-label">
-            <span>Details</span>
-            <i />
-          </div>
 
           <div className="field-row cols-wide">
             <div className="field">
@@ -401,11 +396,6 @@ export function TradeModal() {
             </div>
           </div>
 
-          <div className="trade-section-label">
-            <span>Result</span>
-            <i />
-          </div>
-
           <div className="field-row cols-4">
             <div className="field">
               <label className="field-label" htmlFor="trade-pnl">
@@ -476,11 +466,6 @@ export function TradeModal() {
                 ))}
               </select>
             </div>
-          </div>
-
-          <div className="trade-section-label">
-            <span>Context</span>
-            <i />
           </div>
 
           <div className="field">

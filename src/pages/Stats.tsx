@@ -42,6 +42,7 @@ import { tradeGrade, tradeHoldMinutes, tradeHour } from '@/lib/trades'
 import {
   formatHold,
   formatMoney,
+  formatUsd2,
   formatR,
   plainPercent,
   signedMoney,
@@ -240,7 +241,7 @@ export function StatsPage() {
     },
     {
       label: 'Win rate',
-      value: `${plainPercent(stats.winRate)}%`,
+      value: `${plainPercent(stats.winRate, 1)}%`,
       sub: `${stats.wins}W · ${stats.losses}L · ${stats.be}BE`,
       tone: '',
     },
@@ -259,7 +260,7 @@ export function StatsPage() {
     {
       label: 'Payoff ratio',
       value: stats.avgLoss ? `${stats.avgWl.toFixed(2)}×` : stats.avgWin ? '∞' : '—',
-      sub: `avg win ${stats.avgWin ? formatMoney(stats.avgWin) : '—'} · avg loss ${stats.avgLoss ? formatMoney(stats.avgLoss) : '—'}`,
+      sub: `avg win ${stats.avgWin ? formatUsd2(stats.avgWin) : '—'} · avg loss ${stats.avgLoss ? formatUsd2(stats.avgLoss) : '—'}`,
       tone: '',
     },
     {
@@ -277,7 +278,7 @@ export function StatsPage() {
     {
       label: 'Green days',
       value: stats.dayRows.length ? `${stats.greenDays} / ${stats.dayRows.length}` : '—',
-      sub: `${plainPercent(stats.dayWinRate, 0)}% day win rate`,
+      sub: `${plainPercent(stats.dayWinRate, 1)}% day win rate`,
       tone: '',
     },
   ]
@@ -296,7 +297,7 @@ export function StatsPage() {
       {group ? (
         <dl className="side-stats">
           <div><dt>Trades</dt><dd className="num">{group.count}</dd></div>
-          <div><dt>Win rate</dt><dd className="num">{plainPercent(group.winRate, 0)}%</dd></div>
+          <div><dt>Win rate</dt><dd className="num">{plainPercent(group.winRate, 1)}%</dd></div>
           <div><dt>Profit factor</dt><dd className="num">{pfStr(group)}</dd></div>
           <div><dt>Avg trade</dt><dd className={cn('num', group.avg > 0 ? 'is-pos' : group.avg < 0 ? 'is-neg' : '')}>{signedMoney(group.avg)}</dd></div>
           <div><dt>Avg R</dt><dd className={cn('num', group.avgR > 0 ? 'is-pos' : group.avgR < 0 ? 'is-neg' : '')}>{formatR(group.avgR)}</dd></div>

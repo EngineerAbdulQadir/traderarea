@@ -40,7 +40,7 @@ import {
   todayISO,
 } from '@/lib/dates'
 import {
-  formatMoney,
+  formatUsd2,
   plainPercent,
   signedMoney,
   signedPercent,
@@ -181,7 +181,7 @@ export function DashboardPage() {
             </button>
             <div className="hero-balance">
               <span>Balance</span>
-              <b className="num">{formatMoney(balance)}</b>
+              <b className="num">{formatUsd2(balance)}</b>
             </div>
           </div>
 
@@ -201,14 +201,14 @@ export function DashboardPage() {
                   <ArrowUpRight size={12} className="hero-day-arrow is-pos" />
                   Best day
                 </span>
-                <b className="num">{stats.count ? signedMoney(stats.bestDay!.pnl) : '$0'}</b>
+                <b className="num">{stats.bestDay ? signedMoney(stats.bestDay.pnl) : '$0.00'}</b>
               </div>
               <div className="hero-day-stat">
                 <span className="hero-day-stat-label">
                   <ArrowDownRight size={12} className="hero-day-arrow is-neg" />
                   Worst day
                 </span>
-                <b className="num">{stats.count ? signedMoney(stats.worstDay!.pnl) : '$0'}</b>
+                <b className="num">{stats.worstDay ? signedMoney(stats.worstDay.pnl) : '$0.00'}</b>
               </div>
             </div>
           </div>
@@ -238,7 +238,7 @@ export function DashboardPage() {
         <Card className="metric-card">
           <div className="metric-copy">
             <span className="metric-label">Trade win rate</span>
-            <strong className="metric-value num">{plainPercent(stats.winRate)}<small>%</small></strong>
+            <strong className="metric-value num">{plainPercent(stats.winRate, 1)}<small>%</small></strong>
             <span className="metric-sub">
               {stats.count
                 ? stats.winRate >= 60
@@ -285,9 +285,9 @@ export function DashboardPage() {
                 : 'No closed trades'}
             </span>
             <span className="metric-foot">
-              <span className="is-pos">+{formatMoney(stats.grossProfit)} profit</span>
+              <span className="is-pos">+{formatUsd2(stats.grossProfit)} profit</span>
               <i aria-hidden="true" />
-              <span className="is-neg">−{formatMoney(stats.grossLoss)} loss</span>
+              <span className="is-neg">−{formatUsd2(stats.grossLoss)} loss</span>
             </span>
           </div>
           <ProfitFactorGauge
@@ -300,7 +300,7 @@ export function DashboardPage() {
         <Card className="metric-card">
           <div className="metric-copy">
             <span className="metric-label">Day win rate</span>
-            <strong className="metric-value num">{plainPercent(stats.dayWinRate)}<small>%</small></strong>
+            <strong className="metric-value num">{plainPercent(stats.dayWinRate, 1)}<small>%</small></strong>
             <span className="metric-sub">
               {stats.dayRows.length
                 ? stats.dayWinRate >= 60
@@ -336,11 +336,11 @@ export function DashboardPage() {
                 : 'No closed trades'}
             </span>
             <span className="metric-foot">
-              <span className="is-pos">Win {stats.avgWin ? formatMoney(stats.avgWin) : '—'}</span>
+              <span className="is-pos">Win {stats.avgWin ? formatUsd2(stats.avgWin) : '—'}</span>
               <i aria-hidden="true" />
-              <span className="is-neg">Loss {stats.avgLoss ? `−${formatMoney(stats.avgLoss)}` : '—'}</span>
+              <span className="is-neg">Loss {stats.avgLoss ? `−${formatUsd2(stats.avgLoss)}` : '—'}</span>
               <i aria-hidden="true" />
-              <span>B/E {stats.count && stats.avgWl > 0 ? `${plainPercent((1 / (1 + stats.avgWl)) * 100, 0)}%` : '—'}</span>
+              <span>B/E {stats.count && stats.avgWl > 0 ? `${plainPercent((1 / (1 + stats.avgWl)) * 100, 1)}%` : '—'}</span>
             </span>
           </div>
           <AvgWinLossChart

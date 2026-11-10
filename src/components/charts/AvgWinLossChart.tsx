@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { formatMoney } from '@/lib/format'
+import { formatUsd2 } from '@/lib/format'
 import { cn } from '@/lib/cn'
 
 interface AvgWinLossChartProps {
@@ -30,12 +30,12 @@ export function AvgWinLossChart({
     <div
       className={cn('avg-wl-bars', className)}
       role="img"
-      aria-label={`Avg win ${formatMoney(avgWin)}, avg loss ${formatMoney(avgLoss)}, payoff ratio ${ratioText}`}
+      aria-label={`Avg win ${formatUsd2(avgWin)}, avg loss ${formatUsd2(avgLoss)}, payoff ratio ${ratioText}`}
     >
       <div className="avg-wl-row">
         <div className="avg-wl-meta">
           <span className="avg-wl-tag">Avg win</span>
-          <strong className="avg-wl-val num is-pos">{hasWin ? formatMoney(avgWin) : '—'}</strong>
+          <strong className="avg-wl-val num is-pos">{hasWin ? formatUsd2(avgWin) : '—'}</strong>
         </div>
         <div className="avg-wl-track">
           <motion.i
@@ -51,7 +51,7 @@ export function AvgWinLossChart({
         <div className="avg-wl-meta">
           <span className="avg-wl-tag">Avg loss</span>
           <strong className="avg-wl-val num is-neg">
-            {hasLoss ? `−${formatMoney(avgLoss)}` : '—'}
+            {hasLoss ? `−${formatUsd2(avgLoss)}` : '—'}
           </strong>
         </div>
         <div className="avg-wl-track">

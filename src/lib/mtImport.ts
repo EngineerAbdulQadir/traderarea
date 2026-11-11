@@ -7,6 +7,8 @@ export interface ImportedTrade {
   volume: number
   entry: number
   exit: number
+  stopLoss: number
+  takeProfit: number
   pnl: number
   fees: number
   date: string
@@ -14,14 +16,24 @@ export interface ImportedTrade {
   closeTime: string
 }
 
+export interface HistoryImportMeta {
+  /** Account holder / challenge name printed on the statement, e.g. "02-EZE FUNDED 2 STEP PRO (PHASE 1)". */
+  accountName: string
+  /** Login number printed on the statement, e.g. "474890255". */
+  accountNumber: string
+  company: string
+  generatedAt: string
+}
+
 export interface HistoryImportResult {
   platform: 'MT4' | 'MT5' | 'Unknown'
-  format: 'HTML' | 'CSV'
+  format: 'HTML' | 'CSV' | 'XLSX'
   trades: ImportedTrade[]
   skipped: number
   totalPnl: number
   from: string
   to: string
+  meta: HistoryImportMeta
 }
 
 interface HeaderMap {
@@ -33,17 +45,31 @@ interface HeaderMap {
   volume?: number
   entry?: number
   exit?: number
+  stopLoss?: number
+  takeProfit?: number
   profit?: number
   net?: number
   commission?: number
   swap?: number
   tax?: number
+  /** Table shape flags, used to tell closed positions apart from orders/deals. */
+  hasPosition?: boolean
+  hasDirection?: boolean
+  hasDeal?: boolean
 }
 
 interface ParsedTable {
   trades: ImportedTrade[]
   skipped: number
   header: HeaderMap
+  meta: HistoryImportMeta
+}
+
+const EMPTY_META: HistoryImportMeta = {
+  accountName: '',
+  accountNumber: '',
+  company: '',
+  generatedAt: '',
 }
 
 interface DateParts {
@@ -53,6 +79,8 @@ interface DateParts {
 
 const BUY_TYPES = /^(buy|long)\b/i
 const SELL_TYPES = /^(sell|short)\b/i
+const SECTION_BREAK =
+  /^(positions?|open positions?|orders?|pending orders?|working orders?|deals?|results?|balance|closed (transactions?|trades?))$/i
 
 function round(value: number, digits = 2): number {
   const factor = 10 ** digits
@@ -103,6 +131,12 @@ function buildHeaderMap(cells: string[]): HeaderMap | null {
   const map: HeaderMap = {}
   let timeCount = 0
   let priceCount = 0
+  let singleTime: number | null = null
+
+  const normalized = cells.map(normalizeHeader)
+  map.hasPosition = normalized.some((h) => h === 'position')
+  map.hasDirection = normalized.some((h) => h === 'direction')
+  map.hasDeal = normalized.some((h) => h === 'deal')
 
   cells.forEach((cell, index) => {
     const h = normalizeHeader(cell)
@@ -140,6 +174,14 @@ function buildHeaderMap(cells: string[]): HeaderMap | null {
       map.exit = index
       return
     }
+    if (map.stopLoss === undefined && (h === 'sl' || h === 'stoploss' || h.includes('stoploss') || h.includes('stoplvl'))) {
+      map.stopLoss = index
+      return
+    }
+    if (map.takeProfit === undefined && (h === 'tp' || h === 'takeprofit' || h.includes('takeprofit') || h.includes('targetprice'))) {
+      map.takeProfit = index
+      return
+    }
     if (map.net === undefined && (h === 'net' || h.includes('netprofit') || h.includes('netpl') || h.includes('netpnl'))) {
       map.net = index
       return
@@ -162,8 +204,13 @@ function buildHeaderMap(cells: string[]): HeaderMap | null {
     }
     if (h === 'time' || h.startsWith('time')) {
       timeCount += 1
-      if (timeCount === 1 && map.openTime === undefined) map.openTime = index
-      else if (timeCount === 2 && map.closeTime === undefined) map.closeTime = index
+      if (timeCount === 1 && map.openTime === undefined) {
+        map.openTime = index
+        singleTime = index
+      } else if (timeCount === 2 && map.closeTime === undefined) {
+        map.closeTime = index
+        singleTime = null
+      }
       return
     }
     if (h === 'price' || h === 'pricecurrency') {
@@ -172,6 +219,12 @@ function buildHeaderMap(cells: string[]): HeaderMap | null {
       else if (priceCount === 2 && map.exit === undefined) map.exit = index
     }
   })
+
+  // A lone "Time" column in a MetaTrader report is the position close time.
+  if (singleTime !== null && map.closeTime === undefined) {
+    map.closeTime = singleTime
+    if (map.openTime === singleTime) map.openTime = undefined
+  }
 
   if (map.symbol === undefined || map.type === undefined) return null
   if (map.profit === undefined && map.net === undefined) return null
@@ -245,6 +298,9 @@ function tradeFromRow(cells: string[], map: HeaderMap): ImportedTrade | null {
   const close = parseDate(value(map.closeTime))
   if (!open && !close) return null
 
+  const stopLoss = map.stopLoss === undefined ? Number.NaN : parseNumber(value(map.stopLoss))
+  const takeProfit = map.takeProfit === undefined ? Number.NaN : parseNumber(value(map.takeProfit))
+
   return {
     ticket: value(map.ticket).replace(/\s+/g, ''),
     symbol,
@@ -252,6 +308,8 @@ function tradeFromRow(cells: string[], map: HeaderMap): ImportedTrade | null {
     volume: map.volume === undefined ? 0 : Math.abs(parseNumber(value(map.volume)) || 0),
     entry: map.entry === undefined ? 0 : parseNumber(value(map.entry)) || 0,
     exit: map.exit === undefined ? 0 : parseNumber(value(map.exit)) || 0,
+    stopLoss: Number.isFinite(stopLoss) && stopLoss > 0 ? round(stopLoss, 5) : 0,
+    takeProfit: Number.isFinite(takeProfit) && takeProfit > 0 ? round(takeProfit, 5) : 0,
     pnl: round(pnl),
     fees: round(fees),
     date: close?.date || open?.date || '',
@@ -268,6 +326,11 @@ function parseRows(rows: string[][], headerIndex: number, map: HeaderMap): Parse
     const cells = rows[index]
     if (!cells || cells.every((cell) => !cellText(cell))) continue
 
+    // A sheet import (XLSX) keeps every section in one grid. Stop at the next
+    // section heading so "Orders"/"Deals" rows are not read as closed trades.
+    const filled = cells.filter((cell) => cellText(cell))
+    if (filled.length === 1 && SECTION_BREAK.test(cellText(filled[0]))) break
+
     const type = map.type === undefined ? '' : cellText(cells[map.type])
     if (!parseSide(type)) {
       if (/buy|sell|long|short/i.test(type)) skipped += 1
@@ -282,20 +345,137 @@ function parseRows(rows: string[][], headerIndex: number, map: HeaderMap): Parse
     trades.push(trade)
   }
 
-  return { trades, skipped, header: map }
+  return { trades, skipped, header: map, meta: EMPTY_META }
+}
+
+/** Read the "Name / Account / Company / Date" header that MetaTrader prints above the tables. */
+function extractMeta(rows: string[][]): HistoryImportMeta {
+  const findValue = (label: RegExp): string => {
+    for (const row of rows) {
+      for (let index = 0; index < row.length; index += 1) {
+        const text = cellText(row[index])
+        if (!label.test(text)) continue
+
+        const inline = text.replace(label, '').replace(/^:\s*/, '').trim()
+        if (inline) return inline
+        for (let next = index + 1; next < row.length; next += 1) {
+          const value = cellText(row[next])
+          if (value) return value
+        }
+      }
+    }
+    return ''
+  }
+
+  const account = findValue(/^account\s*:?\s*/i)
+  const number = account.match(/\b(\d{5,})\b/)?.[1] ?? ''
+
+  return {
+    accountName: findValue(/^name\s*:?\s*/i),
+    accountNumber: number,
+    company: findValue(/^company\s*:?\s*/i),
+    generatedAt: findValue(/^date\s*:?\s*/i),
+  }
+}
+
+/**
+ * Prefer closed-position tables. MetaTrader 5 sheets also contain "Orders" and
+ * "Deals" tables; the deals table repeats every entry/exit and must not win.
+ */
+function scoreTable(parsed: ParsedTable): number {
+  const map = parsed.header
+  let score = parsed.trades.length * 10
+  if (map.closeTime !== undefined) score += 2_500
+  if (map.hasPosition) score += 4_000
+  if (map.hasDeal && !map.hasPosition) score -= 1_000
+  if (map.hasDirection) score -= 5_000
+  if (map.ticket !== undefined) score += 100
+  return score
+}
+
+function resultFromParsed(
+  parsed: ParsedTable | null,
+  format: HistoryImportResult['format'],
+  platform: HistoryImportResult['platform'],
+): HistoryImportResult {
+  if (!parsed || !parsed.trades.length) {
+    return {
+      platform,
+      format,
+      trades: [],
+      skipped: parsed?.skipped ?? 0,
+      totalPnl: 0,
+      from: '',
+      to: '',
+      meta: parsed?.meta ?? EMPTY_META,
+    }
+  }
+
+  const trades = [...parsed.trades].sort((a, b) =>
+    (a.date + a.closeTime).localeCompare(b.date + b.closeTime),
+  )
+  const dates = trades.map((trade) => trade.date).filter(Boolean).sort()
+
+  return {
+    platform,
+    format,
+    trades,
+    skipped: parsed.skipped,
+    totalPnl: round(trades.reduce((total, trade) => total + trade.pnl, 0)),
+    from: dates[0] ?? '',
+    to: dates[dates.length - 1] ?? '',
+    meta: parsed.meta,
+  }
+}
+
+function bestTable(rows: string[][]): ParsedTable | null {
+  let best: ParsedTable | null = null
+  let bestScore = Number.NEGATIVE_INFINITY
+
+  rows.forEach((row, headerIndex) => {
+    const map = buildHeaderMap(row)
+    if (!map) return
+    const parsed = parseRows(rows, headerIndex, map)
+    if (!parsed.trades.length) return
+    const score = scoreTable(parsed)
+    if (score > bestScore) {
+      best = parsed
+      bestScore = score
+    }
+  })
+
+  if (best) {
+    const found: ParsedTable = best
+    found.meta = extractMeta(rows)
+  }
+  return best
+}
+
+/**
+ * Parse a spreadsheet grid (used for .xlsx reports). The MetaTrader report
+ * prints its header details and every table on a single sheet.
+ */
+export function parseMetaTraderRows(
+  rows: string[][],
+  platformHint = '',
+): HistoryImportResult {
+  const platform = detectMetaTraderPlatform(platformHint || rows.map((row) => row.join(' ')).join('\n'))
+  return resultFromParsed(bestTable(rows), 'XLSX', platform)
 }
 
 function parseHtml(text: string): ParsedTable | null {
   const doc = new DOMParser().parseFromString(text, 'text/html')
   const tables = Array.from(doc.querySelectorAll('table'))
+  const allRows: string[][] = []
   let best: ParsedTable | null = null
-  let bestScore = -1
+  let bestScore = Number.NEGATIVE_INFINITY
 
   tables.forEach((table) => {
     const trs = Array.from(table.querySelectorAll('tr'))
     const rows = trs.map((tr) =>
       Array.from(tr.querySelectorAll('th, td')).map((cell) => cellText(cell.textContent)),
     )
+    allRows.push(...rows)
     if (rows.length < 2) return
 
     rows.forEach((row, headerIndex) => {
@@ -303,7 +483,7 @@ function parseHtml(text: string): ParsedTable | null {
       if (!map) return
       const parsed = parseRows(rows, headerIndex, map)
       if (!parsed.trades.length) return
-      const score = parsed.trades.length + (map.closeTime !== undefined ? 1000 : 0)
+      const score = scoreTable(parsed)
       if (score > bestScore) {
         best = parsed
         bestScore = score
@@ -311,6 +491,10 @@ function parseHtml(text: string): ParsedTable | null {
     })
   })
 
+  if (best) {
+    const found: ParsedTable = best
+    found.meta = extractMeta(allRows)
+  }
   return best
 }
 
@@ -376,22 +560,7 @@ function parseDelimited(text: string, delimiter: string): string[][] {
 
 function parseCsv(text: string): ParsedTable | null {
   const rows = parseDelimited(text, detectDelimiter(text))
-  let best: ParsedTable | null = null
-  let bestScore = -1
-
-  rows.forEach((row, headerIndex) => {
-    const map = buildHeaderMap(row)
-    if (!map) return
-    const parsed = parseRows(rows, headerIndex, map)
-    if (!parsed.trades.length) return
-    const score = parsed.trades.length + (map.closeTime !== undefined ? 1000 : 0)
-    if (score > bestScore) {
-      best = parsed
-      bestScore = score
-    }
-  })
-
-  return best
+  return bestTable(rows)
 }
 
 export function detectMetaTraderPlatform(text: string): 'MT4' | 'MT5' | 'Unknown' {
@@ -406,31 +575,5 @@ export function parseMetaTraderHistory(text: string): HistoryImportResult {
   const parsed = isHtml ? parseHtml(source) : parseCsv(source)
   const format = isHtml ? 'HTML' : 'CSV'
   const platform = detectMetaTraderPlatform(source)
-
-  if (!parsed || !parsed.trades.length) {
-    return {
-      platform,
-      format,
-      trades: [],
-      skipped: parsed?.skipped ?? 0,
-      totalPnl: 0,
-      from: '',
-      to: '',
-    }
-  }
-
-  const trades = [...parsed.trades].sort((a, b) =>
-    (a.date + a.closeTime).localeCompare(b.date + b.closeTime),
-  )
-  const dates = trades.map((trade) => trade.date).filter(Boolean).sort()
-
-  return {
-    platform,
-    format,
-    trades,
-    skipped: parsed.skipped,
-    totalPnl: round(trades.reduce((total, trade) => total + trade.pnl, 0)),
-    from: dates[0] ?? '',
-    to: dates[dates.length - 1] ?? '',
-  }
+  return resultFromParsed(parsed, format, platform)
 }

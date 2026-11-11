@@ -7870,6 +7870,47 @@ button.calendar-day:hover:not(:disabled) {
   white-space: nowrap;
 }
 
+.day-head-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 3px;
+}
+
+.day-head-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgb(var(--overlay-rgb) / 0.03);
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 550;
+  white-space: nowrap;
+}
+
+.day-head-chip.is-dim {
+  color: var(--faint);
+}
+
+.day-head-chip.is-split i {
+  color: var(--faint);
+  font-style: normal;
+}
+
+.day-head-chip.is-note {
+  color: var(--accent);
+  border-color: rgb(var(--accent-rgb) / 0.2);
+  background: rgb(var(--accent-rgb) / 0.06);
+}
+
+.day-head-chip b {
+  font-weight: 570;
+}
+
 .dm-note-btn {
   display: inline-flex;
   align-items: center;
@@ -7899,6 +7940,7 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .day-note {
+  margin-top: 12px;
   padding: 11px 13px;
   border-radius: 9px;
   border: 1px solid var(--line);
@@ -8120,6 +8162,7 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .day-note-empty-card {
+  margin-top: 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -8132,9 +8175,11 @@ button.calendar-day:hover:not(:disabled) {
   transition: all 0.18s ease;
 }
 
-.day-note-empty-card:hover {
+.day-note-empty-card:hover,
+.day-note-empty-card:focus-visible {
   border-color: rgb(var(--accent-rgb) / 0.28);
   background: rgb(var(--accent-rgb) / 0.022);
+  outline: none;
 }
 
 .day-note-empty-left {
@@ -8176,47 +8221,6 @@ button.calendar-day:hover:not(:disabled) {
   align-items: center;
   gap: 6px;
   flex: none;
-}
-
-.day-note-add-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 10px;
-  font-size: 10.5px;
-  font-weight: 550;
-  border-radius: 6px;
-  color: var(--primary-foreground);
-  background: var(--primary);
-  border: 1px solid var(--primary-border);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  box-shadow: var(--shadow-button);
-}
-
-.day-note-add-btn:hover {
-  background: var(--primary-hover);
-}
-
-.day-note-attach-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 9px;
-  font-size: 10.5px;
-  font-weight: 500;
-  border-radius: 6px;
-  color: var(--muted);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.day-note-attach-btn:hover {
-  color: var(--text);
-  background: var(--surface-3);
-  border-color: var(--border-hover);
 }
 
 .day-note-empty > span:nth-child(2) {
@@ -8329,64 +8333,6 @@ button.calendar-day:hover:not(:disabled) {
   white-space: nowrap;
 }
 
-.day-trades-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 15px;
-  margin-top: 16px;
-  margin-bottom: 7px;
-}
-
-.day-trades-title {
-  display: flex;
-  flex-direction: column;
-}
-
-.day-trades-head h3 {
-  margin-top: 2px;
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 550;
-  letter-spacing: -0.02em;
-}
-
-.day-trades-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.day-trades-hint {
-  color: var(--faint);
-  font-size: 8.5px;
-}
-
-.day-trades-add-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  font-size: 10px;
-  font-weight: 520;
-  border-radius: 5px;
-  color: var(--text);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  cursor: pointer;
-  transition: all 0.14s ease;
-}
-
-.day-trades-add-btn:hover {
-  background: var(--surface-3);
-  border-color: var(--border-hover);
-}
-
-.day-trades-head > span {
-  color: var(--faint);
-  font-size: 8.5px;
-}
-
 .day-eyebrow-row {
   display: flex;
   align-items: center;
@@ -8427,13 +8373,19 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .day-table-wrap {
+  margin-top: 14px;
   border-radius: 8px;
   border: 1px solid var(--line);
   overflow: auto;
 }
 
 .day-table {
-  min-width: 780px;
+  min-width: 560px;
+}
+
+.day-table .is-stop,
+.day-table .is-target {
+  color: var(--text-2);
 }
 
 .day-table thead th {
@@ -8458,89 +8410,50 @@ button.calendar-day:hover:not(:disabled) {
   background: rgb(var(--accent-rgb) / 0.08) !important;
 }
 
-.day-trade-edit-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  font-size: 11px;
-  font-weight: 520;
-  line-height: 1;
-  border-radius: 5px;
-  color: var(--muted);
-  background: rgb(var(--overlay-rgb) / 0.03);
-  border: 1px solid var(--border);
-  cursor: pointer;
-  transition: all 0.14s ease;
-}
-
-.day-trade-edit-btn:hover {
-  color: var(--text);
-  background: var(--accent-soft);
-  border-color: var(--accent-line, var(--border-hover));
-}
-
 .intraday-tooltip {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  min-width: 120px;
-  padding: 6px 10px;
-  border-radius: 7px;
-  background: var(--panel, #121316);
-  border: 1px solid var(--border);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  min-width: 128px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: var(--elevated, var(--panel, #121316));
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-pop, 0 10px 28px rgba(0, 0, 0, 0.35));
   pointer-events: none;
   z-index: 10;
 }
 
-.intraday-tooltip-cum {
+.intraday-tooltip.is-above {
+  transform: translate(-50%, -100%);
+}
+
+.intraday-tooltip.is-below {
+  transform: translate(-50%, 0);
+}
+
+.intraday-tooltip-top {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 10px;
-}
-
-.intraday-tooltip-label {
-  font-size: 7.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--faint);
-}
-
-.intraday-tooltip-cum b {
-  font-size: 11.5px;
-  font-family: var(--font-mono, monospace);
-}
-
-.intraday-tooltip-trade {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding-top: 3px;
-  border-top: 1px solid var(--line);
-  font-size: 8.5px;
+  gap: 12px;
 }
 
 .intraday-tooltip-sym {
-  font-weight: 600;
   color: var(--text);
+  font-size: 9.5px;
+  font-weight: 620;
 }
 
-.intraday-tooltip-pnl {
-  font-family: var(--font-mono, monospace);
+.intraday-tooltip-top b {
+  font-size: 11px;
   font-weight: 600;
 }
 
 .intraday-tooltip-time {
-  margin-left: auto;
   color: var(--faint);
-  font-size: 7.5px;
-}
-
-.intraday-tooltip-sub {
   font-size: 8px;
-  color: var(--faint);
+  font-variant-numeric: tabular-nums;
 }
 
 .day-img-lightbox {
@@ -8611,6 +8524,7 @@ button.calendar-day:hover:not(:disabled) {
   display: flex;
   align-items: center;
   gap: 11px;
+  margin-top: 14px;
   padding: 17px;
   border-radius: 8px;
   border: 1px dashed var(--line);
@@ -11683,6 +11597,10 @@ button.calendar-day:hover {
 }
 
 @media (max-width: 600px) {
+  .day-head-chip.is-split {
+    display: none;
+  }
+
   .hero-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px 18px;
@@ -12043,12 +11961,6 @@ button.calendar-day:hover {
   .day-note-foot > div {
     width: 100%;
     justify-content: flex-end;
-  }
-
-  .day-trades-head {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 4px;
   }
 
   .challenge-foot {
@@ -13472,6 +13384,61 @@ button.calendar-day:hover {
   border-color: var(--line);
   background: var(--panel-3);
   color: var(--text);
+}
+
+.import-source {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+}
+
+.import-source.is-warn {
+  border-color: rgb(var(--warn-rgb, 217 160 43) / 0.4);
+  background: rgb(var(--warn-rgb, 217 160 43) / 0.06);
+}
+
+.import-source-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--faint);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.import-source-warn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--warn-text);
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+.import-source b {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 560;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.import-source small {
+  color: var(--faint);
+  font-size: 9.5px;
+  line-height: 1.5;
+}
+
+.import-source.is-warn small {
+  color: var(--warn-text);
 }
 
 .import-stats {

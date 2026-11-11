@@ -67,8 +67,7 @@ export function IntradayCurve({
   const activeIndex = hoverIndex !== null ? hoverIndex : externalHighlightIndex
   const activePoint = activeIndex !== null && points[activeIndex] ? points[activeIndex] : null
 
-  const final = points[points.length - 1]?.value ?? 0
-  const color = final >= 0 ? 'var(--chart-positive)' : 'var(--chart-negative)'
+  const color = 'var(--blue)'
 
   const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!geometry || points.length <= 1) return
@@ -85,6 +84,11 @@ export function IntradayCurve({
     setHoverIndex(null)
     onHoverTrade?.(null)
   }
+
+  const activeGeomPoint = activeIndex !== null ? geometry?.pts[activeIndex] : null
+  const tooltipBelow = !!activeGeomPoint && activeGeomPoint.y < 66
+  const tooltipX = activeGeomPoint ? clampChart(activeGeomPoint.x, 88, Math.max(88, width - 88)) : 0
+  const tooltipY = activeGeomPoint ? (tooltipBelow ? activeGeomPoint.y + 16 : activeGeomPoint.y - 16) : 0
 
   return (
     <div ref={wrapRef} className="intraday-curve" style={{ height }}>
@@ -155,22 +159,11 @@ export function IntradayCurve({
               }
               const isWin = (trade.pnl ?? 0) > 0
               const isLoss = (trade.pnl ?? 0) < 0
-              const dotColor = isWin ? 'var(--chart-positive)' : isLoss ? 'var(--chart-negative)' : 'var(--muted)'
+              const dotColor = isWin ? 'var(--blue)' : isLoss ? 'var(--chart-negative)' : 'var(--muted)'
               const isTargeted = activeIndex === index
 
               return (
                 <g key={`pt-${trade.tradeId}-${index}`}>
-                  {isTargeted && (
-                    <circle
-                      cx={pt.x}
-                      cy={pt.y}
-                      r={9}
-                      fill={dotColor}
-                      opacity={0.25}
-                      className="animate-ping"
-                      style={{ animationDuration: '1.6s' }}
-                    />
-                  )}
                   <circle
                     cx={pt.x}
                     cy={pt.y}
@@ -200,35 +193,27 @@ export function IntradayCurve({
             )}
           </svg>
 
-          {/* Interactive floating tooltip */}
-          {activePoint && geometry && activeIndex !== null && geometry.pts[activeIndex] && (
+          {/* Simple floating tooltip */}
+          {activePoint && geometry && activeIndex !== null && activeGeomPoint && (
             <div
-              className="chart-tooltip intraday-tooltip"
-              style={{
-                left: clampChart(geometry.pts[activeIndex].x, 70, width - 70),
-                top: clampChart(geometry.pts[activeIndex].y - 36, 10, height - 52),
-              }}
+              className={cn('chart-tooltip intraday-tooltip', tooltipBelow ? 'is-below' : 'is-above')}
+              style={{ left: tooltipX, top: tooltipY }}
             >
-              <div className="intraday-tooltip-cum">
-                <span className="intraday-tooltip-label">Cum. P&amp;L</span>
-                <b className={activePoint.value >= 0 ? 'is-pos' : 'is-neg'}>
-                  {signedMoney(activePoint.value)}
-                </b>
-              </div>
               {activePoint.ticker ? (
-                <div className="intraday-tooltip-trade">
-                  <span className="intraday-tooltip-sym">
-                    {activePoint.ticker} {activePoint.side}
-                  </span>
-                  <span className={cn('intraday-tooltip-pnl', (activePoint.pnl ?? 0) >= 0 ? 'is-pos' : 'is-neg')}>
-                    {signedMoney(activePoint.pnl ?? 0)}
-                  </span>
-                  <time className="intraday-tooltip-time">{activePoint.time}</time>
-                </div>
+                <>
+                  <div className="intraday-tooltip-top">
+                    <span className="intraday-tooltip-sym">
+                      {activePoint.ticker}
+                      {activePoint.side ? ` ${activePoint.side}` : ''}
+                    </span>
+                    <b className={cn('num', (activePoint.pnl ?? 0) >= 0 ? 'is-pos' : 'is-neg')}>
+                      {signedMoney(activePoint.pnl ?? 0)}
+                    </b>
+                  </div>
+                  <span className="intraday-tooltip-time">{activePoint.time}</span>
+                </>
               ) : (
-                <div className="intraday-tooltip-sub">
-                  <span>{activePoint.time || 'Session open'}</span>
-                </div>
+                <span className="intraday-tooltip-time">{activePoint.time || 'Session open'}</span>
               )}
             </div>
           )}

@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  Clock3,
   ImagePlus,
   Maximize2,
-  PencilLine,
   PenLine,
   Plus,
   Sparkles,
@@ -19,9 +17,8 @@ import { useApp } from '@/store/AppStore'
 import { IntradayCurve } from '@/components/charts/IntradayCurve'
 import { buildIntradaySeries, computeStats, getStartingBalance } from '@/lib/stats'
 import { formatLongDate, formatNumericDate, dayName } from '@/lib/dates'
-import { formatPrice, formatR, plainPercent, signedMoney } from '@/lib/format'
+import { formatPrice, plainPercent, signedMoney } from '@/lib/format'
 import { noteSavedLabel } from '@/lib/notes'
-import { tradeGrade } from '@/lib/trades'
 import { cn } from '@/lib/cn'
 
 export function DayReviewModal() {
@@ -157,11 +154,13 @@ export function DayReviewModal() {
     .sort((a, b) => (a.openTime || '').localeCompare(b.openTime || ''))
   const stats = computeStats(dayTrades, getStartingBalance(activeAccount))
   const intraday = buildIntradaySeries(dayTrades)
-  const bestTrade = dayTrades.length
-    ? dayTrades.reduce((best, trade) => (trade.pnl > best.pnl ? trade : best))
+  const winningTrades = dayTrades.filter((trade) => trade.pnl > 0)
+  const losingTrades = dayTrades.filter((trade) => trade.pnl < 0)
+  const bestTrade = winningTrades.length
+    ? winningTrades.reduce((best, trade) => (trade.pnl > best.pnl ? trade : best))
     : null
-  const worstTrade = dayTrades.length
-    ? dayTrades.reduce((worst, trade) => (trade.pnl < worst.pnl ? trade : worst))
+  const worstTrade = losingTrades.length
+    ? losingTrades.reduce((worst, trade) => (trade.pnl < worst.pnl ? trade : worst))
     : null
 
   const startEdit = () => {
@@ -222,11 +221,11 @@ export function DayReviewModal() {
     { label: 'Net P&L', value: signedMoney(stats.net), tone: stats.net > 0 ? 'is-pos' : stats.net < 0 ? 'is-neg' : '' },
     { label: 'Trades', value: String(stats.count) },
     { label: 'Win rate', value: `${plainPercent(stats.winRate)}%` },
-    { label: 'Profit factor', value: stats.grossLoss ? stats.pf.toFixed(2) : stats.grossProfit ? '∞' : '—' },
-    { label: 'Avg win', value: stats.avgWin ? signedMoney(stats.avgWin) : '—', tone: stats.avgWin ? 'is-pos' : '' },
-    { label: 'Avg loss', value: stats.avgLoss ? signedMoney(-stats.avgLoss) : '—', tone: stats.avgLoss ? 'is-neg' : '' },
-    { label: 'Best trade', value: bestTrade ? signedMoney(bestTrade.pnl) : '—', tone: bestTrade && bestTrade.pnl > 0 ? 'is-pos' : '' },
-    { label: 'Worst trade', value: worstTrade ? signedMoney(worstTrade.pnl) : '—', tone: worstTrade && worstTrade.pnl < 0 ? 'is-neg' : '' },
+    { label: 'Profit factor', value: stats.grossLoss ? stats.pf.toFixed(2) : stats.grossProfit ? '∞' : '0' },
+    { label: 'Avg win', value: stats.avgWin ? signedMoney(stats.avgWin) : '0', tone: stats.avgWin ? 'is-pos' : '' },
+    { label: 'Avg loss', value: stats.avgLoss ? signedMoney(-stats.avgLoss) : '0', tone: stats.avgLoss ? 'is-neg' : '' },
+    { label: 'Best trade', value: bestTrade ? signedMoney(bestTrade.pnl) : '0', tone: bestTrade ? 'is-pos' : '' },
+    { label: 'Worst trade', value: worstTrade ? signedMoney(worstTrade.pnl) : '0', tone: worstTrade ? 'is-neg' : '' },
   ]
 
   const hasNoteContent = (note?.text && note.text.trim().length > 0) || (note?.images && note.images.length > 0)
@@ -249,11 +248,29 @@ export function DayReviewModal() {
             <p className="modal-sub">
               {date ? dayName(date) : 'Day review'} ·{' '}
               {date === new Date().toISOString().slice(0, 10)
-                ? 'Today’s execution, notes and trade detail.'
-                : 'A session in review — curve, results and the note you left behind.'}
+                ? 'Today’s note, execution and trade detail.'
+                : 'Your note, session results and trade detail.'}
             </p>
           </div>
           <div className="day-head-actions">
+            <div className="day-head-meta">
+              <span className={cn('day-head-chip', !stats.count && 'is-dim')}>
+                {stats.count ? `${stats.count} trade${stats.count === 1 ? '' : 's'}` : 'No trades'}
+              </span>
+              {stats.count > 0 && (
+                <span className="day-head-chip is-split">
+                  <b className="is-pos">{stats.wins}W</b>
+                  <i>/</i>
+                  <b className="is-neg">{stats.losses}L</b>
+                </span>
+              )}
+              {hasNoteContent && (
+                <span className="day-head-chip is-note">
+                  <PenLine size={10} />
+                  Note
+                </span>
+              )}
+            </div>
             <span className={cn('day-net num', stats.net > 0 && 'is-pos', stats.net < 0 && 'is-neg')}>
               {dayTrades.length ? signedMoney(stats.net) : '—'}
             </span>
@@ -329,7 +346,7 @@ export function DayReviewModal() {
 
               <div className="day-note-foot">
                 <span className="day-note-hint">
-                  Press <b>⌘V</b> anywhere to paste chart screenshot · ⌘ + Enter to save
+                  Press <b>⌘V / Ctrl+V</b> anywhere to paste a chart screenshot · <b>⌘/Ctrl + Enter</b> to save
                 </span>
                 <div className="day-note-btn-group">
                   <button
@@ -441,97 +458,83 @@ export function DayReviewModal() {
               )}
             </section>
           ) : (
-            <div className="day-note-empty-card" onClick={startEdit}>
+            <div
+              className="day-note-empty-card"
+              role="button"
+              tabIndex={0}
+              onClick={startEdit}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  startEdit()
+                }
+              }}
+            >
               <div className="day-note-empty-left">
                 <span className="day-note-empty-icon"><PenLine size={15} /></span>
                 <div>
                   <b>Add session note &amp; chart screenshots</b>
-                  <p>Record your execution plan, mistakes and market context. Press ⌘V to paste screenshots.</p>
+                  <p>Record your execution plan, mistakes and market context. Paste charts with ⌘V / Ctrl+V.</p>
                 </div>
               </div>
               <div className="day-note-empty-right">
-                <button
+                <Button
+                  variant="primary"
+                  size="sm"
                   type="button"
-                  className="day-note-add-btn"
+                  iconLeft={<Plus size={12} />}
                   onClick={(e) => {
                     e.stopPropagation()
                     startEdit()
                   }}
                 >
-                  <Plus size={12} />
-                  <span>Write note</span>
-                </button>
-                <button
+                  Write note
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
                   type="button"
-                  className="day-note-attach-btn"
+                  iconLeft={<ImagePlus size={12} />}
+                  title="Attach chart screenshot"
                   onClick={(e) => {
                     e.stopPropagation()
                     fileInputRef.current?.click()
                   }}
-                  title="Attach chart screenshot"
                 >
-                  <ImagePlus size={12} />
-                  <span>Attach chart</span>
-                </button>
+                  Attach chart
+                </Button>
               </div>
             </div>
           )}
 
           {/* Performance Overview: Intraday Curve & 2x4 Stats Grid */}
-          <div className="dm-overview">
-            <section className="day-curve">
-              <div className="day-section-head">
-                <span>Intraday cumulative P&amp;L</span>
-                {dayTrades.length > 0 && (
+          {dayTrades.length > 0 && (
+            <div className="dm-overview">
+              <section className="day-curve">
+                <div className="day-section-head">
+                  <span>Intraday cumulative P&amp;L</span>
                   <span className={cn('num', stats.net >= 0 ? 'is-pos' : 'is-neg')}>
                     {signedMoney(stats.net)}
                   </span>
-                )}
-              </div>
-              {dayTrades.length > 0 ? (
+                </div>
                 <IntradayCurve
                   points={intraday}
                   height={168}
                   highlightTradeId={hoverTradeId}
                   onHoverTrade={setHoverTradeId}
                 />
-              ) : (
-                <div className="day-curve-empty">
-                  <Clock3 size={16} />
-                  <span>No trades recorded for this session</span>
-                </div>
-              )}
-            </section>
+              </section>
 
-            <section className="dm-stats">
-              {statRows.map((row) => (
-                <div className="dm-stat" key={row.label}>
-                  <span>{row.label}</span>
-                  <b className={cn('num', row.tone)}>{row.value}</b>
-                </div>
-              ))}
-            </section>
-          </div>
-
-          {/* Session Ledger Header */}
-          <div className="day-trades-head">
-            <div className="day-trades-title">
-              <h3>{dayTrades.length} Trade{dayTrades.length === 1 ? '' : 's'} recorded</h3>
+              <section className="dm-stats">
+                {statRows.map((row) => (
+                  <div className="dm-stat" key={row.label}>
+                    <span>{row.label}</span>
+                    <b className={cn('num', row.tone)}>{row.value}</b>
+                  </div>
+                ))}
+              </section>
             </div>
-            <div className="day-trades-actions">
-              <button
-                type="button"
-                className="day-trades-add-btn"
-                onClick={() => {
-                  closeDayReview()
-                  openTradeEditor()
-                }}
-              >
-                <Plus size={12} />
-                <span>Log trade</span>
-              </button>
-            </div>
-          </div>
+          )}
 
           {/* Trades Table */}
           {dayTrades.length ? (
@@ -541,19 +544,14 @@ export function DayReviewModal() {
                   <tr>
                     <th>Symbol</th>
                     <th>Side</th>
-                    <th className="r">Qty</th>
                     <th className="r">Entry</th>
-                    <th className="r">Exit</th>
-                    <th className="r">Net P&amp;L</th>
-                    <th className="r">R</th>
-                    <th>Quality</th>
-                    <th className="r">Action</th>
+                    <th className="r">Stop loss</th>
+                    <th className="r">Take profit</th>
+                    <th className="r">P&amp;L</th>
                   </tr>
                 </thead>
                 <tbody>
                   {dayTrades.map((trade) => {
-                    const r = Number(trade.rMultiple) || 0
-                    const grade = tradeGrade(trade)
                     const isHovered = hoverTradeId === trade.id
                     return (
                       <tr
@@ -566,34 +564,20 @@ export function DayReviewModal() {
                       >
                         <td>
                           <b className="t-sym">{trade.ticker}</b>
-                          <small>{trade.playbook}</small>
+                          {trade.playbook && trade.playbook !== '—' && (
+                            <small>{trade.playbook}</small>
+                          )}
                         </td>
                         <td>
                           <span className={cn('side-pill', trade.side === 'LONG' ? 'is-long' : 'is-short')}>
                             {trade.side}
                           </span>
                         </td>
-                        <td className="r num">{Number(trade.volume).toLocaleString('en-US')}</td>
                         <td className="r num">{formatPrice(trade.entry)}</td>
-                        <td className="r num">{formatPrice(trade.exit)}</td>
+                        <td className="r num is-stop">{trade.stopLoss ? formatPrice(trade.stopLoss) : '—'}</td>
+                        <td className="r num is-target">{trade.takeProfit ? formatPrice(trade.takeProfit) : '—'}</td>
                         <td className={cn('r num entry-pnl', trade.pnl > 0 && 'is-pos', trade.pnl < 0 && 'is-neg')}>
                           <b>{signedMoney(trade.pnl)}</b>
-                        </td>
-                        <td className={cn('r num', r > 0 && 'is-pos', r < 0 && 'is-neg')}>{formatR(r)}</td>
-                        <td>
-                          <span className={`exec-tag is-${grade.key}`}>{grade.label}</span>
-                        </td>
-                        <td className="r" onClick={(event) => event.stopPropagation()}>
-                          <button
-                            className="day-trade-edit-btn"
-                            type="button"
-                            title={`Edit ${trade.ticker} trade`}
-                            aria-label={`Edit ${trade.ticker} trade`}
-                            onClick={() => editTrade(trade.id)}
-                          >
-                            <PencilLine size={12} />
-                            <span>Edit</span>
-                          </button>
                         </td>
                       </tr>
                     )

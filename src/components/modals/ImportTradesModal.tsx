@@ -15,7 +15,12 @@ import { useApp } from '@/store/AppStore'
 import { titleFor } from '@/lib/accounts'
 import { formatNumericDate } from '@/lib/dates'
 import { signedMoney } from '@/lib/format'
-import { parseMetaTraderHistory, type HistoryImportResult } from '@/lib/mtImport'
+import {
+  parseMetaTraderHistory,
+  parseMetaTraderRows,
+  type HistoryImportResult,
+} from '@/lib/mtImport'
+import { readXlsxRows } from '@/lib/xlsx'
 import type { Trade } from '@/lib/types'
 import { cn } from '@/lib/cn'
 
@@ -29,8 +34,7 @@ function round2(value: number): number {
   return Math.round(value * 100) / 100
 }
 
-async function readStatement(file: File): Promise<string> {
-  const bytes = new Uint8Array(await file.arrayBuffer())
+function readStatement(bytes: Uint8Array): string {
   if (bytes[0] === 0xff && bytes[1] === 0xfe) {
     return new TextDecoder('utf-16le').decode(bytes)
   }
@@ -87,17 +91,37 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
 
     setBusy(true)
     try {
-      const text = await readStatement(file)
-      const parsed = parseMetaTraderHistory(text)
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      const isZip = bytes[0] === 0x50 && bytes[1] === 0x4b
+      const isXlsx = isZip || /\.xlsx?$/i.test(file.name)
+      let parsed: HistoryImportResult
+
+      if (isXlsx) {
+        if (!isZip) {
+          setError(
+            'Old .xls workbooks are not supported. Re-save the report as .xlsx from MetaTrader, or export it as HTML/CSV.',
+          )
+          return
+        }
+        const rows = await readXlsxRows(bytes)
+        parsed = parseMetaTraderRows(rows)
+      } else {
+        parsed = parseMetaTraderHistory(readStatement(bytes))
+      }
+
       if (!parsed.trades.length) {
         setError(
-          'No closed trades were found. In MetaTrader, open Account History, right-click, choose Save as Report (HTML) or Export to CSV, then try again.',
+          'No closed trades were found. In MetaTrader, open Account History, right-click, choose Save as Report (HTML, XLSX) or Export to CSV, then try again.',
         )
       } else {
         setResult(parsed)
       }
-    } catch {
-      setError('The file could not be read. Try exporting the history again from MetaTrader.')
+    } catch (caught) {
+      setError(
+        caught instanceof Error && caught.message
+          ? caught.message
+          : 'The file could not be read. Try exporting the history again from MetaTrader.',
+      )
     } finally {
       setBusy(false)
     }
@@ -147,6 +171,8 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
         volume: item.volume,
         entry: item.entry,
         exit: item.exit,
+        stopLoss: item.stopLoss || undefined,
+        takeProfit: item.takeProfit || undefined,
         pnl: item.pnl,
         gross: round2(item.pnl + item.fees),
         fees: item.fees,
@@ -165,9 +191,10 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
 
     importTrades(trades)
     setActiveAccount(accountId)
+    const statement = result.meta.accountNumber ? ` (statement ${result.meta.accountNumber})` : ''
     showToast(
       'Trade history imported',
-      `${trades.length} trade${trades.length === 1 ? '' : 's'} loaded into ${account ? titleFor(account) : 'your journal'}.`,
+      `${trades.length} trade${trades.length === 1 ? '' : 's'} loaded into ${account ? titleFor(account) : 'your journal'}${statement}.`,
     )
     onImported?.(result)
     onClose()
@@ -178,6 +205,20 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
   const wins = result?.trades.filter((trade) => trade.pnl > 0).length ?? 0
   const losses = result?.trades.filter((trade) => trade.pnl < 0).length ?? 0
   const breakEven = (result?.trades.length ?? 0) - wins - losses
+
+  const targetAccount = accounts.find((item) => item.id === accountId)
+  const reportName = result?.meta.accountName ?? ''
+  const firmWords = targetAccount
+    ? targetAccount.firm
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((word) => word.length > 2)
+    : []
+  const sourceMismatch =
+    !!reportName &&
+    firmWords.length > 0 &&
+    !firmWords.some((word) => reportName.toLowerCase().includes(word))
+  const sourceLabel = [reportName, result?.meta.accountNumber].filter(Boolean).join(' · ')
 
   return (
     <Modal
@@ -223,7 +264,7 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
           className="import-file-input"
           id="import-file"
           type="file"
-          accept=".html,.htm,.csv,.tsv,.txt"
+          accept=".html,.htm,.csv,.tsv,.txt,.xlsx"
           onChange={onPick}
         />
 
@@ -246,6 +287,7 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
               or <em>browse files</em> to choose a statement
             </span>
             <div className="import-formats">
+              <span>XLSX</span>
               <span>HTML</span>
               <span>CSV</span>
               <span>TSV</span>
@@ -287,6 +329,26 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
                 </button>
               </div>
             </div>
+
+            {sourceLabel && (
+              <div className={cn('import-source', sourceMismatch && 'is-warn')}>
+                <div className="import-source-head">
+                  <span>Statement account</span>
+                  {sourceMismatch && (
+                    <span className="import-source-warn">
+                      <CircleAlert size={12} />
+                      Check target account
+                    </span>
+                  )}
+                </div>
+                <b>{sourceLabel}</b>
+                <small>
+                  {sourceMismatch
+                    ? `This statement does not look like ${targetAccount ? titleFor(targetAccount) : 'the selected account'}. It will still be imported only into the account selected above.`
+                    : 'These trades will be imported only into the account selected above.'}
+                </small>
+              </div>
+            )}
 
             <div className="import-stats">
               <div className="import-stat">
@@ -358,7 +420,8 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
 
         <p className="import-note">
           Export from MetaTrader: open <b>Account History</b>, right-click, then choose{' '}
-          <b>Save as Report</b> (HTML) or <b>Export</b> (CSV).
+          <b>Save as Report</b> (HTML or XLSX) or <b>Export</b> (CSV). Only the closed
+          positions in the statement are imported.
         </p>
       </div>
 

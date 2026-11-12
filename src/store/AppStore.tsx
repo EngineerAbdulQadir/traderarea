@@ -28,6 +28,7 @@ import {
   readNotes,
   readTrades,
   realTradesForAccount,
+  requestDashboardRangeReset,
   resolveTrades,
   writeAccounts,
   writeActiveAccountId,
@@ -76,6 +77,7 @@ interface AppContextValue {
   importTrades: (trades: Trade[]) => void
   deleteTrade: (id: string) => void
   saveNote: (accountId: string, date: string, text: string, images?: string[]) => void
+  journalRevision: number
   challengeOpen: boolean
   openChallenge: () => void
   closeChallenge: () => void
@@ -118,6 +120,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [viewingPhaseIndex, setViewingPhaseIndex] = useState<number | null>(null)
   const [toasts, setToasts] = useState<ToastItem[]>([])
+  const [journalRevision, setJournalRevision] = useState(0)
   const timers = useRef<Map<string, number>>(new Map())
 
   const baseAccount = useMemo(
@@ -380,12 +383,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!accounts.some((account) => account.id === trade.accountId) && accounts.length) {
         setActiveAccountId(accounts[0].id)
       }
+      setJournalRevision((value) => value + 1)
+      requestDashboardRangeReset()
     },
     [accounts],
   )
 
   const deleteTrade = useCallback((id: string) => {
     setTrades((previous) => previous.filter((trade) => trade.id !== id))
+    setJournalRevision((value) => value + 1)
+    requestDashboardRangeReset()
   }, [])
 
   const importTrades = useCallback((incoming: Trade[]) => {
@@ -397,6 +404,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         (a.date + a.openTime).localeCompare(b.date + b.openTime),
       )
     })
+    setJournalRevision((value) => value + 1)
+    requestDashboardRangeReset()
   }, [])
 
   const saveNote = useCallback((accountId: string, date: string, text: string, images?: string[]) => {
@@ -474,6 +483,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       importTrades,
       deleteTrade,
       saveNote,
+      journalRevision,
       challengeOpen,
       openChallenge,
       closeChallenge,
@@ -513,6 +523,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       importTrades,
       deleteTrade,
       saveNote,
+      journalRevision,
       challengeOpen,
       openChallenge,
       closeChallenge,

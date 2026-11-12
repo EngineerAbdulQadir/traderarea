@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowDownRight,
@@ -23,7 +23,7 @@ import { DayStrip } from '@/components/charts/DayStrip'
 import { AvgWinLossChart } from '@/components/charts/AvgWinLossChart'
 import { RadarChart } from '@/components/charts/RadarChart'
 import { usePersistentState } from '@/hooks/usePersistentState'
-import { STORAGE_KEYS } from '@/lib/persistence'
+import { consumeDashboardRangeReset, STORAGE_KEYS } from '@/lib/persistence'
 import { accountBadge, accountGradient, accountMetaCompact, titleFor } from '@/lib/accounts'
 import {
   buildRules,
@@ -60,6 +60,7 @@ export function DashboardPage() {
     openDayReview,
     viewingPhaseIndex,
     setViewingPhase,
+    journalRevision,
   } = useApp()
   const navigate = useNavigate()
   const defaultFrom = useMemo(() => dateToISO(addDays(startOfDay(new Date()), -29)), [])
@@ -71,6 +72,21 @@ export function DashboardPage() {
   const to = isValidISODate(storedTo) ? storedTo : defaultTo
   const rangeTo = to > today ? today : to
   const rangeFrom = from > rangeTo ? rangeTo : from
+
+  // Any journal change (log, edit, delete or import) returns the metrics
+  // range to all time so the new data is included right away.
+  useEffect(() => {
+    if (!activeAccount) return
+    if (!consumeDashboardRangeReset()) return
+    const earliest = [
+      activeAccount.startDate,
+      ...activeTrades.map((trade) => trade.date),
+    ]
+      .filter(Boolean)
+      .sort()[0]
+    setStoredFrom(earliest || todayISO())
+    setStoredTo(todayISO())
+  }, [journalRevision, activeAccount, activeTrades, setStoredFrom, setStoredTo])
   // Temporary design-preview switch: /?hero=a|b|c
   const heroVariant = (() => {
     if (typeof window === 'undefined') return 'a'

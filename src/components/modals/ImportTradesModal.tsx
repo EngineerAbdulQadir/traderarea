@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react'
 import {
   ArrowRight,
   CircleAlert,
@@ -19,8 +19,10 @@ import {
   parseMetaTraderHistory,
   parseMetaTraderRows,
   type HistoryImportResult,
+  type ImportedTrade,
 } from '@/lib/mtImport'
 import { readXlsxRows } from '@/lib/xlsx'
+import { isSameTradeData } from '@/lib/trades'
 import type { Trade } from '@/lib/types'
 import { cn } from '@/lib/cn'
 
@@ -32,6 +34,45 @@ interface ImportTradesModalProps {
 
 function round2(value: number): number {
   return Math.round(value * 100) / 100
+}
+
+function tradeFromImport(
+  item: ImportedTrade,
+  index: number,
+  accountId: string,
+  platform: HistoryImportResult['platform'],
+): Trade {
+  const id = item.ticket
+    ? `mt:${accountId}:${item.ticket}`
+    : `mt:${accountId}:${item.date}:${item.closeTime}:${item.symbol}:${item.volume}:${item.pnl}:${index}`
+  return {
+    id,
+    accountId,
+    date: item.date,
+    openTime: item.openTime,
+    closeTime: item.closeTime,
+    ticker: item.symbol,
+    instrument: item.symbol,
+    side: item.side,
+    volume: item.volume,
+    entry: item.entry,
+    exit: item.exit,
+    stopLoss: item.stopLoss || undefined,
+    takeProfit: item.takeProfit || undefined,
+    pnl: item.pnl,
+    gross: round2(item.pnl + item.fees),
+    fees: item.fees,
+    roi: 0,
+    rMultiple: 0,
+    risk: 0,
+    playbook: '—',
+    quality: 50,
+    tags: [],
+    note: item.ticket
+      ? `Imported from ${platform === 'Unknown' ? 'MetaTrader' : platform} · ticket ${item.ticket}`
+      : '',
+    manual: false,
+  }
 }
 
 function readStatement(bytes: Uint8Array): string {
@@ -59,6 +100,7 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
     setActiveAccount,
     importTrades,
     showToast,
+    workspaceTrades,
   } = useApp()
 
   const inputRef = useRef<HTMLInputElement>(null)
@@ -84,6 +126,16 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
     setResult(null)
     setFileName(file.name)
 
+    const extension = file.name.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1] ?? ''
+    if (extension !== 'html' && extension !== 'htm' && extension !== 'xlsx') {
+      setError(
+        extension === 'xls'
+          ? 'Old .xls workbooks are not supported. Re-save the report as .xlsx from MetaTrader, or export it as HTML.'
+          : 'Only HTML and XLSX statements are supported. Export your history as an HTML or XLSX report from MetaTrader.',
+      )
+      return
+    }
+
     if (file.size > 12 * 1024 * 1024) {
       setError('That file is larger than 12 MB. Export a shorter history range from MetaTrader.')
       return
@@ -93,13 +145,13 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
     try {
       const bytes = new Uint8Array(await file.arrayBuffer())
       const isZip = bytes[0] === 0x50 && bytes[1] === 0x4b
-      const isXlsx = isZip || /\.xlsx?$/i.test(file.name)
+      const isXlsx = extension === 'xlsx'
       let parsed: HistoryImportResult
 
       if (isXlsx) {
         if (!isZip) {
           setError(
-            'Old .xls workbooks are not supported. Re-save the report as .xlsx from MetaTrader, or export it as HTML/CSV.',
+            'Old .xls workbooks are not supported. Re-save the report as .xlsx from MetaTrader, or export it as HTML.',
           )
           return
         }
@@ -111,7 +163,7 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
 
       if (!parsed.trades.length) {
         setError(
-          'No closed trades were found. In MetaTrader, open Account History, right-click, choose Save as Report (HTML, XLSX) or Export to CSV, then try again.',
+          'No closed trades were found. In MetaTrader, open Account History, right-click, choose Save as Report (HTML or XLSX), then try again.',
         )
       } else {
         setResult(parsed)
@@ -151,50 +203,66 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
     inputRef.current?.click()
   }
 
+  const importPreview = useMemo(() => {
+    if (!result || !accountId) return { trades: [] as Trade[], duplicates: 0 }
+    const existing = workspaceTrades.filter((trade) => trade.accountId === accountId)
+    const prepared: Trade[] = []
+    let duplicates = 0
+
+    result.trades.forEach((item, index) => {
+      const trade = tradeFromImport(item, index, accountId, result.platform)
+      const existingMatch = existing.find((tradeRow) => tradeRow.id === trade.id)
+      if (existingMatch) {
+        // Identical ticket: nothing to do. Changed data refreshes the row.
+        if (isSameTradeData(existingMatch, trade)) {
+          duplicates += 1
+          return
+        }
+        prepared.push(trade)
+        return
+      }
+      // Matches a trade already in the journal (for example one logged by
+      // hand before the statement was re-imported): never add it twice.
+      if (existing.some((tradeRow) => isSameTradeData(tradeRow, trade))) {
+        duplicates += 1
+        return
+      }
+      // The statement itself can repeat a row; only keep one of them.
+      if (prepared.some((tradeRow) => isSameTradeData(tradeRow, trade))) {
+        duplicates += 1
+        return
+      }
+      prepared.push(trade)
+    })
+
+    return { trades: prepared, duplicates }
+  }, [result, accountId, workspaceTrades])
+
   const handleImport = () => {
     if (!result || !accountId) return
     const account = accounts.find((item) => item.id === accountId)
+    const trades = importPreview.trades
 
-    const trades: Trade[] = result.trades.map((item, index) => {
-      const id = item.ticket
-        ? `mt:${accountId}:${item.ticket}`
-        : `mt:${accountId}:${item.date}:${item.closeTime}:${item.symbol}:${item.volume}:${item.pnl}:${index}`
-      return {
-        id,
-        accountId,
-        date: item.date,
-        openTime: item.openTime,
-        closeTime: item.closeTime,
-        ticker: item.symbol,
-        instrument: item.symbol,
-        side: item.side,
-        volume: item.volume,
-        entry: item.entry,
-        exit: item.exit,
-        stopLoss: item.stopLoss || undefined,
-        takeProfit: item.takeProfit || undefined,
-        pnl: item.pnl,
-        gross: round2(item.pnl + item.fees),
-        fees: item.fees,
-        roi: 0,
-        rMultiple: 0,
-        risk: 0,
-        playbook: '—',
-        quality: 50,
-        tags: [],
-        note: item.ticket
-          ? `Imported from ${result.platform === 'Unknown' ? 'MetaTrader' : result.platform} · ticket ${item.ticket}`
-          : '',
-        manual: false,
-      }
-    })
+    if (!trades.length) {
+      showToast(
+        'History already imported',
+        `All ${result.trades.length} trades already exist in ${account ? titleFor(account) : 'this account'}. Nothing was duplicated.`,
+        'info',
+      )
+      onImported?.(result)
+      onClose()
+      return
+    }
 
     importTrades(trades)
     setActiveAccount(accountId)
     const statement = result.meta.accountNumber ? ` (statement ${result.meta.accountNumber})` : ''
+    const duplicateNote = importPreview.duplicates
+      ? ` ${importPreview.duplicates} duplicate${importPreview.duplicates === 1 ? '' : 's'} skipped.`
+      : ''
     showToast(
       'Trade history imported',
-      `${trades.length} trade${trades.length === 1 ? '' : 's'} loaded into ${account ? titleFor(account) : 'your journal'}${statement}.`,
+      `${trades.length} trade${trades.length === 1 ? '' : 's'} loaded into ${account ? titleFor(account) : 'your journal'}${statement}.${duplicateNote}`,
     )
     onImported?.(result)
     onClose()
@@ -234,7 +302,7 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
             Import MetaTrader history
           </h2>
           <p className="modal-sub">
-            Load closed trades from an MT4 or MT5 statement. Duplicate tickets replace their previous import.
+            Load closed trades from an MT4 or MT5 HTML or XLSX statement. Trades already in the journal are skipped, so re-importing never duplicates them.
           </p>
         </div>
         <ModalClose onClick={onClose} />
@@ -264,7 +332,7 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
           className="import-file-input"
           id="import-file"
           type="file"
-          accept=".html,.htm,.csv,.tsv,.txt,.xlsx"
+          accept=".html,.htm,.xlsx"
           onChange={onPick}
         />
 
@@ -289,8 +357,6 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
             <div className="import-formats">
               <span>XLSX</span>
               <span>HTML</span>
-              <span>CSV</span>
-              <span>TSV</span>
             </div>
           </label>
         )}
@@ -420,15 +486,15 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
 
         <p className="import-note">
           Export from MetaTrader: open <b>Account History</b>, right-click, then choose{' '}
-          <b>Save as Report</b> (HTML or XLSX) or <b>Export</b> (CSV). Only the closed
-          positions in the statement are imported.
+          <b>Save as Report</b> (HTML or XLSX). Only the closed positions in the statement are
+          imported, and trades already in the journal are skipped.
         </p>
       </div>
 
       <footer className="modal-foot import-foot">
         <span className="modal-foot-note">
           {result
-            ? `${result.trades.length} trade${result.trades.length === 1 ? '' : 's'} ready to import`
+            ? `${importPreview.trades.length} new trade${importPreview.trades.length === 1 ? '' : 's'} ready${importPreview.duplicates ? ` · ${importPreview.duplicates} duplicate${importPreview.duplicates === 1 ? '' : 's'} skipped` : ''}`
             : 'No statement selected'}
         </span>
         <Button variant="ghost" type="button" onClick={onClose}>
@@ -438,10 +504,12 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
           variant="primary"
           type="button"
           onClick={handleImport}
-          disabled={!result || !accountId}
+          disabled={!result || !accountId || !importPreview.trades.length}
           iconRight={<ArrowRight size={14} />}
         >
-          {result ? `Import ${result.trades.length} trade${result.trades.length === 1 ? '' : 's'}` : 'Import trades'}
+          {result
+            ? `Import ${importPreview.trades.length} trade${importPreview.trades.length === 1 ? '' : 's'}`
+            : 'Import trades'}
         </Button>
       </footer>
     </Modal>

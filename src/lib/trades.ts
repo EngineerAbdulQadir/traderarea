@@ -56,6 +56,41 @@ export function normalizeTrade(
   }
 }
 
+function tradeSymbol(trade: Trade): string {
+  return (trade.instrument || trade.ticker || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
+}
+
+function timeKey(value: string): string {
+  const match = value.match(/(\d{1,2}):(\d{2})/)
+  return match ? `${match[1].padStart(2, '0')}:${match[2]}` : value
+}
+
+/**
+ * Whether two journal entries describe the same executed trade. Used when
+ * importing a statement again so trades logged by hand are not duplicated.
+ */
+export function isSameTradeData(a: Trade, b: Trade): boolean {
+  if (!a.date || a.date !== b.date) return false
+  if (a.side !== b.side) return false
+  if (tradeSymbol(a) !== tradeSymbol(b)) return false
+  if (Math.abs((a.volume || 0) - (b.volume || 0)) > 0.001) return false
+
+  if (a.openTime && b.openTime && timeKey(a.openTime) !== timeKey(b.openTime)) return false
+  if (a.closeTime && b.closeTime && timeKey(a.closeTime) !== timeKey(b.closeTime)) return false
+
+  const aEntry = Number(a.entry) || 0
+  const bEntry = Number(b.entry) || 0
+  const aExit = Number(a.exit) || 0
+  const bExit = Number(b.exit) || 0
+  if (aEntry && bEntry && Math.abs(aEntry - bEntry) > 0.0001) return false
+  if (aExit && bExit && Math.abs(aExit - bExit) > 0.0001) return false
+
+  // Broker prices are the strongest identity when both entries have them.
+  if (aEntry && bEntry && aExit && bExit) return true
+
+  return Math.abs((a.pnl || 0) - (b.pnl || 0)) <= 0.02
+}
+
 export function tradeHoldMinutes(trade: Trade): number | null {
   const a = timeToMinutes(trade.openTime)
   const b = timeToMinutes(trade.closeTime)

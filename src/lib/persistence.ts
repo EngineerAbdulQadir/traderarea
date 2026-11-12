@@ -11,6 +11,7 @@ export const STORAGE_KEYS = {
   sidebar: 'ta-ui-sidebar-collapsed',
   dashboardFrom: 'ta-dashboard-from',
   dashboardTo: 'ta-dashboard-to',
+  dashboardRangeReset: 'ta-dashboard-range-reset',
   statsRange: 'ta-stats-range',
   reportPeriod: 'ta-report-period',
   reportTab: 'ta-report-tab',
@@ -78,6 +79,16 @@ export function readTrades(): Trade[] {
 
 export function writeTrades(trades: Trade[]): void {
   writeJSON(STORAGE_KEYS.trades, trades)
+}
+
+export function requestDashboardRangeReset(): void {
+  writeStorage(STORAGE_KEYS.dashboardRangeReset, '1')
+}
+
+export function consumeDashboardRangeReset(): boolean {
+  if (readStorage(STORAGE_KEYS.dashboardRangeReset, '') !== '1') return false
+  writeStorage(STORAGE_KEYS.dashboardRangeReset, '')
+  return true
 }
 
 export function realTradesForAccount(trades: Trade[], accountId: string): Trade[] {

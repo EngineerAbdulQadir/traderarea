@@ -6918,7 +6918,7 @@ function renderRules(account, allStats){
     targetHit = progress >= 1;
     rows.push({
       name:'Profit target', tone: targetHit ? 'is-done' : 'is-info',
-      value: signedMoney(allStats.net, 'USD'), limit:'/ ' + formatMoney(targetAmt, 'USD'),
+      value: signedMoney(Math.max(0, allStats.net), 'USD'), limit:'/ ' + formatMoney(targetAmt, 'USD'),
       pct: progress * 100,
       left: targetHit ? 'Target reached' : formatMoney(Math.max(0, targetAmt - allStats.net), 'USD') + ' to go',
       right: Math.max(0, Math.round(progress * 100)) + '%'
@@ -6948,9 +6948,9 @@ function renderRules(account, allStats){
     worstUsed = Math.max(worstUsed, used);
     rows.push({
       name:'Max total loss', tone: ruleTone(used),
-      value: formatMoney(Math.max(0, balance - floor), 'USD'), limit:'buffer',
+      value: formatMoney(Math.max(0, starting - balance), 'USD'), limit:'/ ' + formatMoney(maxLimit, 'USD'),
       pct: used * 100,
-      left: 'Floor ' + formatMoney(floor, 'USD'),
+      left: 'Buffer ' + formatMoney(Math.max(0, balance - floor), 'USD'),
       right: Math.round(used * 100) + '% used'
     });
   }

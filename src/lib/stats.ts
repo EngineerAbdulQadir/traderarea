@@ -518,7 +518,7 @@ export function buildRules(
     rows.push({
       name: 'Profit target',
       tone: evaluation.targetHit ? 'is-done' : 'is-info',
-      value: signedMoney(stats.net),
+      value: signedMoney(Math.max(0, stats.net)),
       limit: `/ ${formatUsd2(targetAmount)}`,
       pct: progress * 100,
       left: evaluation.targetHit ? 'Target reached' : `${formatUsd2(Math.max(0, targetAmount - stats.net))} to go`,
@@ -554,10 +554,10 @@ export function buildRules(
     rows.push({
       name: 'Max total loss',
       tone: ruleTone(used),
-      value: formatUsd2(Math.max(0, balance - floor)),
-      limit: 'buffer',
+      value: formatUsd2(Math.max(0, starting - balance)),
+      limit: `/ ${formatUsd2(maxLimit)}`,
       pct: used * 100,
-      left: `Floor ${formatUsd2(floor)}`,
+      left: `Buffer ${formatUsd2(Math.max(0, balance - floor))}`,
       right: `${(used * 100).toFixed(1)}% used`,
     })
   }

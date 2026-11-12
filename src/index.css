@@ -1424,13 +1424,13 @@ ol {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  height: 31px;
+  height: 30px;
   padding: 0 10px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  background: rgb(var(--overlay-rgb) / 0.035);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  background: transparent;
   color: var(--text-2);
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 540;
   white-space: nowrap;
   transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
@@ -1438,7 +1438,7 @@ ol {
 
 .date-range-trigger:hover {
   color: var(--text);
-  background: rgb(var(--overlay-rgb) / 0.06);
+  background: var(--nav-hover);
   border-color: var(--line-strong);
 }
 
@@ -1450,7 +1450,7 @@ ol {
 
 .date-range-trigger > svg:first-child {
   flex: none;
-  color: var(--faint);
+  color: currentColor;
 }
 
 .date-range-trigger.is-open > svg:first-child {
@@ -1483,7 +1483,7 @@ ol {
   padding: 12px;
   border-radius: 13px;
   border: 1px solid var(--line-strong);
-  background: linear-gradient(180deg, var(--elevated), var(--panel-2));
+  background: var(--bg);
   box-shadow: 0 24px 70px -20px var(--shadow-color), inset 0 1px 0 rgb(var(--overlay-rgb) / 0.05);
 }
 
@@ -2861,7 +2861,7 @@ ol {
   justify-content: flex-end;
   padding: 14px 22px;
   border-top: 1px solid var(--line);
-  background: rgb(var(--shadow-rgb) / 0.15);
+  background: var(--panel);
   position: sticky;
   bottom: -1px;
   z-index: 2;
@@ -7944,9 +7944,7 @@ button.calendar-day:hover:not(:disabled) {
   padding: 11px 13px;
   border-radius: 9px;
   border: 1px solid var(--line);
-  background:
-    linear-gradient(180deg, rgb(var(--accent-rgb) / 0.027), transparent 70%),
-    rgb(var(--overlay-rgb) / 0.016);
+  background: var(--panel);
 }
 
 .day-note.is-editing {
@@ -8170,7 +8168,7 @@ button.calendar-day:hover:not(:disabled) {
   padding: 12px 14px;
   border-radius: 9px;
   border: 1px dashed var(--line);
-  background: rgb(var(--overlay-rgb) / 0.012);
+  background: var(--panel);
   cursor: pointer;
   transition: all 0.18s ease;
 }
@@ -8264,7 +8262,7 @@ button.calendar-day:hover:not(:disabled) {
   padding: 11px 12px 8px;
   border-radius: 9px;
   border: 1px solid var(--line);
-  background: rgb(var(--overlay-rgb) / 0.013);
+  background: var(--panel);
 }
 
 .day-section-head {
@@ -8376,6 +8374,7 @@ button.calendar-day:hover:not(:disabled) {
   margin-top: 14px;
   border-radius: 8px;
   border: 1px solid var(--line);
+  background: var(--panel);
   overflow: auto;
 }
 
@@ -8388,8 +8387,8 @@ button.calendar-day:hover:not(:disabled) {
   color: var(--text-2);
 }
 
-.day-table thead th {
-  background: rgb(var(--bg-rgb) / 0.8);
+.day-modal .day-table thead th {
+  background: var(--panel);
 }
 
 .day-table tbody td {
@@ -8567,7 +8566,7 @@ button.calendar-day:hover:not(:disabled) {
   font-size: 8px;
   position: sticky;
   bottom: 0;
-  background: linear-gradient(180deg, rgb(var(--bg-rgb) / 0.3), var(--bg) 35%);
+  background: var(--panel);
 }
 
 .day-foot > span {
@@ -10670,7 +10669,7 @@ body::after {
 .modal-foot {
   padding: 14px 24px;
   border-top-color: var(--line);
-  background: var(--panel-2);
+  background: var(--panel);
 }
 
 .modal-eyebrow {
@@ -10686,7 +10685,7 @@ body::after {
 .modal-x {
   border-radius: var(--radius-sm);
   border-color: var(--line);
-  background: var(--panel-2);
+  background: var(--panel);
 }
 
 .modal-x:hover {
@@ -13216,14 +13215,14 @@ button.calendar-day:hover {
 /* ---------- Target account ---------- */
 .import-target-select {
   height: 36px;
-  background-color: var(--panel-2);
+  background-color: var(--panel);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238e9a97' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 11px center;
 }
 
 .import-target-select:focus {
-  background-color: var(--panel-2);
+  background-color: var(--panel);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238e9a97' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 11px center;
@@ -13238,9 +13237,7 @@ button.calendar-day:hover {
   padding: 38px 24px 30px;
   border-radius: 13px;
   border: 1px dashed var(--line-strong);
-  background:
-    radial-gradient(420px 140px at 50% 0%, rgb(var(--accent-rgb) / 0.05), transparent 70%),
-    var(--panel-2);
+  background: var(--panel);
   text-align: center;
   cursor: pointer;
   transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s var(--ease-out);
@@ -13299,7 +13296,7 @@ button.calendar-day:hover {
   padding: 3px 8px;
   border-radius: 999px;
   border: 1px solid var(--line);
-  background: var(--panel-2);
+  background: var(--panel);
   color: var(--faint);
   font-size: 8.5px;
   font-weight: 600;
@@ -13320,7 +13317,7 @@ button.calendar-day:hover {
   padding: 11px 12px;
   border-radius: 11px;
   border: 1px solid var(--line);
-  background: var(--panel-2);
+  background: var(--panel);
 }
 
 .import-file-icon {
@@ -13331,7 +13328,7 @@ button.calendar-day:hover {
   flex: none;
   border-radius: 9px;
   border: 1px solid var(--line);
-  background: var(--panel-2);
+  background: var(--panel);
   color: var(--muted);
 }
 
@@ -13393,7 +13390,7 @@ button.calendar-day:hover {
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid var(--line);
-  background: var(--panel-2);
+  background: var(--panel);
 }
 
 .import-source.is-warn {
@@ -13447,7 +13444,7 @@ button.calendar-day:hover {
   overflow: hidden;
   border-radius: 10px;
   border: 1px solid var(--line);
-  background: var(--panel-2);
+  background: var(--panel);
 }
 
 .import-stat {
@@ -13510,7 +13507,7 @@ button.calendar-day:hover {
   overflow: hidden;
   border-radius: 10px;
   border: 1px solid var(--line);
-  background: var(--panel-2);
+  background: var(--panel);
 }
 
 .import-preview-head,
@@ -14063,7 +14060,7 @@ button.calendar-day:hover {
   height: 36px;
   border-radius: var(--radius-sm);
   border-color: var(--line);
-  background-color: var(--panel-2);
+  background-color: var(--panel);
   font-size: 12px;
   transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
@@ -14086,7 +14083,7 @@ button.calendar-day:hover {
 .trade-form .select:focus,
 .trade-form .textarea:focus {
   border-color: var(--accent);
-  background-color: var(--panel-2);
+  background-color: var(--panel);
   box-shadow: 0 0 0 3px var(--focus-ring-soft);
 }
 
@@ -14095,7 +14092,7 @@ button.calendar-day:hover {
   padding: 8px 11px;
   border-radius: var(--radius-sm);
   border-color: var(--line);
-  background: var(--panel-2);
+  background: var(--panel);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -14191,7 +14188,7 @@ button.calendar-day:hover {
   gap: 9px;
   padding: 13px 22px;
   border-top-color: var(--line);
-  background: var(--panel-2);
+  background: var(--panel);
 }
 
 .trade-form .modal-foot-note {

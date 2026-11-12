@@ -568,14 +568,10 @@ export function DayReviewModal() {
                             <small>{trade.playbook}</small>
                           )}
                         </td>
-                        <td>
-                          <span className={cn('side-pill', trade.side === 'LONG' ? 'is-long' : 'is-short')}>
-                            {trade.side}
-                          </span>
-                        </td>
+                        <td>{trade.side === 'LONG' ? 'BUY' : 'SELL'}</td>
                         <td className="r num">{formatPrice(trade.entry)}</td>
-                        <td className="r num is-stop">{trade.stopLoss ? formatPrice(trade.stopLoss) : '—'}</td>
-                        <td className="r num is-target">{trade.takeProfit ? formatPrice(trade.takeProfit) : '—'}</td>
+                        <td className="r num is-stop">{trade.stopLoss ? formatPrice(trade.stopLoss) : '0'}</td>
+                        <td className="r num is-target">{trade.takeProfit ? formatPrice(trade.takeProfit) : '0'}</td>
                         <td className={cn('r num entry-pnl', trade.pnl > 0 && 'is-pos', trade.pnl < 0 && 'is-neg')}>
                           <b>{signedMoney(trade.pnl)}</b>
                         </td>

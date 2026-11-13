@@ -64,6 +64,7 @@ users/{uid}/accounts/{accountId}   one document per challenge/account
 users/{uid}/trades/{tradeId}       one document per trade (avoids the 1 MiB doc cap)
 users/{uid}/notes/{accountId}__{YYYY-MM-DD}   note text + imageIds
 users/{uid}/images/{imageId}       one screenshot per document (base64 JPEG)
+waitlist/{email}                   public waitlist signups (email + createdAt)
 ```
 
 Screenshots are compressed to max 1100px at 72% quality (≤ ~900 KB) and are only downloaded

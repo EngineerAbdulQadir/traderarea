@@ -416,3 +416,13 @@ export async function deleteCloudWorkspace(uid: string): Promise<void> {
     if (operations.length) await commit(operations)
   }
 }
+
+export async function joinWaitlist(email: string): Promise<void> {
+  const db = requireDb()
+  const normalized = email.trim().toLowerCase()
+  await setDoc(doc(db, 'waitlist', normalized), {
+    email: normalized,
+    createdAt: new Date().toISOString(),
+    source: 'web',
+  }, { merge: true })
+}

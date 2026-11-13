@@ -15,6 +15,7 @@ import { JournalPage } from '@/pages/Journal'
 import { EntriesPage } from '@/pages/Entries'
 import { NotesPage } from '@/pages/Notes'
 import { ReportsPage } from '@/pages/Reports'
+import { WaitlistPage } from '@/pages/Waitlist'
 import { StatsPage } from '@/pages/Stats'
 
 export default function App() {
@@ -53,6 +54,7 @@ export default function App() {
             </GuestOnly>
           }
         />
+        <Route path="waitlist" element={<WaitlistPage />} />
         <Route element={<RequireAuth />}>
           <Route element={<AppShell />}>
             <Route index element={<Navigate to="/metrics" replace />} />

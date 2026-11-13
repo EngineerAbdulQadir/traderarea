@@ -71,7 +71,10 @@ export interface Note {
   text: string
   updatedAt: string
   seeded?: boolean
+  /** Data URLs resolved for display. In cloud mode these are fetched on demand. */
   images?: string[]
+  /** Firestore ids of screenshot documents (cloud mode). */
+  imageIds?: string[]
 }
 
 export type AccountNotes = Record<string, Note>

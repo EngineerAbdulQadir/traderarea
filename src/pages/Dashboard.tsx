@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { AccountAvatar } from '@/components/ui/AccountAvatar'
+import { ShareButton } from '@/components/ui/ShareButton'
 import { DateRangePicker } from '@/components/ui/DateRangePicker'
 import { PnlHeatmap } from '@/components/charts/PnlHeatmap'
 import { Donut } from '@/components/charts/Donut'
@@ -142,16 +143,19 @@ export function DashboardPage() {
       <PageHeader
         className="dashboard-toolbar"
         actions={
-          <DateRangePicker
-            from={rangeFrom}
-            to={rangeTo}
-            minDate={earliest}
-            maxDate={today}
-            onChange={(nextFrom, nextTo) => {
-              setStoredFrom(nextFrom)
-              setStoredTo(nextTo)
-            }}
-          />
+          <>
+            <ShareButton stats={stats} accountName={activeAccount ? titleFor(activeAccount) : undefined} rangeLabel={`${rangeFrom} → ${rangeTo}`} />
+            <DateRangePicker
+              from={rangeFrom}
+              to={rangeTo}
+              minDate={earliest}
+              maxDate={today}
+              onChange={(nextFrom, nextTo) => {
+                setStoredFrom(nextFrom)
+                setStoredTo(nextTo)
+              }}
+            />
+          </>
         }
       />
 

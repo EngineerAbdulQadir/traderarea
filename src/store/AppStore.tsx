@@ -30,11 +30,30 @@ import {
   realTradesForAccount,
   requestDashboardRangeReset,
   resolveTrades,
+  STORAGE_KEYS,
   writeAccounts,
   writeActiveAccountId,
   writeNotes,
   writeTrades,
 } from '@/lib/persistence'
+import { readStorage, writeStorage } from '@/lib/storage'
+import { isFirebaseConfigured } from '@/lib/firebase'
+import {
+  deleteCloudWorkspace,
+  hasCloudWorkspace,
+  notesForCache,
+  pushWorkspaceToCloud,
+  subscribeAccounts,
+  subscribeNotes,
+  subscribeTrades,
+  syncAccounts,
+  syncNotes,
+  syncTrades,
+} from '@/lib/cloud'
+import { authErrorMessage, useAuth } from '@/store/AuthProvider'
+
+export type SyncStatus = 'local' | 'checking' | 'migration' | 'syncing' | 'ready' | 'error'
+
 
 export type ToastTone = 'success' | 'error' | 'info'
 
@@ -65,6 +84,7 @@ interface AppContextValue {
   activeIsDemo: boolean
   activeNotes: Record<string, Note>
   workspaceTrades: Trade[]
+  storedTradeCount: number
   setActiveAccount: (id: string) => void
   addAccount: (account: Account) => void
   advanceAccount: (id: string) => void
@@ -95,6 +115,14 @@ interface AppContextValue {
   toasts: ToastItem[]
   showToast: (title: string, message: string, tone?: ToastTone) => void
   dismissToast: (id: string) => void
+  /** Where the workspace currently syncs to. */
+  syncStatus: SyncStatus
+  cloudUserId: string | null
+  migrating: boolean
+  migrateWorkspace: () => Promise<void>
+  skipMigration: () => void
+  retrySync: () => void
+  clearCloudWorkspace: () => Promise<void>
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
@@ -102,17 +130,20 @@ const AppContext = createContext<AppContextValue | null>(null)
 let toastCounter = 0
 
 export function AppProvider({ children }: { children: ReactNode }) {
+  const { user, loading: authLoading } = useAuth()
+  const cloudUserId = isFirebaseConfigured ? user?.uid ?? null : null
   const [accounts, setAccounts] = useState<Account[]>(() => readAccounts())
   const [trades, setTrades] = useState<Trade[]>(() => readTrades())
   const [notes, setNotes] = useState<NotesByAccount>(() => readNotes())
   const [activeAccountId, setActiveAccountId] = useState<string>(() => readActiveAccountId())
-  useEffect(() => {
-    if (readAccounts().length === 0) {
-      const account = createDemoAccount()
-      setAccounts([account])
-      setActiveAccountId(account.id)
-    }
-  }, [])
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>(isFirebaseConfigured ? 'checking' : 'local')
+  const [migrating, setMigrating] = useState(false)
+  const [connectionAttempt, setConnectionAttempt] = useState(0)
+  const syncedAccounts = useRef<Account[] | null>(null)
+  const syncedTrades = useRef<Trade[] | null>(null)
+  const syncedNotes = useRef<NotesByAccount | null>(null)
+  const bootstrapDone = useRef(false)
+  const lastCloudUid = useRef<string | null>(null)
   const [challengeOpen, setChallengeOpen] = useState(false)
   const [tradeEditor, setTradeEditor] = useState<TradeEditorState | null>(null)
   const [dayReview, setDayReview] = useState<DayReviewState | null>(null)
@@ -201,8 +232,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [trades])
 
   useEffect(() => {
-    writeNotes(notes)
-  }, [notes])
+    // Screenshots sync as separate Firestore docs, so never duplicate their
+    // base64 payload into the localStorage cache.
+    writeNotes(cloudUserId ? notesForCache(notes) : notes)
+  }, [notes, cloudUserId])
 
   useEffect(() => {
     writeActiveAccountId(activeAccountId)
@@ -270,6 +303,224 @@ export function AppProvider({ children }: { children: ReactNode }) {
       activeTimers.forEach((timer) => window.clearTimeout(timer))
     }
   }, [])
+
+  /* ---------------------------------------------------------------- */
+  /* Cloud sync (Firebase). Local storage still acts as an offline    */
+  /* cache, so the app keeps working when the network drops.          */
+  /* ---------------------------------------------------------------- */
+
+  // Decide what to do for this user: pull cloud data, or offer a one-time
+  // upload of the workspace that already lives in this browser.
+  useEffect(() => {
+    if (!isFirebaseConfigured) {
+      setSyncStatus('local')
+      return
+    }
+    if (authLoading) return
+    if (!cloudUserId) {
+      syncedAccounts.current = null
+      syncedTrades.current = null
+      syncedNotes.current = null
+      setSyncStatus('local')
+      return
+    }
+
+    let cancelled = false
+    setSyncStatus('checking')
+    const localHasData =
+      accounts.length > 0 || trades.length > 0 || Object.keys(notes).length > 0
+
+    hasCloudWorkspace(cloudUserId)
+      .then((hasData) => {
+        if (cancelled) return
+        const choice = readStorage(`ta-cloud-choice-${cloudUserId}`, '')
+        if (!hasData && localHasData && choice !== 'done' && choice !== 'skip') {
+          setSyncStatus('migration')
+          return
+        }
+        setSyncStatus('syncing')
+      })
+      .catch((error) => {
+        if (cancelled) return
+        setSyncStatus('error')
+        showToast('Cloud unavailable', authErrorMessage(error), 'error')
+      })
+
+    return () => {
+      cancelled = true
+    }
+    // Only the signed-in user, auth readiness or an explicit retry should re-run this.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cloudUserId, authLoading, connectionAttempt])
+
+  const shouldSubscribe =
+    Boolean(cloudUserId) && (syncStatus === 'syncing' || syncStatus === 'ready')
+
+  // Signing out must never leave the previous account's journal in this browser
+  // for whoever signs in next.
+  useEffect(() => {
+    if (!isFirebaseConfigured || authLoading) return
+    if (!cloudUserId && lastCloudUid.current) {
+      setAccounts([])
+      setTrades([])
+      setNotes({})
+      setActiveAccountId('')
+      ;[
+        STORAGE_KEYS.accounts,
+        STORAGE_KEYS.trades,
+        STORAGE_KEYS.notes,
+        STORAGE_KEYS.activeAccount,
+      ].forEach((key) => {
+        try {
+          localStorage.removeItem(key)
+        } catch {
+          // Storage may be unavailable in private mode.
+        }
+      })
+      bootstrapDone.current = false
+    }
+    lastCloudUid.current = cloudUserId
+  }, [cloudUserId, authLoading])
+
+  useEffect(() => {
+    if (!cloudUserId || !shouldSubscribe) return
+    let cancelled = false
+    const seen = { accounts: false, trades: false, notes: false }
+
+    const fail = (label: string) => (error: Error) => {
+      if (cancelled) return
+      setSyncStatus('error')
+      showToast('Cloud sync failed', `${label}: ${authErrorMessage(error)}`, 'error')
+    }
+
+    const settle = (key: keyof typeof seen) => {
+      if (cancelled) return
+      seen[key] = true
+      const loaded = Number(seen.accounts) + Number(seen.trades) + Number(seen.notes)
+      if (loaded === 3) setSyncStatus('ready')
+    }
+
+    const unsubscribeAccounts = subscribeAccounts(
+      cloudUserId,
+      (list) => {
+        syncedAccounts.current = list
+        if (cancelled) return
+        setAccounts(list)
+        settle('accounts')
+      },
+      fail('accounts'),
+    )
+    const unsubscribeTrades = subscribeTrades(
+      cloudUserId,
+      (list) => {
+        syncedTrades.current = list
+        if (cancelled) return
+        setTrades(list)
+        settle('trades')
+      },
+      fail('trades'),
+    )
+    const unsubscribeNotes = subscribeNotes(
+      cloudUserId,
+      (list) => {
+        syncedNotes.current = list
+        if (cancelled) return
+        setNotes(list)
+        settle('notes')
+      },
+      fail('notes'),
+    )
+
+    return () => {
+      cancelled = true
+      unsubscribeAccounts()
+      unsubscribeTrades()
+      unsubscribeNotes()
+    }
+  }, [cloudUserId, shouldSubscribe, showToast])
+
+  // Push only the documents that actually changed since the last snapshot.
+  useEffect(() => {
+    if (!cloudUserId || syncStatus !== 'ready') return
+    const previous = syncedAccounts.current
+    if (!previous || previous === accounts) return
+    syncedAccounts.current = accounts
+    syncAccounts(cloudUserId, previous, accounts).catch((error) => {
+      showToast('Accounts not saved', authErrorMessage(error), 'error')
+    })
+  }, [accounts, cloudUserId, syncStatus, showToast])
+
+  useEffect(() => {
+    if (!cloudUserId || syncStatus !== 'ready') return
+    const previous = syncedTrades.current
+    if (!previous || previous === trades) return
+    syncedTrades.current = trades
+    syncTrades(cloudUserId, previous, trades).catch((error) => {
+      showToast('Trade not saved', authErrorMessage(error), 'error')
+    })
+  }, [trades, cloudUserId, syncStatus, showToast])
+
+  useEffect(() => {
+    if (!cloudUserId || syncStatus !== 'ready') return
+    const previous = syncedNotes.current
+    if (!previous || previous === notes) return
+    syncedNotes.current = notes
+    syncNotes(cloudUserId, previous, notes).catch((error) => {
+      showToast('Note not saved', authErrorMessage(error), 'error')
+    })
+  }, [notes, cloudUserId, syncStatus, showToast])
+
+  // A fresh workspace still gets a friendly demo account, but only once,
+  // and only after the cloud (or local) data has finished loading.
+  useEffect(() => {
+    if (bootstrapDone.current) return
+    if (isFirebaseConfigured) {
+      if (authLoading) return
+      if (syncStatus !== 'local' && syncStatus !== 'ready') return
+    }
+    bootstrapDone.current = true
+    if (accounts.length === 0) {
+      const account = createDemoAccount()
+      setAccounts([account])
+      setActiveAccountId(account.id)
+    }
+  }, [accounts.length, authLoading, syncStatus])
+
+  const migrateWorkspace = useCallback(async () => {
+    if (!cloudUserId) return
+    setMigrating(true)
+    try {
+      await pushWorkspaceToCloud(cloudUserId, accounts, trades, notes)
+      writeStorage(`ta-cloud-choice-${cloudUserId}`, 'done')
+      syncedAccounts.current = accounts
+      syncedTrades.current = trades
+      syncedNotes.current = notes
+      setSyncStatus('syncing')
+      showToast(
+        'Workspace uploaded',
+        `${accounts.length} account${accounts.length === 1 ? '' : 's'} and ${trades.length} trade${
+          trades.length === 1 ? '' : 's'
+        } now sync to your signed-in account.`,
+      )
+    } catch (error) {
+      showToast('Upload failed', authErrorMessage(error), 'error')
+    } finally {
+      setMigrating(false)
+    }
+  }, [cloudUserId, accounts, trades, notes, showToast])
+
+  const skipMigration = useCallback(() => {
+    if (!cloudUserId) return
+    writeStorage(`ta-cloud-choice-${cloudUserId}`, 'skip')
+    setSyncStatus('syncing')
+  }, [cloudUserId])
+
+  const retrySync = useCallback(() => setConnectionAttempt((value) => value + 1), [])
+
+  const clearCloudWorkspace = useCallback(async () => {
+    if (!cloudUserId) return
+    await deleteCloudWorkspace(cloudUserId)
+  }, [cloudUserId])
 
   const setActiveAccount = useCallback((id: string) => {
     setActiveAccountId(id)
@@ -471,6 +722,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       activeIsDemo,
       activeNotes,
       workspaceTrades,
+      storedTradeCount: trades.length,
       setActiveAccount,
       addAccount,
       advanceAccount,
@@ -501,6 +753,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toasts,
       showToast,
       dismissToast,
+      syncStatus,
+      cloudUserId,
+      migrating,
+      migrateWorkspace,
+      skipMigration,
+      retrySync,
+      clearCloudWorkspace,
     }),
     [
       accounts,
@@ -540,6 +799,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toasts,
       showToast,
       dismissToast,
+      syncStatus,
+      cloudUserId,
+      migrating,
+      migrateWorkspace,
+      skipMigration,
+      retrySync,
+      clearCloudWorkspace,
     ],
   )
 

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { AlertCircle, ArrowRight, Eye, EyeOff, Loader2 } from 'lucide-react'
 
 import logoForm from '../../assets/logoform.png'
+import { authErrorMessage, useAuth } from '@/store/AuthProvider'
 
 type Mode = 'login' | 'signup' | 'forgot'
 
@@ -14,12 +15,14 @@ const AUTH_PATH: Record<Mode, string> = {
 
 export function AuthPage({ mode }: { mode: Mode }) {
   const navigate = useNavigate()
+  const { signIn, signUp, resetPassword, configured } = useAuth()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
+  const [error, setError] = useState('')
 
   const isSignup = mode === 'signup'
   const isForgot = mode === 'forgot'
@@ -27,23 +30,37 @@ export function AuthPage({ mode }: { mode: Mode }) {
   useEffect(() => {
     setSent(false)
     setLoading(false)
+    setError('')
   }, [mode])
 
   const switchMode = (next: Mode) => {
     navigate(AUTH_PATH[next])
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!configured) {
+      setError('Firebase is not configured yet. Add your project keys to .env.local and restart the dev server.')
+      return
+    }
     setLoading(true)
-    window.setTimeout(() => {
-      setLoading(false)
+    setError('')
+    try {
       if (isForgot) {
+        await resetPassword(email)
         setSent(true)
+      } else if (isSignup) {
+        await signUp(name, email, password)
+        navigate('/metrics', { replace: true })
       } else {
-        navigate('/metrics')
+        await signIn(email, password)
+        navigate('/metrics', { replace: true })
       }
-    }, 600)
+    } catch (err) {
+      setError(authErrorMessage(err))
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -90,6 +107,13 @@ export function AuthPage({ mode }: { mode: Mode }) {
             </p>
 
             <form className="auth-form" onSubmit={handleSubmit}>
+              {!configured && (
+                <p className="auth-notice">
+                  Firebase is not configured. Copy <code>.env.local.example</code> to{' '}
+                  <code>.env.local</code> and add your project keys.
+                </p>
+              )}
+
               {isSignup && (
                 <label className="auth-field">
                   <span className="auth-label">Full name</span>
@@ -164,6 +188,13 @@ export function AuthPage({ mode }: { mode: Mode }) {
                     Forgot password?
                   </button>
                 </div>
+              )}
+
+              {error && (
+                <p className="auth-error" role="alert">
+                  <AlertCircle size={14} />
+                  <span>{error}</span>
+                </p>
               )}
 
               <button type="submit" className="auth-submit" disabled={loading}>

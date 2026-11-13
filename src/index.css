@@ -14245,3 +14245,320 @@ button.calendar-day:hover {
     display: none;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Cloud sync screens                                                  */
+/* ------------------------------------------------------------------ */
+
+.sync-page {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 40px 24px;
+  color: var(--text);
+  background:
+    radial-gradient(120% 85% at 50% -12%, rgb(var(--accent-rgb) / 0.1), transparent 62%),
+    var(--bg);
+}
+
+.sync-ambient {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.sync-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.55;
+}
+
+.sync-orb-a {
+  top: -18%;
+  left: 6%;
+  width: 42vw;
+  height: 42vw;
+  min-width: 380px;
+  min-height: 380px;
+  background: radial-gradient(circle, rgb(var(--accent-rgb) / 0.3), transparent 65%);
+  animation: sync-drift 22s ease-in-out infinite alternate;
+}
+
+.sync-orb-b {
+  right: -8%;
+  bottom: -26%;
+  width: 46vw;
+  height: 46vw;
+  min-width: 420px;
+  min-height: 420px;
+  background: radial-gradient(circle, rgb(var(--accent-rgb) / 0.17), transparent 66%);
+  animation: sync-drift 28s ease-in-out infinite alternate-reverse;
+}
+
+.sync-orb-c {
+  top: 38%;
+  right: 14%;
+  width: 24vw;
+  height: 24vw;
+  min-width: 240px;
+  min-height: 240px;
+  background: radial-gradient(circle, rgb(var(--accent-rgb) / 0.12), transparent 68%);
+  animation: sync-drift 34s ease-in-out infinite alternate;
+}
+
+.sync-mesh {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgb(var(--overlay-rgb) / 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--overlay-rgb) / 0.045) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(80% 70% at 50% 42%, #000 8%, transparent 78%);
+  -webkit-mask-image: radial-gradient(80% 70% at 50% 42%, #000 8%, transparent 78%);
+}
+
+.sync-shell {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(460px, 100%);
+  padding: 42px 40px 34px;
+  text-align: center;
+  border-radius: 22px;
+  border: 1px solid var(--line-strong);
+  background:
+    radial-gradient(560px 220px at 50% -12%, rgb(var(--accent-rgb) / 0.1), transparent 70%),
+    linear-gradient(180deg, var(--panel-2), var(--panel-2));
+  box-shadow:
+    0 44px 130px -54px var(--shadow-color),
+    0 0 0 1px rgb(var(--shadow-rgb) / 0.35),
+    inset 0 1px 0 rgb(var(--overlay-rgb) / 0.06);
+  animation: sync-rise 0.5s var(--ease-out) both;
+}
+
+.sync-title {
+  margin: 0 0 8px;
+  font-size: 1.24rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--text);
+}
+
+.sync-copy {
+  max-width: 42ch;
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.62;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.sync-error-badge {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin: 2px 0 22px;
+  border-radius: 18px;
+  color: #f2a49b;
+  border: 1px solid rgb(242 113 102 / 0.28);
+  background: rgb(242 113 102 / 0.1);
+  box-shadow: 0 0 44px -14px rgb(242 113 102 / 0.55);
+}
+
+.sync-retry {
+  width: 100%;
+  margin-top: 2px;
+}
+
+.sync-note {
+  margin: 16px 0 0;
+  font-size: 0.7rem;
+  line-height: 1.55;
+  color: var(--faint);
+}
+
+/* ------------------------------------------------------------------ */
+/* Cloud migration prompt                                              */
+/* ------------------------------------------------------------------ */
+
+.migration-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px 24px 22px;
+}
+
+.migration-head {
+  display: flex;
+  align-items: center;
+}
+
+.migration-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.migration-eyebrow {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  opacity: 0.85;
+}
+
+.migration-panel h2 {
+  margin: 0;
+  font-size: 1.06rem;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  color: var(--text);
+}
+
+.migration-sub {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.56;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.migration-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--line);
+}
+
+.migration-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 10px;
+  text-align: center;
+  background: rgb(var(--overlay-rgb) / 0.025);
+}
+
+.migration-stat b {
+  font-size: 1.02rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.migration-stat span {
+  font-size: 0.61rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.migration-stat.is-accent {
+  background: linear-gradient(180deg, rgb(var(--accent-rgb) / 0.13), rgb(var(--accent-rgb) / 0.04));
+}
+
+.migration-stat.is-accent b {
+  color: var(--accent-strong);
+}
+
+.migration-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.migration-actions .btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.migration-actions .btn-primary {
+  box-shadow:
+    inset 0 1px 0 rgb(var(--overlay-rgb) / 0.4),
+    0 16px 34px -20px rgb(var(--accent-rgb) / 0.85);
+}
+
+.migration-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  font-size: 0.74rem;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    color 0.16s ease,
+    background 0.16s ease;
+}
+
+.migration-link:hover:not(:disabled) {
+  color: var(--text);
+  background: rgb(var(--overlay-rgb) / 0.05);
+}
+
+.migration-link:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@keyframes sync-drift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  to {
+    transform: translate3d(4%, 6%, 0) scale(1.08);
+  }
+}
+
+@keyframes sync-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .sync-page {
+    padding: 24px 16px;
+  }
+
+  .sync-shell {
+    padding: 32px 22px 26px;
+  }
+
+  .migration-panel {
+    padding: 20px 18px 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sync-orb,
+  .sync-shell {
+    animation: none !important;
+  }
+}

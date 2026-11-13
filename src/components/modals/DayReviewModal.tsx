@@ -19,6 +19,8 @@ import { buildIntradaySeries, computeStats, getStartingBalance } from '@/lib/sta
 import { formatLongDate, formatNumericDate, dayName } from '@/lib/dates'
 import { formatPrice, plainPercent, signedMoney } from '@/lib/format'
 import { noteSavedLabel } from '@/lib/notes'
+import { getCachedNoteImages, loadNoteImages } from '@/lib/cloud'
+import { useAuth } from '@/store/AuthProvider'
 import { cn } from '@/lib/cn'
 
 export function DayReviewModal() {
@@ -32,12 +34,14 @@ export function DayReviewModal() {
     openTradeEditor,
     showToast,
   } = useApp()
+  const { user } = useAuth()
 
   const date = dayReview?.date ?? ''
   const note = date ? activeNotes[date] : undefined
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const [images, setImages] = useState<string[]>([])
+  const [imagesLoading, setImagesLoading] = useState(false)
   const [zoomImage, setZoomImage] = useState<string | null>(null)
   const [hoverTradeId, setHoverTradeId] = useState<string | null>(null)
   const [confirmNoteDelete, setConfirmNoteDelete] = useState(false)
@@ -45,17 +49,67 @@ export function DayReviewModal() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Sync state when dayReview or note changes
+  // Sync state when dayReview or note changes. In cloud mode screenshots are
+  // stored as separate Firestore documents and only fetched for this note.
   useEffect(() => {
     if (!dayReview) return
     setEditing(!!dayReview.editNote)
     const n = activeNotes[dayReview.date]
     setDraft(n?.text ?? '')
-    setImages(n?.images ?? [])
     setConfirmNoteDelete(false)
     setHoverTradeId(null)
     setZoomImage(null)
-  }, [dayReview, activeNotes])
+
+    if (!n) {
+      setImages([])
+      setImagesLoading(false)
+      return
+    }
+
+    if (n.images?.length) {
+      setImages(n.images)
+      setImagesLoading(false)
+      return
+    }
+
+    const ids = n.imageIds ?? []
+    if (!ids.length) {
+      setImages([])
+      setImagesLoading(false)
+      return
+    }
+
+    const cached = getCachedNoteImages(ids)
+    if (cached) {
+      setImages(cached)
+      setImagesLoading(false)
+      return
+    }
+
+    if (!user) {
+      setImages([])
+      setImagesLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setImages([])
+    setImagesLoading(true)
+    loadNoteImages(user.uid, ids)
+      .then((urls) => {
+        if (!cancelled) setImages(urls)
+      })
+      .catch(() => {
+        if (!cancelled) setImages([])
+      })
+      .finally(() => {
+        if (!cancelled) setImagesLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [dayReview, activeNotes, user])
 
   // Esc key for Lightbox zoom preview
   useEffect(() => {
@@ -81,7 +135,8 @@ export function DayReviewModal() {
     return () => window.clearTimeout(timer)
   }, [editing])
 
-  // Process & compress screenshot attachments (max 1200px, 82% quality)
+  // Process & compress screenshot attachments (max 1100px, 72% quality).
+  // Screenshots are stored as individual Firestore docs, so keep each one small.
   const processImageFile = (file: File) => {
     if (!file.type.startsWith('image/')) {
       showToast('Invalid file', 'Please select an image file (PNG, JPG, WebP).', 'info')
@@ -94,7 +149,7 @@ export function DayReviewModal() {
 
       const img = new Image()
       img.onload = () => {
-        const MAX_DIM = 1200
+        const MAX_DIM = 1100
         let { width, height } = img
         if (width > MAX_DIM || height > MAX_DIM) {
           if (width > height) {
@@ -111,7 +166,18 @@ export function DayReviewModal() {
         const ctx = canvas.getContext('2d')
         if (!ctx) return
         ctx.drawImage(img, 0, 0, width, height)
-        const compressed = canvas.toDataURL('image/jpeg', 0.82)
+        let compressed = canvas.toDataURL('image/jpeg', 0.72)
+        if (compressed.length > 900_000) {
+          compressed = canvas.toDataURL('image/jpeg', 0.55)
+        }
+        if (compressed.length > 940_000) {
+          showToast(
+            'Screenshot too large',
+            'Try cropping the chart before attaching it. Each image must stay under 1 MB.',
+            'error',
+          )
+          return
+        }
         setImages((prev) => {
           const updated = [...prev, compressed]
           if (!editing && activeAccount && dayReview) {
@@ -165,7 +231,6 @@ export function DayReviewModal() {
 
   const startEdit = () => {
     setDraft(note?.text ?? '')
-    setImages(note?.images ?? [])
     setEditing(true)
     setConfirmNoteDelete(false)
   }
@@ -173,12 +238,15 @@ export function DayReviewModal() {
   const cancelEdit = () => {
     setEditing(false)
     setDraft(note?.text ?? '')
-    setImages(note?.images ?? [])
     setConfirmNoteDelete(false)
   }
 
   const saveCurrentNote = () => {
     if (!dayReview || !activeAccount) return
+    if (imagesLoading) {
+      showToast('Still loading screenshots', 'Give the images a moment, then save again.', 'info')
+      return
+    }
     const text = draft.trim()
     saveNote(activeAccount.id, dayReview.date, text, images)
     setEditing(false)
@@ -228,7 +296,10 @@ export function DayReviewModal() {
     { label: 'Worst trade', value: worstTrade ? signedMoney(worstTrade.pnl) : '0', tone: worstTrade ? 'is-neg' : '' },
   ]
 
-  const hasNoteContent = (note?.text && note.text.trim().length > 0) || (note?.images && note.images.length > 0)
+  const hasNoteContent =
+    (note?.text && note.text.trim().length > 0) ||
+    (note?.images && note.images.length > 0) ||
+    !!note?.imageIds?.length
 
   return (
     <>

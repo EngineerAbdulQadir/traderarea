@@ -13,6 +13,7 @@ import { useApp } from '@/store/AppStore'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { ShareButton } from '@/components/ui/ShareButton'
 import { Badge } from '@/components/ui/Badge'
 import { Segmented } from '@/components/ui/Segmented'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -325,6 +326,7 @@ export function StatsPage() {
               onChange={setStoredRange}
               size="sm"
             />
+            <ShareButton stats={stats} accountName={activeAccount?.firm} rangeLabel="Statistics" />
             <Button variant="primary" size="sm" iconLeft={<Plus size={13} />} onClick={() => openTradeEditor()}>
               Log trade
             </Button>

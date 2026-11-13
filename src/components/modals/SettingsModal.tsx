@@ -1,7 +1,9 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import {
+  Cloud,
   Database,
   Download,
+  LogOut,
   Moon,
   Palette,
   Save,
@@ -18,11 +20,13 @@ import { Badge } from '@/components/ui/Badge'
 import { Segmented } from '@/components/ui/Segmented'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useApp } from '@/store/AppStore'
+import { useAuth } from '@/store/AuthProvider'
 import { useProfile } from '@/hooks/useProfile'
 import { useTheme } from '@/hooks/useTheme'
 import { initialsFor, saveProfile } from '@/lib/profile'
 import { STORAGE_KEYS } from '@/lib/persistence'
 import { clearThemePreference, type Theme } from '@/lib/theme'
+import { exportWorkspaceBackup } from '@/lib/backup'
 import { cn } from '@/lib/cn'
 
 type SectionId = 'profile' | 'appearance' | 'data'
@@ -48,16 +52,19 @@ const THEME_OPTIONS: { value: Theme; label: string; icon: ReactNode }[] = [
   { value: 'dark', label: 'Dark', icon: <Moon size={13} /> },
 ]
 
-const EXPORT_KEYS = [
-  STORAGE_KEYS.accounts,
-  STORAGE_KEYS.trades,
-  STORAGE_KEYS.notes,
-  STORAGE_KEYS.activeAccount,
-  'ta-profile',
-]
-
 export function SettingsModal() {
-  const { settingsOpen, closeSettings, accounts, workspaceTrades, showToast } = useApp()
+  const {
+    settingsOpen,
+    closeSettings,
+    accounts,
+    workspaceTrades,
+    showToast,
+    syncStatus,
+    cloudUserId,
+    clearCloudWorkspace,
+  } = useApp()
+  const { user, signOut } = useAuth()
+  const cloudActive = syncStatus === 'ready' && Boolean(cloudUserId)
   const profile = useProfile()
   const { theme, setTheme } = useTheme()
 
@@ -88,36 +95,18 @@ export function SettingsModal() {
   }
 
   const handleExport = () => {
-    const data: Record<string, unknown> = {}
-    EXPORT_KEYS.forEach((key) => {
-      const raw = localStorage.getItem(key)
-      if (raw === null) return
-      try {
-        data[key] = JSON.parse(raw) as unknown
-      } catch {
-        data[key] = raw
-      }
-    })
-
-    const payload = {
-      app: 'Trader Area',
-      version: 2,
-      exportedAt: new Date().toISOString(),
-      data,
-    }
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `trader-area-backup-${new Date().toISOString().slice(0, 10)}.json`
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    URL.revokeObjectURL(url)
+    exportWorkspaceBackup()
     showToast('Backup exported', 'Your workspace data was downloaded as a JSON file.')
   }
 
-  const handleReset = () => {
+  const handleReset = async () => {
+    if (cloudUserId) {
+      try {
+        await clearCloudWorkspace()
+      } catch {
+        showToast('Cloud reset failed', 'Your local copy was cleared, but Firebase still has data.', 'error')
+      }
+    }
     ;[
       STORAGE_KEYS.accounts,
       STORAGE_KEYS.trades,
@@ -303,11 +292,13 @@ export function SettingsModal() {
                   <div>
                     <h3 className="settings-panel-title">Data &amp; storage</h3>
                     <p className="settings-panel-sub">
-                      Everything lives in this browser. Export a backup before clearing it.
+                      {cloudActive
+                        ? 'Synced to Firebase and cached in this browser for offline use.'
+                        : 'Everything lives in this browser. Export a backup before clearing it.'}
                     </p>
                   </div>
-                  <Badge tone="accent" dot>
-                    Local only
+                  <Badge tone={cloudActive ? 'accent' : 'neutral'} dot>
+                    {cloudActive ? 'Cloud sync' : 'Local only'}
                   </Badge>
                 </div>
 
@@ -322,8 +313,32 @@ export function SettingsModal() {
                   </div>
                   <div className="settings-stat">
                     <span>Storage</span>
-                    <b>Browser</b>
+                    <b>{cloudActive ? 'Firebase' : 'Browser'}</b>
                   </div>
+                </div>
+
+                <div className="settings-field-row">
+                  <div className="settings-field-copy">
+                    <b>Signed in as</b>
+                    <span>{user?.email ?? 'Not signed in — data stays on this device.'}</span>
+                  </div>
+                  {user ? (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      iconLeft={<LogOut size={14} />}
+                      onClick={async () => {
+                        closeSettings()
+                        await signOut()
+                      }}
+                    >
+                      Sign out
+                    </Button>
+                  ) : (
+                    <Badge tone="neutral">
+                      <Cloud size={12} /> Local
+                    </Badge>
+                  )}
                 </div>
 
                 <div className="settings-field-row">
@@ -358,7 +373,11 @@ export function SettingsModal() {
 
                 <div className="settings-privacy">
                   <ShieldCheck size={14} />
-                  <span>Nothing is uploaded. Clearing browser storage also removes this data.</span>
+                  <span>
+                    {cloudActive
+                      ? 'Your journal syncs through Firebase and is readable only by your account.'
+                      : 'Nothing is uploaded. Clearing browser storage also removes this data.'}
+                  </span>
                 </div>
               </div>
             )}
@@ -373,7 +392,8 @@ export function SettingsModal() {
           <>
             This removes <strong>{accounts.length}</strong> account
             {accounts.length === 1 ? '' : 's'}, <strong>{workspaceTrades.length}</strong> trade
-            {workspaceTrades.length === 1 ? '' : 's'} and every journal note stored in this browser.
+            {workspaceTrades.length === 1 ? '' : 's'} and every journal note
+            {cloudActive ? ' in your Firebase account and this browser' : ' stored in this browser'}.
             Your profile and theme are kept. This cannot be undone.
           </>
         }

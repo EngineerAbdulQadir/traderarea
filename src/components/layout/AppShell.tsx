@@ -5,8 +5,11 @@ import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 import { readStorage, writeStorage } from '@/lib/storage'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { useApp } from '@/store/AppStore'
+import { SyncError } from './SyncScreen'
 
 export function AppShell() {
+  const { syncStatus } = useApp()
   const [collapsed, setCollapsed] = useState(() => {
     const stored = readStorage('ta-ui-sidebar-collapsed', '')
     if (stored) return stored === '1'
@@ -38,6 +41,8 @@ export function AppShell() {
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [mobileOpen])
+
+  if (syncStatus === 'error') return <SyncError />
 
   return (
     <div className="app-shell" data-collapsed={collapsed}>

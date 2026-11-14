@@ -1,12 +1,11 @@
 import type { Stats } from '@/lib/types'
 import type { ConsistencyTier } from '@/lib/certificates'
 import { formatDateRange, isValidISODate } from '@/lib/dates'
-import { formatMoney, signedPercent } from '@/lib/format'
 import logoDarkUrl from '../../assets/logodark.png'
-import candleTier3Url from '../assets/images/candle_lux_3m_quartz_1794589443843.jpg'
-import candleTier6Url from '../assets/images/candle_lux_6m_sapphire_v2_1794589468407.jpg'
-import candleTier9Url from '../assets/images/candle_lux_9m_baguette_1794589444088.jpg'
-import candleTier12Url from '../assets/images/candle_lux_12m_imperial_v2_1794589468313.jpg'
+import candleTier3Url from '../assets/images/lux_candle_3m_slate_v3_1794649628509.jpg'
+import candleTier6Url from '../assets/images/lux_candle_6m_emerald_v3_1794649629382.jpg'
+import candleTier9Url from '../assets/images/lux_candle_9m_sapphire_v3_1794649630256.jpg'
+import candleTier12Url from '../assets/images/lux_candle_12m_sovereign_v3_1794649630330.jpg'
 
 export interface CertificateOptions {
   traderName?: string
@@ -22,180 +21,195 @@ export interface CertificateOptions {
 
 interface TierDesign {
   tier: ConsistencyTier
+  level: 1 | 2 | 3 | 4
   candleUrl: string
   candleDrawW: number
-  candleCyOffset: number
   headerTag: string
   kickerText: string
+  titleText: string
+  subtitleText: string
   editionSub: string
-  stageLabel: string
+  sculptureTitle: string
+  sculptureSubtitle: string
   canvasBg: string
   cardBgTop: string
   cardBgBottom: string
+  stageBg: string
+  stageHaloInner: string
+  stageHaloOuter: string
   accentPrimary: string
   accentSecondary: string
   frameTop: string
   frameMid: string
   frameBottom: string
+  frameWidth: number
   innerFrame: string | null
-  topBeamColor: string
+  topBeamColor: string | null
   topBeamWidth: number
   ambientWash: string
+  nameMaxPx: number
   nameTop: string
   nameBottom: string
-  statsBgTop: string
-  statsBgBottom: string
-  statsBorderTop: string
-  statsBorderBottom: string
-  statsBeam: string
-  dividerColor: string
-  dotOpacity: number
-  cornerStyle: 'ticks' | 'brackets' | 'mitered' | 'sovereign'
-  sealMode: 'diamond' | 'cobalt' | 'titanium' | 'sovereign'
+  ruleColor: string
+  gridOpacity: number
+  cornerDetail: 'none' | 'ticks' | 'brackets' | 'sovereign'
+  sealMode: 'platinum' | 'emerald' | 'sapphire' | 'sovereign'
 }
 
 const TIER_DESIGNS: Record<ConsistencyTier, TierDesign> = {
   3: {
     tier: 3,
+    level: 1,
     candleUrl: candleTier3Url,
-    candleDrawW: 468,
-    candleCyOffset: 0,
-    headerTag: '03 MONTHS',
-    kickerText: '03 MONTHS  ·  CONSISTENT PROFITS',
-    editionSub: 'Verified Consistency Ledger',
-    stageLabel: 'ICE QUARTZ EDITION',
-    canvasBg: '#030509',
-    cardBgTop: '#070b14',
-    cardBgBottom: '#03060c',
-    accentPrimary: '#bae6fd',
-    accentSecondary: '#60a5fa',
-    frameTop: 'rgba(186, 230, 253, 0.24)',
-    frameMid: 'rgba(148, 163, 184, 0.12)',
-    frameBottom: 'rgba(96, 165, 250, 0.08)',
+    candleDrawW: 488,
+    headerTag: 'LEVEL I  ·  03 MONTHS',
+    kickerText: '03 CONSECUTIVE PROFITABLE MONTHS',
+    titleText: 'Consistency Certificate',
+    subtitleText: 'Foundation Quarter Milestone',
+    editionSub: 'Tier I Consistency Record',
+    sculptureTitle: 'SMOKED PLATINUM',
+    sculptureSubtitle: 'Level I  ·  3-Month Edition',
+    canvasBg: '#030508',
+    cardBgTop: '#0A0D13',
+    cardBgBottom: '#05070B',
+    stageBg: '#030508',
+    stageHaloInner: 'rgba(226, 232, 240, 0.13)',
+    stageHaloOuter: 'rgba(148, 163, 184, 0.025)',
+    accentPrimary: '#CBD5E1',
+    accentSecondary: '#64748B',
+    frameTop: 'rgba(203, 213, 225, 0.28)',
+    frameMid: 'rgba(148, 163, 184, 0.14)',
+    frameBottom: 'rgba(100, 116, 139, 0.09)',
+    frameWidth: 1,
     innerFrame: null,
-    topBeamColor: 'rgba(186, 230, 253, 0.48)',
-    topBeamWidth: 560,
-    ambientWash: 'rgba(147, 197, 253, 0.065)',
-    nameTop: '#ffffff',
-    nameBottom: '#e2e8f0',
-    statsBgTop: 'rgba(255, 255, 255, 0.032)',
-    statsBgBottom: 'rgba(255, 255, 255, 0.012)',
-    statsBorderTop: 'rgba(186, 230, 253, 0.20)',
-    statsBorderBottom: 'rgba(148, 163, 184, 0.09)',
-    statsBeam: 'rgba(186, 230, 253, 0.24)',
-    dividerColor: 'rgba(186, 230, 253, 0.15)',
-    dotOpacity: 0.14,
-    cornerStyle: 'ticks',
-    sealMode: 'diamond',
+    topBeamColor: null,
+    topBeamWidth: 0,
+    ambientWash: 'rgba(203, 213, 225, 0.04)',
+    nameMaxPx: 74,
+    nameTop: '#FFFFFF',
+    nameBottom: '#DCE3EC',
+    ruleColor: 'rgba(203, 213, 225, 0.15)',
+    gridOpacity: 0.025,
+    cornerDetail: 'none',
+    sealMode: 'platinum',
   },
   6: {
     tier: 6,
+    level: 2,
     candleUrl: candleTier6Url,
-    candleDrawW: 480,
-    candleCyOffset: 0,
-    headerTag: '06 MONTHS',
-    kickerText: '06 MONTHS  ·  CONSISTENT PROFITS',
-    editionSub: 'Verified Proven Discipline',
-    stageLabel: 'ROYAL COBALT EDITION',
-    canvasBg: '#02040a',
-    cardBgTop: '#050a18',
-    cardBgBottom: '#02050c',
-    accentPrimary: '#60a5fa',
-    accentSecondary: '#2563eb',
-    frameTop: 'rgba(96, 165, 250, 0.34)',
-    frameMid: 'rgba(59, 130, 246, 0.16)',
-    frameBottom: 'rgba(37, 99, 235, 0.10)',
-    innerFrame: 'rgba(59, 130, 246, 0.10)',
-    topBeamColor: 'rgba(59, 130, 246, 0.72)',
-    topBeamWidth: 780,
-    ambientWash: 'rgba(37, 99, 235, 0.09)',
-    nameTop: '#ffffff',
-    nameBottom: '#dbeafe',
-    statsBgTop: 'rgba(37, 99, 235, 0.055)',
-    statsBgBottom: 'rgba(255, 255, 255, 0.014)',
-    statsBorderTop: 'rgba(96, 165, 250, 0.30)',
-    statsBorderBottom: 'rgba(37, 99, 235, 0.12)',
-    statsBeam: 'rgba(96, 165, 250, 0.32)',
-    dividerColor: 'rgba(96, 165, 250, 0.20)',
-    dotOpacity: 0.18,
-    cornerStyle: 'brackets',
-    sealMode: 'cobalt',
+    candleDrawW: 496,
+    headerTag: 'LEVEL II  ·  06 MONTHS',
+    kickerText: '06 CONSECUTIVE PROFITABLE MONTHS',
+    titleText: 'Discipline Certificate',
+    subtitleText: 'Half-Year Consistency Milestone',
+    editionSub: 'Tier II Discipline Record',
+    sculptureTitle: 'EMERALD CUT',
+    sculptureSubtitle: 'Level II  ·  6-Month Edition',
+    canvasBg: '#020406',
+    cardBgTop: '#06100D',
+    cardBgBottom: '#040807',
+    stageBg: '#020405',
+    stageHaloInner: 'rgba(52, 211, 153, 0.16)',
+    stageHaloOuter: 'rgba(16, 185, 129, 0.03)',
+    accentPrimary: '#34D399',
+    accentSecondary: '#059669',
+    frameTop: 'rgba(52, 211, 153, 0.36)',
+    frameMid: 'rgba(16, 185, 129, 0.17)',
+    frameBottom: 'rgba(5, 150, 105, 0.10)',
+    frameWidth: 1.2,
+    innerFrame: null,
+    topBeamColor: 'rgba(52, 211, 153, 0.62)',
+    topBeamWidth: 560,
+    ambientWash: 'rgba(16, 185, 129, 0.055)',
+    nameMaxPx: 76,
+    nameTop: '#FFFFFF',
+    nameBottom: '#D1FAE5',
+    ruleColor: 'rgba(52, 211, 153, 0.18)',
+    gridOpacity: 0.03,
+    cornerDetail: 'ticks',
+    sealMode: 'emerald',
   },
   9: {
     tier: 9,
+    level: 3,
     candleUrl: candleTier9Url,
-    candleDrawW: 492,
-    candleCyOffset: 0,
-    headerTag: '09 MONTHS',
-    kickerText: '09 MONTHS  ·  EXECUTIVE CONSISTENCY',
-    editionSub: 'Executive Performance Distinction',
-    stageLabel: 'BAGUETTE SAPPHIRE EDITION',
-    canvasBg: '#020409',
-    cardBgTop: '#040917',
-    cardBgBottom: '#02050b',
-    accentPrimary: '#7dd3fc',
-    accentSecondary: '#0284c7',
-    frameTop: 'rgba(125, 211, 252, 0.40)',
-    frameMid: 'rgba(56, 189, 248, 0.18)',
+    candleDrawW: 500,
+    headerTag: 'LEVEL III  ·  09 MONTHS',
+    kickerText: '09 CONSECUTIVE PROFITABLE MONTHS',
+    titleText: 'Executive Certificate',
+    subtitleText: 'Three-Quarter Consistency Milestone',
+    editionSub: 'Tier III Executive Record',
+    sculptureTitle: 'SAPPHIRE LATTICE',
+    sculptureSubtitle: 'Level III  ·  9-Month Edition',
+    canvasBg: '#020408',
+    cardBgTop: '#050B18',
+    cardBgBottom: '#03060E',
+    stageBg: '#020408',
+    stageHaloInner: 'rgba(59, 130, 246, 0.20)',
+    stageHaloOuter: 'rgba(37, 99, 235, 0.04)',
+    accentPrimary: '#60A5FA',
+    accentSecondary: '#2563EB',
+    frameTop: 'rgba(96, 165, 250, 0.44)',
+    frameMid: 'rgba(59, 130, 246, 0.20)',
     frameBottom: 'rgba(37, 99, 235, 0.12)',
-    innerFrame: 'rgba(125, 211, 252, 0.13)',
-    topBeamColor: 'rgba(125, 211, 252, 0.80)',
-    topBeamWidth: 960,
-    ambientWash: 'rgba(14, 165, 233, 0.09)',
-    nameTop: '#ffffff',
-    nameBottom: '#e0f2fe',
-    statsBgTop: 'rgba(56, 189, 248, 0.055)',
-    statsBgBottom: 'rgba(255, 255, 255, 0.016)',
-    statsBorderTop: 'rgba(125, 211, 252, 0.34)',
-    statsBorderBottom: 'rgba(56, 189, 248, 0.14)',
-    statsBeam: 'rgba(125, 211, 252, 0.36)',
-    dividerColor: 'rgba(125, 211, 252, 0.22)',
-    dotOpacity: 0.22,
-    cornerStyle: 'mitered',
-    sealMode: 'titanium',
+    frameWidth: 1.3,
+    innerFrame: 'rgba(96, 165, 250, 0.11)',
+    topBeamColor: 'rgba(96, 165, 250, 0.78)',
+    topBeamWidth: 820,
+    ambientWash: 'rgba(37, 99, 235, 0.072)',
+    nameMaxPx: 78,
+    nameTop: '#FFFFFF',
+    nameBottom: '#DBEAFE',
+    ruleColor: 'rgba(96, 165, 250, 0.20)',
+    gridOpacity: 0.035,
+    cornerDetail: 'brackets',
+    sealMode: 'sapphire',
   },
   12: {
     tier: 12,
+    level: 4,
     candleUrl: candleTier12Url,
-    candleDrawW: 504,
-    candleCyOffset: 0,
-    headerTag: '12 MONTHS  ·  SOVEREIGN',
-    kickerText: '12 MONTHS  ·  SOVEREIGN CONSISTENCY',
-    editionSub: 'Annual Sovereign Distinction',
-    stageLabel: 'IMPERIAL SOVEREIGN EDITION',
-    canvasBg: '#020306',
-    cardBgTop: '#060812',
-    cardBgBottom: '#020308',
-    accentPrimary: '#e6c17a',
-    accentSecondary: '#3b82f6',
-    frameTop: 'rgba(230, 193, 122, 0.50)',
-    frameMid: 'rgba(96, 165, 250, 0.20)',
-    frameBottom: 'rgba(230, 193, 122, 0.22)',
+    candleDrawW: 508,
+    headerTag: 'LEVEL IV  ·  12 MONTHS  ·  SOVEREIGN',
+    kickerText: '12 CONSECUTIVE PROFITABLE MONTHS',
+    titleText: 'Sovereign Certificate',
+    subtitleText: 'Full-Year Consistency Distinction',
+    editionSub: 'Tier IV Sovereign Distinction',
+    sculptureTitle: 'SOVEREIGN ONYX & GOLD',
+    sculptureSubtitle: 'Level IV  ·  12-Month Edition',
+    canvasBg: '#020204',
+    cardBgTop: '#0E0B07',
+    cardBgBottom: '#050507',
+    stageBg: '#020204',
+    stageHaloInner: 'rgba(230, 193, 122, 0.19)',
+    stageHaloOuter: 'rgba(184, 134, 59, 0.04)',
+    accentPrimary: '#E6C17A',
+    accentSecondary: '#B8863B',
+    frameTop: 'rgba(230, 193, 122, 0.58)',
+    frameMid: 'rgba(230, 193, 122, 0.26)',
+    frameBottom: 'rgba(184, 134, 59, 0.16)',
+    frameWidth: 1.5,
     innerFrame: 'rgba(230, 193, 122, 0.16)',
-    topBeamColor: 'rgba(230, 193, 122, 0.88)',
-    topBeamWidth: 1120,
-    ambientWash: 'rgba(37, 99, 235, 0.095)',
-    nameTop: '#ffffff',
-    nameBottom: '#f7e9cd',
-    statsBgTop: 'rgba(230, 193, 122, 0.05)',
-    statsBgBottom: 'rgba(37, 99, 235, 0.02)',
-    statsBorderTop: 'rgba(230, 193, 122, 0.38)',
-    statsBorderBottom: 'rgba(96, 165, 250, 0.16)',
-    statsBeam: 'rgba(230, 193, 122, 0.40)',
-    dividerColor: 'rgba(230, 193, 122, 0.24)',
-    dotOpacity: 0.24,
-    cornerStyle: 'sovereign',
+    topBeamColor: 'rgba(230, 193, 122, 0.90)',
+    topBeamWidth: 1080,
+    ambientWash: 'rgba(230, 193, 122, 0.065)',
+    nameMaxPx: 80,
+    nameTop: '#FFFFFF',
+    nameBottom: '#F7E4BA',
+    ruleColor: 'rgba(230, 193, 122, 0.24)',
+    gridOpacity: 0.04,
+    cornerDetail: 'sovereign',
     sealMode: 'sovereign',
   },
 }
 
 const TEXT_COLORS = {
-  text: '#f8fafc',
-  text2: '#cbd5e1',
-  muted: '#8492a6',
-  pos: '#34d399',
-  neg: '#f87171',
-  shadow: 'rgba(0, 0, 0, 0.78)',
+  text: '#F8FAFC',
+  text2: '#CBD5E1',
+  muted: '#8E9BAE',
+  faint: '#64748B',
+  pos: '#34D399',
+  shadow: 'rgba(0, 0, 0, 0.86)',
 }
 
 const DISPLAY_FONT = '"Plus Jakarta Sans", "InterVariable", Inter, system-ui, sans-serif'
@@ -207,8 +221,8 @@ async function ensureFonts(): Promise<void> {
   try {
     await Promise.race([
       Promise.allSettled([
-        document.fonts.load('800 76px "Plus Jakarta Sans"'),
-        document.fonts.load('600 42px "Plus Jakarta Sans"'),
+        document.fonts.load('800 80px "Plus Jakarta Sans"'),
+        document.fonts.load('700 46px "Plus Jakarta Sans"'),
         document.fonts.load('600 14px "JetBrains Mono"'),
         document.fonts.load('500 20px "InterVariable"'),
         document.fonts.ready,
@@ -308,14 +322,6 @@ function fitFontSize(
   return size
 }
 
-function signedUsd(n: number): string {
-  const v = Number(n) || 0
-  if (Math.abs(v) < 0.005) return '$0.00'
-  const abs = Math.abs(v)
-  const sign = v > 0 ? '+' : '-'
-  return `${sign}$${abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
-
 function formatRangeText(raw?: string): string {
   if (!raw) return ''
   const arrowMatch = raw.match(/^(\d{4}-\d{2}-\d{2})\s*→\s*(\d{4}-\d{2}-\d{2})$/)
@@ -399,39 +405,35 @@ function drawRichWrappedText(
   })
 }
 
-function drawDotMatrix(
+function drawArchitecturalGrid(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   w: number,
   h: number,
-  opacityScale: number,
-  candleCx: number,
-  candleCy: number,
+  opacity: number,
 ) {
-  if (opacityScale <= 0) return
   ctx.save()
-  const step = 30
-  ctx.fillStyle = 'rgba(148, 163, 184, 0.16)'
-  for (let gx = x + 32; gx < x + w - 24; gx += step) {
-    for (let gy = y + 32; gy < y + h - 24; gy += step) {
-      const nx = (gx - x) / w
-      const ny = (gy - y) / h
-      if (nx < 0.65 && ny > 0.13 && ny < 0.92) continue
-      const dx = (gx - candleCx) / 175
-      const dy = (gy - candleCy) / 305
-      if (Math.hypot(dx, dy) < 1.12) continue
+  ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`
+  ctx.lineWidth = 1
+  const step = 64
 
-      ctx.globalAlpha = opacityScale * (nx > 0.64 ? 0.85 : 0.35)
-      ctx.beginPath()
-      ctx.arc(gx, gy, 1, 0, Math.PI * 2)
-      ctx.fill()
-    }
+  for (let gx = x + step; gx < x + w; gx += step) {
+    ctx.beginPath()
+    ctx.moveTo(gx + 0.5, y)
+    ctx.lineTo(gx + 0.5, y + h)
+    ctx.stroke()
+  }
+  for (let gy = y + step; gy < y + h; gy += step) {
+    ctx.beginPath()
+    ctx.moveTo(x, gy + 0.5)
+    ctx.lineTo(x + w, gy + 0.5)
+    ctx.stroke()
   }
   ctx.restore()
 }
 
-function drawCornerAccents(
+function drawCornerDetails(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
@@ -439,17 +441,10 @@ function drawCornerAccents(
   h: number,
   design: TierDesign,
 ) {
+  if (design.cornerDetail === 'none') return
   ctx.save()
-  const inset = 18
-  const len =
-    design.cornerStyle === 'sovereign'
-      ? 28
-      : design.cornerStyle === 'mitered'
-        ? 22
-        : design.cornerStyle === 'brackets'
-          ? 18
-          : 12
-
+  const inset = 22
+  const len = design.cornerDetail === 'sovereign' ? 28 : design.cornerDetail === 'brackets' ? 20 : 14
   const corners = [
     { cx: x + inset, cy: y + inset, sx: 1, sy: 1 },
     { cx: x + w - inset, cy: y + inset, sx: -1, sy: 1 },
@@ -458,15 +453,8 @@ function drawCornerAccents(
   ]
 
   ctx.strokeStyle = design.accentPrimary
-  ctx.lineWidth = design.cornerStyle === 'sovereign' ? 1.5 : 1.15
-  ctx.globalAlpha =
-    design.cornerStyle === 'ticks'
-      ? 0.42
-      : design.cornerStyle === 'brackets'
-        ? 0.52
-        : design.cornerStyle === 'mitered'
-          ? 0.62
-          : 0.72
+  ctx.lineWidth = design.cornerDetail === 'sovereign' ? 1.4 : 1.1
+  ctx.globalAlpha = design.cornerDetail === 'sovereign' ? 0.7 : design.cornerDetail === 'brackets' ? 0.5 : 0.38
 
   corners.forEach((c) => {
     ctx.beginPath()
@@ -475,166 +463,96 @@ function drawCornerAccents(
     ctx.lineTo(c.cx, c.cy + c.sy * len)
     ctx.stroke()
 
-    if (design.cornerStyle === 'mitered' || design.cornerStyle === 'sovereign') {
-      ctx.beginPath()
-      ctx.moveTo(c.cx + c.sx * (len - 8), c.cy + c.sy * 5)
-      ctx.lineTo(c.cx + c.sx * 5, c.cy + c.sy * 5)
-      ctx.lineTo(c.cx + c.sx * 5, c.cy + c.sy * (len - 8))
-      ctx.stroke()
-    }
-
-    if (design.cornerStyle === 'sovereign') {
-      ctx.fillStyle = design.accentSecondary
-      ctx.beginPath()
-      ctx.arc(c.cx + c.sx * 10, c.cy + c.sy * 10, 1.8, 0, Math.PI * 2)
-      ctx.fill()
+    if (design.cornerDetail === 'sovereign') {
+      ctx.save()
+      ctx.translate(c.cx + c.sx * 9, c.cy + c.sy * 9)
+      ctx.rotate(Math.PI / 4)
+      ctx.fillStyle = design.accentPrimary
+      ctx.fillRect(-2.4, -2.4, 4.8, 4.8)
+      ctx.restore()
     }
   })
+
   ctx.restore()
 }
 
-/**
- * Flood-fills from exterior edges of the offscreen candle canvas to cleanly
- * key out the flat dark studio backdrop while preserving 100% of dark titanium,
- * gunmetal PVD grooves, crystal interiors, and wicks without lighten washout.
- */
-function keyOutExteriorBackdrop(canvas: HTMLCanvasElement, threshold = 24) {
-  const ctx = canvas.getContext('2d')!
-  const w = canvas.width
-  const h = canvas.height
-  const imgData = ctx.getImageData(0, 0, w, h)
-  const data = imgData.data
-  const total = w * h
+function prepareCrispCandleCanvas(
+  img: HTMLImageElement,
+  drawW: number,
+  drawH: number,
+): HTMLCanvasElement {
+  const off = document.createElement('canvas')
+  off.width = drawW
+  off.height = drawH
+  const octx = off.getContext('2d')!
 
-  const isBg = (idx: number) => {
-    const p = idx * 4
-    const maxC = Math.max(data[p], data[p + 1], data[p + 2])
-    return maxC <= threshold
-  }
+  octx.filter = 'contrast(1.08) brightness(1.04) saturate(1.08)'
+  octx.drawImage(img, 0, 0, drawW, drawH)
+  octx.filter = 'none'
 
-  const visited = new Uint8Array(total)
-  const queue = new Int32Array(total)
-  let head = 0
-  let tail = 0
+  const feather = 22
+  octx.save()
+  octx.globalCompositeOperation = 'destination-in'
 
-  const seed = (idx: number) => {
-    if (!visited[idx] && isBg(idx)) {
-      visited[idx] = 1
-      queue[tail++] = idx
-    }
-  }
+  const maskCanvas = document.createElement('canvas')
+  maskCanvas.width = drawW
+  maskCanvas.height = drawH
+  const mctx = maskCanvas.getContext('2d')!
+  mctx.clearRect(0, 0, drawW, drawH)
+  mctx.fillStyle = 'rgba(0,0,0,1)'
+  roundRect(mctx, feather, feather, drawW - feather * 2, drawH - feather * 2, 16)
+  mctx.shadowColor = 'rgba(0,0,0,1)'
+  mctx.shadowBlur = feather * 1.4
+  mctx.fill()
 
-  for (let x = 0; x < w; x++) {
-    seed(x)
-    seed((h - 1) * w + x)
-  }
-  for (let y = 1; y < h - 1; y++) {
-    seed(y * w)
-    seed(y * w + (w - 1))
-  }
+  octx.drawImage(maskCanvas, 0, 0)
+  octx.restore()
 
-  while (head < tail) {
-    const idx = queue[head++]
-    const x = idx % w
-    const y = (idx - x) / w
-
-    if (x > 0) seed(idx - 1)
-    if (x < w - 1) seed(idx + 1)
-    if (y > 0) seed(idx - w)
-    if (y < h - 1) seed(idx + w)
-  }
-
-  // Zero out flood-filled exterior background and anti-alias 1px boundary pixels
-  for (let i = 0; i < total; i++) {
-    if (visited[i]) {
-      data[i * 4 + 3] = 0
-    } else {
-      const x = i % w
-      const y = (i - x) / w
-      let bgNeighbors = 0
-      if (x > 0 && visited[i - 1]) bgNeighbors++
-      if (x < w - 1 && visited[i + 1]) bgNeighbors++
-      if (y > 0 && visited[i - w]) bgNeighbors++
-      if (y < h - 1 && visited[i + w]) bgNeighbors++
-      if (bgNeighbors > 0) {
-        const p = i * 4
-        const maxC = Math.max(data[p], data[p + 1], data[p + 2])
-        const edgeAlpha = Math.min(255, Math.max(0, Math.round(((maxC - 10) / 28) * 255)))
-        data[p + 3] = Math.min(data[p + 3], edgeAlpha)
-      }
-    }
-  }
-
-  ctx.putImageData(imgData, 0, 0)
+  return off
 }
 
-function drawBlueCandleFallback(
+function drawCandleFallback(
   ctx: CanvasRenderingContext2D,
   cx: number,
   cy: number,
   design: TierDesign,
 ) {
   ctx.save()
-
-  const bodyW = 136
-  const bodyH = 330
+  const bodyW = 124
+  const bodyH = 300
   const bx = cx - bodyW / 2
   const by = cy - bodyH / 2
-  const wickW = 8
-  const wickX = cx - wickW / 2
 
-  const drawWick = (wx: number, wy: number, ww: number, wh: number) => {
-    const wGrad = ctx.createLinearGradient(wx, 0, wx + ww, 0)
-    wGrad.addColorStop(0, '#e2e8f0')
-    wGrad.addColorStop(0.5, design.accentPrimary)
-    wGrad.addColorStop(1, '#475569')
-    roundRect(ctx, wx, wy, ww, wh, ww / 2)
-    ctx.fillStyle = wGrad
-    ctx.fill()
-  }
-
-  drawWick(wickX, by - 92, wickW, 98)
-  drawWick(wickX, by + bodyH - 6, wickW, 92)
-
-  roundRect(ctx, bx, by, bodyW, bodyH, 12)
-  ctx.fillStyle = design.accentSecondary
+  ctx.fillStyle = design.accentPrimary
+  ctx.beginPath()
+  ctx.moveTo(cx, by - 96)
+  ctx.lineTo(cx + 12, by)
+  ctx.lineTo(cx - 12, by)
+  ctx.closePath()
   ctx.fill()
 
-  ctx.save()
-  roundRect(ctx, bx, by, bodyW, bodyH, 12)
-  ctx.clip()
-
-  const leftGrad = ctx.createLinearGradient(bx, by, cx, by + bodyH)
-  leftGrad.addColorStop(0, design.accentPrimary)
-  leftGrad.addColorStop(1, '#1d4ed8')
-  ctx.fillStyle = leftGrad
-  ctx.fillRect(bx, by, bodyW / 2, bodyH)
-
-  const rightGrad = ctx.createLinearGradient(cx, by, bx + bodyW, by + bodyH)
-  rightGrad.addColorStop(0, '#93c5fd')
-  rightGrad.addColorStop(1, '#1e40af')
-  ctx.fillStyle = rightGrad
-  ctx.fillRect(cx, by, bodyW / 2, bodyH)
-
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.24)'
-  ctx.lineWidth = 1.5
   ctx.beginPath()
-  ctx.moveTo(cx, by)
-  ctx.lineTo(cx, by + bodyH)
-  ctx.stroke()
-  ctx.restore()
+  ctx.moveTo(cx, by + bodyH + 96)
+  ctx.lineTo(cx + 12, by + bodyH)
+  ctx.lineTo(cx - 12, by + bodyH)
+  ctx.closePath()
+  ctx.fill()
 
-  roundRect(ctx, bx, by, bodyW, bodyH, 12)
-  ctx.strokeStyle = design.frameTop
-  ctx.lineWidth = 1.25
-  ctx.stroke()
-
+  roundRect(ctx, bx, by, bodyW, bodyH, 10)
+  const grad = ctx.createLinearGradient(bx, by, bx + bodyW, by + bodyH)
+  grad.addColorStop(0, design.accentPrimary)
+  grad.addColorStop(1, design.accentSecondary)
+  ctx.fillStyle = grad
+  ctx.fill()
   ctx.restore()
 }
 
-function drawCandleShowcaseStage(
+function drawCandleShowcaseWing(
   ctx: CanvasRenderingContext2D,
   stageX: number,
+  stageRight: number,
+  plateTop: number,
+  plateBottom: number,
   candleCx: number,
   candleCy: number,
   design: TierDesign,
@@ -642,98 +560,113 @@ function drawCandleShowcaseStage(
 ) {
   ctx.save()
 
-  // Quiet hairline vertical rule separating editorial ledger from crystal stage
-  const stageDivGrad = ctx.createLinearGradient(0, 170, 0, 880)
+  const stageW = stageRight - stageX
+  const stageH = plateBottom - plateTop
+
+  // Open deep obsidian exhibition wing matching studio photography seamlessly
+  ctx.fillStyle = design.stageBg
+  ctx.fillRect(stageX, plateTop, stageW, stageH)
+
+  // Calibrated atmospheric spotlight halo directly behind the sculpted candle
+  const halo = ctx.createRadialGradient(candleCx, candleCy - 10, 12, candleCx, candleCy, 280)
+  halo.addColorStop(0, design.stageHaloInner)
+  halo.addColorStop(0.5, design.stageHaloOuter)
+  halo.addColorStop(1, 'rgba(0,0,0,0)')
+  ctx.fillStyle = halo
+  ctx.fillRect(stageX, plateTop, stageW, stageH)
+
+  // Quiet vertical hairline separating editorial certificate and candle wing
+  const stageDivGrad = ctx.createLinearGradient(0, plateTop + 44, 0, plateBottom - 44)
   stageDivGrad.addColorStop(0, 'rgba(255,255,255,0)')
-  stageDivGrad.addColorStop(0.5, design.dividerColor)
+  stageDivGrad.addColorStop(0.18, design.ruleColor)
+  stageDivGrad.addColorStop(0.82, design.ruleColor)
   stageDivGrad.addColorStop(1, 'rgba(255,255,255,0)')
   ctx.strokeStyle = stageDivGrad
   ctx.lineWidth = 1
   ctx.beginPath()
-  ctx.moveTo(stageX, 170)
-  ctx.lineTo(stageX, 880)
+  ctx.moveTo(stageX, plateTop + 44)
+  ctx.lineTo(stageX, plateBottom - 44)
   ctx.stroke()
 
   if (candleImg && candleImg.naturalWidth > 0) {
-    const drawW = design.candleDrawW
+    const drawW = Math.min(design.candleDrawW, stageW - 28)
     const drawH = Math.round((candleImg.naturalHeight / candleImg.naturalWidth) * drawW)
+    const prepared = prepareCrispCandleCanvas(candleImg, drawW, drawH)
 
-    const off = document.createElement('canvas')
-    off.width = drawW
-    off.height = drawH
-    const octx = off.getContext('2d')!
-
-    octx.filter = 'brightness(1.06) contrast(1.07) saturate(1.08)'
-    octx.drawImage(candleImg, 0, 0, drawW, drawH)
-    octx.filter = 'none'
-
-    keyOutExteriorBackdrop(off, 20)
-
-    // Subtle soft obsidian drop-shadow so floating crystal sits richly above plate
-    ctx.save()
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.72)'
-    ctx.shadowBlur = 30
-    ctx.shadowOffsetX = 0
-    ctx.shadowOffsetY = 16
-    ctx.drawImage(off, Math.round(candleCx - drawW / 2), Math.round(candleCy - drawH / 2))
-    ctx.restore()
+    ctx.drawImage(
+      prepared,
+      Math.round(candleCx - drawW / 2),
+      Math.round(candleCy - drawH / 2),
+    )
   } else {
-    drawBlueCandleFallback(ctx, candleCx, candleCy, design)
+    drawCandleFallback(ctx, candleCx, candleCy, design)
   }
 
-  // Quiet centered edition caption beneath showcase crystal
+  // Minimalist hairline & monument label below the candle
+  const ruleW = 200
+  const floorLineGrad = ctx.createLinearGradient(candleCx - ruleW / 2, 0, candleCx + ruleW / 2, 0)
+  floorLineGrad.addColorStop(0, 'rgba(255,255,255,0)')
+  floorLineGrad.addColorStop(0.5, design.frameTop)
+  floorLineGrad.addColorStop(1, 'rgba(255,255,255,0)')
+  ctx.fillStyle = floorLineGrad
+  ctx.fillRect(candleCx - ruleW / 2, 834, ruleW, 1)
+
   ctx.textAlign = 'center'
-  ctx.fillStyle = TEXT_COLORS.muted
-  ctx.font = `600 9.5px ${MONO_FONT}`
-  ctx.letterSpacing = '0.18em'
-  ctx.fillText(design.stageLabel, candleCx, 902)
+  ctx.fillStyle = design.accentPrimary
+  ctx.font = `600 11px ${MONO_FONT}`
+  ctx.letterSpacing = '0.20em'
+  ctx.fillText(design.sculptureTitle, candleCx, 870)
   ctx.letterSpacing = '0px'
+
+  ctx.fillStyle = TEXT_COLORS.muted
+  ctx.font = `500 12px ${SANS_FONT}`
+  ctx.fillText(design.sculptureSubtitle, candleCx, 896)
   ctx.textAlign = 'left'
 
   ctx.restore()
 }
 
-function drawCeoSignature(
+function drawVerificationMatrix(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  color: string,
+  seedStr: string,
   accent: string,
+  muted: string,
 ) {
   ctx.save()
-  ctx.lineCap = 'round'
-  ctx.lineJoin = 'round'
+  const size = 56
+  const pad = 6
+  const cells = 5
+  const cellSize = (size - pad * 2) / cells
+  const hash = hashString(seedStr)
 
-  // Subtle shadow depth under pen ink
-  ctx.strokeStyle = color
-
-  // Main calligraphic initial & stroke with deliberate fountain-pen weight contrast
-  ctx.lineWidth = 2.6
-  ctx.beginPath()
-  ctx.moveTo(x + 2, y + 32)
-  ctx.bezierCurveTo(x + 12, y - 5, x + 38, y - 12, x + 40, y + 8)
-  ctx.bezierCurveTo(x + 42, y + 24, x + 20, y + 35, x + 46, y + 28)
+  roundRect(ctx, x, y, size, size, 8)
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.025)'
+  ctx.fill()
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)'
+  ctx.lineWidth = 1
   ctx.stroke()
 
-  ctx.lineWidth = 1.9
-  ctx.beginPath()
-  ctx.moveTo(x + 46, y + 28)
-  ctx.bezierCurveTo(x + 64, y + 22, x + 72, y + 6, x + 82, y + 20)
-  ctx.bezierCurveTo(x + 90, y + 31, x + 100, y + 9, x + 110, y + 20)
-  ctx.bezierCurveTo(x + 118, y + 29, x + 130, y + 11, x + 140, y + 22)
-  ctx.bezierCurveTo(x + 150, y + 31, x + 164, y + 14, x + 178, y + 22)
-  ctx.bezierCurveTo(x + 194, y + 26, x + 222, y + 13, x + 252, y + 16)
-  ctx.stroke()
+  for (let row = 0; row < cells; row++) {
+    for (let col = 0; col < Math.ceil(cells / 2); col++) {
+      const bitIndex = (row * 3 + col) % 30
+      const active = ((hash >> bitIndex) & 1) === 1 || (row === 2 && col === 2)
+      if (!active) continue
+      const isCorner = (row === 0 || row === cells - 1) && (col === 0 || col === cells - 1)
+      ctx.fillStyle = isCorner || (row === 2 && col === 2) ? accent : muted
+      const rx = x + pad + col * cellSize + 1
+      const ry = y + pad + row * cellSize + 1
+      const rw = cellSize - 2
+      ctx.fillRect(rx, ry, rw, rw)
 
-  // Crisp ascender cross-flourish with subtle accent glint
-  ctx.lineWidth = 1.5
-  ctx.strokeStyle = accent
-  ctx.globalAlpha = 0.72
-  ctx.beginPath()
-  ctx.moveTo(x + 14, y + 12)
-  ctx.bezierCurveTo(x + 44, y + 2, x + 74, y + 1, x + 98, y + 7)
-  ctx.stroke()
-
+      const mirrorCol = cells - 1 - col
+      if (mirrorCol !== col) {
+        const mx = x + pad + mirrorCol * cellSize + 1
+        ctx.fillRect(mx, ry, rw, rw)
+      }
+    }
+  }
   ctx.restore()
 }
 
@@ -745,66 +678,62 @@ function drawExecutiveSeal(
 ) {
   ctx.save()
 
-  if (design.sealMode === 'diamond') {
-    // 3M: Precision rotated diamond + inner circular hairline seal
-    ctx.save()
-    ctx.translate(cx, cy)
-    ctx.rotate(Math.PI / 4)
-    ctx.strokeStyle = 'rgba(147, 197, 253, 0.42)'
-    ctx.lineWidth = 1.1
-    ctx.strokeRect(-24, -24, 48, 48)
-    ctx.restore()
+  if (design.sealMode === 'platinum') {
+    ctx.strokeStyle = 'rgba(203, 213, 225, 0.44)'
+    ctx.lineWidth = 1.2
+    ctx.beginPath()
+    ctx.arc(cx, cy, 35, 0, Math.PI * 2)
+    ctx.stroke()
 
-    ctx.strokeStyle = 'rgba(147, 197, 253, 0.22)'
+    ctx.strokeStyle = 'rgba(203, 213, 225, 0.18)'
     ctx.lineWidth = 0.9
     ctx.beginPath()
-    ctx.arc(cx, cy, 22, 0, Math.PI * 2)
+    ctx.arc(cx, cy, 27, 0, Math.PI * 2)
     ctx.stroke()
 
     ctx.textAlign = 'center'
     ctx.fillStyle = design.accentPrimary
-    ctx.font = `700 11px ${MONO_FONT}`
+    ctx.font = `700 12.5px ${MONO_FONT}`
     ctx.fillText('03M', cx, cy + 1)
     ctx.fillStyle = TEXT_COLORS.muted
-    ctx.font = `600 6.5px ${MONO_FONT}`
-    ctx.letterSpacing = '0.12em'
-    ctx.fillText('CLASS I', cx, cy + 11)
+    ctx.font = `600 7px ${MONO_FONT}`
+    ctx.letterSpacing = '0.14em'
+    ctx.fillText('TIER I', cx, cy + 12)
     ctx.letterSpacing = '0px'
     ctx.textAlign = 'left'
     ctx.restore()
     return
   }
 
-  if (design.sealMode === 'cobalt') {
-    // 6M: Precision dual cobalt rings with 4 cardinal reticle ticks
-    ctx.strokeStyle = 'rgba(96, 165, 250, 0.55)'
+  if (design.sealMode === 'emerald') {
+    ctx.strokeStyle = 'rgba(52, 211, 153, 0.58)'
     ctx.lineWidth = 1.3
     ctx.beginPath()
-    ctx.arc(cx, cy, 36, 0, Math.PI * 2)
+    ctx.arc(cx, cy, 37, 0, Math.PI * 2)
     ctx.stroke()
 
-    ctx.strokeStyle = 'rgba(96, 165, 250, 0.26)'
+    ctx.strokeStyle = 'rgba(52, 211, 153, 0.25)'
     ctx.lineWidth = 0.9
     ctx.beginPath()
-    ctx.arc(cx, cy, 28, 0, Math.PI * 2)
+    ctx.arc(cx, cy, 29, 0, Math.PI * 2)
     ctx.stroke()
 
     for (let a = 0; a < 4; a++) {
       const ang = (a * Math.PI) / 2
       ctx.beginPath()
-      ctx.moveTo(cx + Math.cos(ang) * 32, cy + Math.sin(ang) * 32)
-      ctx.lineTo(cx + Math.cos(ang) * 39, cy + Math.sin(ang) * 39)
+      ctx.moveTo(cx + Math.cos(ang) * 33, cy + Math.sin(ang) * 33)
+      ctx.lineTo(cx + Math.cos(ang) * 41, cy + Math.sin(ang) * 41)
       ctx.stroke()
     }
 
     ctx.textAlign = 'center'
     ctx.fillStyle = design.accentPrimary
-    ctx.font = `700 12px ${MONO_FONT}`
+    ctx.font = `700 12.5px ${MONO_FONT}`
     ctx.fillText('06M', cx, cy + 1)
     ctx.fillStyle = TEXT_COLORS.muted
     ctx.font = `600 7px ${MONO_FONT}`
     ctx.letterSpacing = '0.14em'
-    ctx.fillText('PROVEN', cx, cy + 12)
+    ctx.fillText('TIER II', cx, cy + 12)
     ctx.letterSpacing = '0px'
     ctx.textAlign = 'left'
     ctx.restore()
@@ -812,17 +741,16 @@ function drawExecutiveSeal(
   }
 
   const isSovereign = design.sealMode === 'sovereign'
-  const ringColor = isSovereign ? 'rgba(230, 193, 122, 0.72)' : 'rgba(186, 230, 253, 0.56)'
-  const innerRingColor = isSovereign ? 'rgba(230, 193, 122, 0.34)' : 'rgba(125, 211, 252, 0.28)'
+  const ringColor = isSovereign ? 'rgba(230, 193, 122, 0.82)' : 'rgba(96, 165, 250, 0.65)'
+  const innerRingColor = isSovereign ? 'rgba(230, 193, 122, 0.36)' : 'rgba(96, 165, 250, 0.28)'
 
-  // Fluted precision bezel ring (12 ticks for 9M Titanium, 24 watch-flute notches for 12M Sovereign)
   const ticks = isSovereign ? 24 : 12
   ctx.strokeStyle = ringColor
-  ctx.lineWidth = isSovereign ? 1.25 : 1.05
+  ctx.lineWidth = isSovereign ? 1.3 : 1.1
   for (let t = 0; t < ticks; t++) {
     const ang = (t * Math.PI * 2) / ticks
-    const r0 = isSovereign ? 36 : 35
-    const r1 = isSovereign ? 42 : 40
+    const r0 = isSovereign ? 38 : 37
+    const r1 = isSovereign ? 45 : 42
     ctx.beginPath()
     ctx.moveTo(cx + Math.cos(ang) * r0, cy + Math.sin(ang) * r0)
     ctx.lineTo(cx + Math.cos(ang) * r1, cy + Math.sin(ang) * r1)
@@ -830,35 +758,26 @@ function drawExecutiveSeal(
   }
 
   ctx.strokeStyle = ringColor
-  ctx.lineWidth = isSovereign ? 1.5 : 1.25
+  ctx.lineWidth = isSovereign ? 1.5 : 1.3
   ctx.beginPath()
-  ctx.arc(cx, cy, 35, 0, Math.PI * 2)
+  ctx.arc(cx, cy, 37, 0, Math.PI * 2)
   ctx.stroke()
 
-  ctx.save()
   ctx.strokeStyle = innerRingColor
-  ctx.lineWidth = 1
-  ctx.setLineDash([3, 3.5])
-  ctx.beginPath()
-  ctx.arc(cx, cy, 29, 0, Math.PI * 2)
-  ctx.stroke()
-  ctx.restore()
-
-  ctx.strokeStyle = ringColor
   ctx.lineWidth = 0.9
   ctx.beginPath()
-  ctx.arc(cx, cy, 23, 0, Math.PI * 2)
+  ctx.arc(cx, cy, 28, 0, Math.PI * 2)
   ctx.stroke()
 
   ctx.textAlign = 'center'
   ctx.fillStyle = design.accentPrimary
-  ctx.font = `700 13px ${MONO_FONT}`
+  ctx.font = `700 13.5px ${MONO_FONT}`
   ctx.fillText(isSovereign ? '12M' : '09M', cx, cy + 1)
 
   ctx.fillStyle = TEXT_COLORS.muted
   ctx.font = `600 7px ${MONO_FONT}`
   ctx.letterSpacing = '0.13em'
-  ctx.fillText(isSovereign ? 'SOVEREIGN' : 'CEO VERIFIED', cx, cy + 12)
+  ctx.fillText(isSovereign ? 'SOVEREIGN' : 'TIER III', cx, cy + 12)
   ctx.letterSpacing = '0px'
   ctx.textAlign = 'left'
 
@@ -869,7 +788,6 @@ export async function renderCertificateCard(
   stats: Stats,
   opts: CertificateOptions = {},
 ): Promise<HTMLCanvasElement> {
-  const hideMoney = Boolean(opts.hideMoney)
   const tierMonths: ConsistencyTier = opts.tierMonths ?? 3
   const design = TIER_DESIGNS[tierMonths] ?? TIER_DESIGNS[3]
 
@@ -888,11 +806,6 @@ export async function renderCertificateCard(
   const ctx = canvas.getContext('2d')!
 
   const traderName = (opts.traderName || 'Trader').trim() || 'Trader'
-  const cleanFirm = opts.firmName && opts.firmName !== 'Other' ? opts.firmName : ''
-  const accountPrimary = cleanFirm || opts.accountName || 'Trading Account'
-  const starting = stats.starting > 0 ? stats.starting : 0
-  const returnPct = starting > 0 ? (stats.net / starting) * 100 : 0
-  const totalR = stats.trades.reduce((acc, t) => acc + (Number(t.rMultiple) || 0), 0)
   const rangeText = formatRangeText(opts.rangeLabel)
 
   const issueText =
@@ -904,92 +817,102 @@ export async function renderCertificateCard(
     })
 
   const certCode = makeCertId(
-    `${traderName}|${accountPrimary}|${tierMonths}M|${stats.count}|${stats.net.toFixed(2)}`,
+    `${traderName}|${tierMonths}M|${rangeText || 'streak'}|${stats.count}`,
   )
 
-  // 1. Deep Obsidian Canvas Backdrop & Tier Plate
+  // 1. Canvas Backdrop & Layered Plate
   ctx.fillStyle = design.canvasBg
   ctx.fillRect(0, 0, W, H)
 
-  const pad = 24
+  const pad = 20
   const cardW = W - pad * 2
   const cardH = H - pad * 2
+  const plateTop = pad
+  const plateBottom = pad + cardH
+  const plateRight = pad + cardW
 
   ctx.save()
-  roundRect(ctx, pad, pad, cardW, cardH, 18)
+  roundRect(ctx, pad, pad, cardW, cardH, 20)
   const plateGrad = ctx.createLinearGradient(pad, pad, pad + cardW, pad + cardH)
   plateGrad.addColorStop(0, design.cardBgTop)
   plateGrad.addColorStop(1, design.cardBgBottom)
   ctx.fillStyle = plateGrad
   ctx.shadowColor = TEXT_COLORS.shadow
-  ctx.shadowBlur = 46
-  ctx.shadowOffsetY = 14
+  ctx.shadowBlur = 40
+  ctx.shadowOffsetY = 12
   ctx.fill()
   ctx.restore()
 
-  const stageDivX = 1068
-  const candleCx = 1326
-  const candleCy = 508 + design.candleCyOffset
+  const stageDivX = 1018
+  const candleCx = Math.round(stageDivX + (plateRight - stageDivX) / 2)
+  const candleCy = 468
 
-  // Interior ambient studio wash, subtle corner dot texture & hairline framing clipped to plate
   ctx.save()
-  roundRect(ctx, pad, pad, cardW, cardH, 18)
+  roundRect(ctx, pad, pad, cardW, cardH, 20)
   ctx.clip()
 
-  const leftWash = ctx.createRadialGradient(280, 210, 20, 280, 210, 680)
+  drawArchitecturalGrid(ctx, pad, pad, stageDivX - pad, cardH, design.gridOpacity)
+
+  const leftWash = ctx.createRadialGradient(240, 200, 20, 240, 200, 700)
   leftWash.addColorStop(0, design.ambientWash)
   leftWash.addColorStop(1, 'rgba(0,0,0,0)')
   ctx.fillStyle = leftWash
-  ctx.fillRect(pad, pad, cardW, cardH)
+  ctx.fillRect(pad, pad, stageDivX - pad, cardH)
 
-  if (design.tier === 12) {
-    const sovereignGoldWash = ctx.createRadialGradient(920, 110, 10, 920, 110, 560)
-    sovereignGoldWash.addColorStop(0, 'rgba(230, 193, 122, 0.05)')
-    sovereignGoldWash.addColorStop(1, 'rgba(0,0,0,0)')
-    ctx.fillStyle = sovereignGoldWash
-    ctx.fillRect(pad, pad, cardW, cardH)
+  // Right-Side Open Exhibition Wing with Sharp Sculpted Candle
+  drawCandleShowcaseWing(
+    ctx,
+    stageDivX,
+    plateRight,
+    plateTop,
+    plateBottom,
+    candleCx,
+    candleCy,
+    design,
+    candleImg,
+  )
+
+  if (design.topBeamColor && design.topBeamWidth > 0) {
+    const halfBeam = design.topBeamWidth / 2
+    const topBeam = ctx.createLinearGradient(W / 2 - halfBeam, 0, W / 2 + halfBeam, 0)
+    topBeam.addColorStop(0, 'rgba(255,255,255,0)')
+    topBeam.addColorStop(0.5, design.topBeamColor)
+    topBeam.addColorStop(1, 'rgba(255,255,255,0)')
+    ctx.fillStyle = topBeam
+    ctx.fillRect(W / 2 - halfBeam, pad, design.topBeamWidth, design.level === 4 ? 2.5 : 2)
   }
 
-  drawDotMatrix(ctx, pad, pad, cardW, cardH, design.dotOpacity, candleCx, candleCy)
-
-  const halfBeam = design.topBeamWidth / 2
-  const topBeam = ctx.createLinearGradient(W / 2 - halfBeam, 0, W / 2 + halfBeam, 0)
-  topBeam.addColorStop(0, 'rgba(255,255,255,0)')
-  topBeam.addColorStop(0.5, design.topBeamColor)
-  topBeam.addColorStop(1, 'rgba(255,255,255,0)')
-  ctx.fillStyle = topBeam
-  ctx.fillRect(W / 2 - halfBeam, pad, design.topBeamWidth, 2)
-
   if (design.innerFrame) {
-    roundRect(ctx, pad + 10, pad + 10, cardW - 20, cardH - 20, 12)
+    roundRect(ctx, pad + 11, pad + 11, cardW - 22, cardH - 22, 14)
     ctx.strokeStyle = design.innerFrame
     ctx.lineWidth = 1
     ctx.stroke()
   }
 
-  drawCornerAccents(ctx, pad, pad, cardW, cardH, design)
+  drawCornerDetails(ctx, pad, pad, cardW, cardH, design)
 
   ctx.restore()
 
-  // Razor-sharp outer metallic perimeter border
-  roundRect(ctx, pad, pad, cardW, cardH, 18)
+  // Crisp Outer Metallic Frame
+  roundRect(ctx, pad, pad, cardW, cardH, 20)
   const frameGrad = ctx.createLinearGradient(pad, pad, pad + cardW, pad + cardH)
   frameGrad.addColorStop(0, design.frameTop)
   frameGrad.addColorStop(0.5, design.frameMid)
   frameGrad.addColorStop(1, design.frameBottom)
   ctx.strokeStyle = frameGrad
-  ctx.lineWidth = design.tier === 12 ? 1.5 : 1.25
+  ctx.lineWidth = design.frameWidth
   ctx.stroke()
 
+  // 2. Left Editorial Certificate (Zero trading stats, purely milestone certification)
   const innerX = 88
-  const innerRight = W - 88
-  const innerW = innerRight - innerX
+  const leftRight = 964
+  const leftW = leftRight - innerX
 
-  // 2. Top Header Strip
-  const headerCenterY = 80
+  // Header Bar
+  const headerCenterY = 82
   if (logoImg && logoImg.naturalWidth > 0) {
     const crop = cropOpaqueLogoBounds(logoImg)
-    const targetLogoH = 36
+    const targetLogoH = 34
     const targetLogoW = Math.round((crop.sw / crop.sh) * targetLogoH)
     ctx.drawImage(
       logoImg,
@@ -1010,301 +933,168 @@ export async function renderCertificateCard(
 
   ctx.textAlign = 'right'
   ctx.fillStyle = TEXT_COLORS.muted
-  ctx.font = `500 12px ${MONO_FONT}`
-  ctx.fillText(
-    `${certCode}   ·   ${design.headerTag}   ·   ${issueText.toUpperCase()}`,
-    innerRight,
-    headerCenterY + 4,
-  )
+  ctx.font = `600 11.5px ${MONO_FONT}`
+  ctx.fillText(`${design.headerTag}   ·   ${certCode}`, leftRight, headerCenterY + 4)
   ctx.textAlign = 'left'
 
-  const hRuleGrad = ctx.createLinearGradient(innerX, 0, innerRight, 0)
-  hRuleGrad.addColorStop(0, design.frameMid)
-  hRuleGrad.addColorStop(0.68, design.frameMid)
+  const hRuleGrad = ctx.createLinearGradient(innerX, 0, leftRight, 0)
+  hRuleGrad.addColorStop(0, design.ruleColor)
+  hRuleGrad.addColorStop(0.85, design.ruleColor)
   hRuleGrad.addColorStop(1, 'rgba(255,255,255,0)')
   ctx.fillStyle = hRuleGrad
-  ctx.fillRect(innerX, 124, innerW, 1)
+  ctx.fillRect(innerX, 128, leftW, 1)
 
-  // 3. Right-Side Luxury Candle Showcase Stage (Alpha-keyed crystal & dark titanium)
-  drawCandleShowcaseStage(ctx, stageDivX, candleCx, candleCy, design, candleImg)
-
-  // 4. Redesigned Left-Side Editorial Stack (Strictly inside x = 88 .. 1016)
-  const leftZoneW = 928
-
-  // Tier Kicker
-  const kickerY = 182
-  const barGrad = ctx.createLinearGradient(innerX, 0, innerX + 32, 0)
-  barGrad.addColorStop(0, design.accentSecondary)
-  barGrad.addColorStop(1, design.accentPrimary)
-  ctx.fillStyle = barGrad
-  ctx.fillRect(innerX, kickerY - 5, 32, 2.5)
+  // Milestone Kicker & Monumental Title
+  const kickerY = 196
+  const kickerBarW = 20 + design.level * 5
+  ctx.fillStyle = design.accentPrimary
+  ctx.fillRect(innerX, kickerY - 5, kickerBarW, 2.5)
 
   ctx.fillStyle = design.accentPrimary
   ctx.font = `600 12px ${MONO_FONT}`
   ctx.letterSpacing = '0.18em'
-  ctx.fillText(design.kickerText, innerX + 46, kickerY)
+  ctx.fillText(design.kickerText, innerX + kickerBarW + 12, kickerY)
   ctx.letterSpacing = '0px'
 
-  // Headline
-  const headline = 'Certificate of Performance'
-  ctx.font = `600 44px ${DISPLAY_FONT}`
-  ctx.letterSpacing = '-0.025em'
-  const titleGrad = ctx.createLinearGradient(0, 204, 0, 256)
-  titleGrad.addColorStop(0, '#f8fafc')
-  titleGrad.addColorStop(1, '#94a3b8')
+  ctx.font = `700 48px ${DISPLAY_FONT}`
+  ctx.letterSpacing = '-0.03em'
+  const titleGrad = ctx.createLinearGradient(0, 218, 0, 272)
+  titleGrad.addColorStop(0, '#FFFFFF')
+  titleGrad.addColorStop(1, design.level === 4 ? '#EAD7B0' : '#DCE4EE')
   ctx.fillStyle = titleGrad
-  ctx.fillText(headline, innerX, 246)
+  ctx.fillText(design.titleText, innerX, 260)
   ctx.letterSpacing = '0px'
 
-  // Recipient Eyebrow
   ctx.fillStyle = TEXT_COLORS.muted
+  ctx.font = `500 16px ${SANS_FONT}`
+  ctx.fillText(design.subtitleText, innerX, 294)
+
+  // Recipient Hero Block
+  ctx.fillStyle = TEXT_COLORS.faint
   ctx.font = `600 11px ${MONO_FONT}`
   ctx.letterSpacing = '0.2em'
-  ctx.fillText('PRESENTED TO', innerX, 302)
+  ctx.fillText('PRESENTED TO', innerX, 376)
   ctx.letterSpacing = '0px'
 
-  // Monumental Trader Name
-  const nameSize = fitFontSize(ctx, traderName, leftZoneW - 20, 76, 40, 800, DISPLAY_FONT)
-  ctx.save()
+  const nameSize = fitFontSize(ctx, traderName, leftW - 12, design.nameMaxPx, 40, 800, DISPLAY_FONT)
   ctx.font = `800 ${nameSize}px ${DISPLAY_FONT}`
-  ctx.letterSpacing = '-0.03em'
-  const nameGrad = ctx.createLinearGradient(0, 324, 0, 396)
+  ctx.letterSpacing = '-0.035em'
+  const nameGrad = ctx.createLinearGradient(0, 396, 0, 472)
   nameGrad.addColorStop(0, design.nameTop)
   nameGrad.addColorStop(1, design.nameBottom)
   ctx.fillStyle = nameGrad
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.5)'
-  ctx.shadowBlur = 14
-  ctx.shadowOffsetY = 4
-  ctx.fillText(traderName, innerX, 384)
-  ctx.restore()
+  ctx.fillText(traderName, innerX, 456)
   ctx.letterSpacing = '0px'
 
-  // Diamond-node precision underline rule
-  const nameRuleW = design.tier === 12 ? 340 : design.tier === 9 ? 300 : design.tier === 6 ? 270 : 240
-  ctx.save()
-  ctx.translate(innerX + 4, 410)
-  ctx.rotate(Math.PI / 4)
-  ctx.fillStyle = design.accentPrimary
-  ctx.fillRect(-3.5, -3.5, 7, 7)
-  ctx.restore()
-
-  const nameRuleGrad = ctx.createLinearGradient(innerX + 12, 0, innerX + nameRuleW, 0)
+  // Calibrated hairline beneath name
+  const nameRuleW = 240 + design.level * 40
+  if (design.level === 4) {
+    ctx.save()
+    ctx.translate(innerX + 4, 487)
+    ctx.rotate(Math.PI / 4)
+    ctx.fillStyle = design.accentPrimary
+    ctx.fillRect(-3.4, -3.4, 6.8, 6.8)
+    ctx.restore()
+  }
+  const ruleStartX = design.level === 4 ? innerX + 14 : innerX
+  const nameRuleGrad = ctx.createLinearGradient(ruleStartX, 0, innerX + nameRuleW, 0)
   nameRuleGrad.addColorStop(0, design.accentPrimary)
-  nameRuleGrad.addColorStop(0.58, design.accentSecondary)
+  nameRuleGrad.addColorStop(0.62, design.accentSecondary)
   nameRuleGrad.addColorStop(1, 'rgba(0,0,0,0)')
   ctx.fillStyle = nameRuleGrad
-  ctx.fillRect(innerX + 14, 409, nameRuleW - 14, 2)
+  ctx.fillRect(ruleStartX, 486, nameRuleW - (ruleStartX - innerX), design.level >= 3 ? 2 : 1.5)
 
-  // Citation Copy
-  const sizeStr = starting > 0 ? formatMoney(starting, opts.currency) : ''
-  const accountCore = cleanFirm
-    ? [cleanFirm, sizeStr].filter(Boolean).join(' ')
-    : opts.accountName || 'Trading Account'
-
+  // Pure Consistency Citation (No trading stats)
   drawRichWrappedText(
     ctx,
     [
+      { text: 'In recognition of achieving ' },
+      { text: `${tierMonths} consecutive profitable calendar months`, bold: true },
       {
-        text: `Certifies ${tierMonths} consecutive months of verified profitable trading and disciplined risk execution on `,
+        text: ' through sustained consistency, disciplined risk management, and verified monthly profitability.',
       },
-      { text: accountCore, bold: true },
-      { text: '.' },
     ],
     innerX,
-    452,
-    840,
-    28,
-    `400 18.5px ${SANS_FONT}`,
-    `600 18.5px ${SANS_FONT}`,
+    534,
+    836,
+    30,
+    `400 19px ${SANS_FONT}`,
+    `600 19px ${SANS_FONT}`,
     TEXT_COLORS.text2,
     TEXT_COLORS.text,
   )
 
-  // 5. Swiss Instrument 2x2 Fintech Telemetry Panel
-  const gridX = innerX
-  const gridY = 528
-  const gridW = leftZoneW
-  const gridH = 224
-  const gridRadius = 14
+  // Minimalist 3-Column Milestone Metadata Strip (No stats card, no P&L/winrate/trades)
+  const stripY = 668
+  const stripH = 84
+  ctx.fillStyle = design.ruleColor
+  ctx.fillRect(innerX, stripY, leftW, 1)
+  ctx.fillRect(innerX, stripY + stripH, leftW, 1)
 
-  ctx.save()
-  roundRect(ctx, gridX, gridY, gridW, gridH, gridRadius)
-  const statsBgGrad = ctx.createLinearGradient(gridX, gridY, gridX + gridW, gridY + gridH)
-  statsBgGrad.addColorStop(0, design.statsBgTop)
-  statsBgGrad.addColorStop(1, design.statsBgBottom)
-  ctx.fillStyle = statsBgGrad
-  ctx.fill()
-
-  // Subtle corner glass sheen inside panel
-  ctx.clip()
-  const glassSheen = ctx.createLinearGradient(gridX, gridY, gridX + 340, gridY + 140)
-  glassSheen.addColorStop(0, 'rgba(255, 255, 255, 0.032)')
-  glassSheen.addColorStop(1, 'rgba(255, 255, 255, 0)')
-  ctx.fillStyle = glassSheen
-  ctx.fillRect(gridX, gridY, gridW, gridH)
-  ctx.restore()
-
-  roundRect(ctx, gridX, gridY, gridW, gridH, gridRadius)
-  const statsBorderGrad = ctx.createLinearGradient(gridX, gridY, gridX, gridY + gridH)
-  statsBorderGrad.addColorStop(0, design.statsBorderTop)
-  statsBorderGrad.addColorStop(1, design.statsBorderBottom)
-  ctx.strokeStyle = statsBorderGrad
-  ctx.lineWidth = design.tier === 12 ? 1.25 : 1
-  ctx.stroke()
-
-  const beamGrad = ctx.createLinearGradient(gridX + 28, 0, gridX + gridW - 28, 0)
-  beamGrad.addColorStop(0, 'rgba(255,255,255,0)')
-  beamGrad.addColorStop(0.5, design.statsBeam)
-  beamGrad.addColorStop(1, 'rgba(255,255,255,0)')
-  ctx.fillStyle = beamGrad
-  ctx.fillRect(gridX + 28, gridY + 1, gridW - 56, 1)
-
-  // Crosshair internal dividers
-  const halfW = gridW / 2
-  const halfH = gridH / 2
-  const midX = gridX + halfW
-  const midY = gridY + halfH
-
-  const vDivGrad = ctx.createLinearGradient(0, gridY + 16, 0, gridY + gridH - 16)
-  vDivGrad.addColorStop(0, 'rgba(255,255,255,0)')
-  vDivGrad.addColorStop(0.5, design.dividerColor)
-  vDivGrad.addColorStop(1, 'rgba(255,255,255,0)')
-  ctx.strokeStyle = vDivGrad
-  ctx.lineWidth = 1
-  ctx.beginPath()
-  ctx.moveTo(midX, gridY + 16)
-  ctx.lineTo(midX, gridY + gridH - 16)
-  ctx.stroke()
-
-  const hDivGrad = ctx.createLinearGradient(gridX + 22, 0, gridX + gridW - 22, 0)
-  hDivGrad.addColorStop(0, 'rgba(255,255,255,0)')
-  hDivGrad.addColorStop(0.5, design.dividerColor)
-  hDivGrad.addColorStop(1, 'rgba(255,255,255,0)')
-  ctx.strokeStyle = hDivGrad
-  ctx.beginPath()
-  ctx.moveTo(gridX + 22, midY)
-  ctx.lineTo(gridX + gridW - 22, midY)
-  ctx.stroke()
-
-  // Center precision diamond node
-  ctx.save()
-  ctx.translate(midX, midY)
-  ctx.rotate(Math.PI / 4)
-  ctx.fillStyle = design.accentPrimary
-  ctx.fillRect(-2.5, -2.5, 5, 5)
-  ctx.restore()
-
-  const netVal = hideMoney
-    ? starting > 0
-      ? signedPercent(returnPct, 2)
-      : `${totalR >= 0 ? '+' : ''}${totalR.toFixed(2)}R`
-    : signedUsd(stats.net)
-
-  const netSub = hideMoney
-    ? `${totalR >= 0 ? '+' : ''}${totalR.toFixed(2)}R net`
-    : starting > 0
-      ? `${signedPercent(returnPct, 2)} return`
-      : `${stats.count} closed ${stats.count === 1 ? 'trade' : 'trades'}`
-
-  const acctSub =
-    [starting > 0 ? formatMoney(starting, opts.currency) : null, `${tierMonths}-Month Streak`]
-      .filter(Boolean)
-      .join('  ·  ') || `${tierMonths}-Month Streak`
-
-  const cells = [
+  const colW = leftW / 3
+  const milestones = [
     {
-      row: 0,
-      col: 0,
-      label: 'ACCOUNT',
-      value: accountPrimary,
-      sub: acctSub,
+      label: 'CONSISTENCY STREAK',
+      value: `${tierMonths} Months`,
       color: TEXT_COLORS.text,
-      barColor: design.accentPrimary,
     },
     {
-      row: 0,
-      col: 1,
-      label: hideMoney ? 'NET RETURN' : 'NET PERFORMANCE',
-      value: netVal,
-      sub: netSub,
-      color: stats.net >= 0 ? TEXT_COLORS.pos : TEXT_COLORS.neg,
-      barColor: stats.net >= 0 ? TEXT_COLORS.pos : TEXT_COLORS.neg,
+      label: 'QUALIFYING PERIOD',
+      value: rangeText || `${tierMonths}-Month Run`,
+      color: TEXT_COLORS.text,
     },
     {
-      row: 1,
-      col: 0,
-      label: 'WIN RATE',
-      value: `${stats.winRate.toFixed(1)}%`,
-      sub: `Profit Factor ${stats.pf >= 9.99 ? '∞' : stats.pf.toFixed(2)}`,
-      color: TEXT_COLORS.text,
-      barColor: null,
-    },
-    {
-      row: 1,
-      col: 1,
-      label: 'EXECUTION',
-      value: `${stats.count} ${stats.count === 1 ? 'Trade' : 'Trades'}`,
-      sub: rangeText || `${stats.dayRows.length} Active ${stats.dayRows.length === 1 ? 'Day' : 'Days'}`,
-      color: TEXT_COLORS.text,
-      barColor: null,
+      label: 'VERIFICATION STATUS',
+      value: 'Profitable Streak',
+      color: design.level === 4 ? design.accentPrimary : TEXT_COLORS.pos,
     },
   ]
 
-  cells.forEach((cell) => {
-    const cx = gridX + cell.col * halfW + 32
-    const cy = gridY + cell.row * halfH
-    const maxValW = halfW - 60
-
-    if (cell.barColor) {
-      ctx.fillStyle = cell.barColor
-      ctx.fillRect(cx, cy + 24, 14, 2)
+  milestones.forEach((item, idx) => {
+    const cx = innerX + idx * colW + (idx === 0 ? 0 : 24)
+    if (idx > 0) {
+      ctx.fillStyle = design.ruleColor
+      ctx.fillRect(innerX + idx * colW, stripY + 18, 1, stripH - 36)
     }
-
-    const labelX = cell.barColor ? cx + 22 : cx
-    ctx.fillStyle = TEXT_COLORS.muted
+    ctx.fillStyle = TEXT_COLORS.faint
     ctx.font = `600 10.5px ${MONO_FONT}`
     ctx.letterSpacing = '0.16em'
-    ctx.fillText(cell.label, labelX, cy + 29)
+    ctx.fillText(item.label, cx, stripY + 31)
     ctx.letterSpacing = '0px'
 
-    const valSize = fitFontSize(ctx, cell.value, maxValW, 31, 18, 700, DISPLAY_FONT)
-    ctx.fillStyle = cell.color
-    ctx.font = `700 ${valSize}px ${DISPLAY_FONT}`
-    ctx.fillText(cell.value, cx, cy + 68)
-
-    const subSize = fitFontSize(ctx, cell.sub, maxValW, 13, 10.5, 500, SANS_FONT)
-    ctx.fillStyle = TEXT_COLORS.muted
-    ctx.font = `500 ${subSize}px ${SANS_FONT}`
-    ctx.fillText(cell.sub, cx, cy + 93)
+    const valSize = fitFontSize(ctx, item.value, colW - 32, 20, 14, 600, DISPLAY_FONT)
+    ctx.fillStyle = item.color
+    ctx.font = `600 ${valSize}px ${DISPLAY_FONT}`
+    ctx.fillText(item.value, cx, stripY + 60)
   })
 
-  // 6. Bottom CEO Signature Block + Tier Verification Seal
-  const sigX = innerX
-  const sigY = 796
-  drawCeoSignature(ctx, sigX + 2, sigY, TEXT_COLORS.text, design.accentPrimary)
-
-  const sigRuleGrad = ctx.createLinearGradient(sigX, 0, sigX + 300, 0)
-  sigRuleGrad.addColorStop(0, design.accentPrimary)
-  sigRuleGrad.addColorStop(0.7, design.frameMid)
-  sigRuleGrad.addColorStop(1, 'rgba(255,255,255,0)')
-  ctx.fillStyle = sigRuleGrad
-  ctx.fillRect(sigX, sigY + 48, 300, 1.25)
-
-  ctx.fillStyle = TEXT_COLORS.text
-  ctx.font = `600 11.5px ${MONO_FONT}`
-  ctx.letterSpacing = '0.18em'
-  ctx.fillText('CHIEF EXECUTIVE OFFICER', sigX, sigY + 72)
-  ctx.letterSpacing = '0px'
-
-  ctx.fillStyle = TEXT_COLORS.muted
-  ctx.font = `500 12.5px ${SANS_FONT}`
-  ctx.fillText(
-    `Traders Area  ·  ${design.editionSub}  ·  ${issueText}`,
-    sigX,
-    sigY + 95,
+  // 3. Institutional Verification Footer
+  const footY = 824
+  drawVerificationMatrix(
+    ctx,
+    innerX,
+    footY,
+    certCode,
+    design.accentPrimary,
+    'rgba(148, 163, 184, 0.55)',
   )
 
-  drawExecutiveSeal(ctx, gridX + gridW - 44, sigY + 52, design)
+  const authX = innerX + 76
+  ctx.fillStyle = design.accentPrimary
+  ctx.font = `600 10.5px ${MONO_FONT}`
+  ctx.letterSpacing = '0.18em'
+  ctx.fillText('VERIFIED BY TRADERS AREA', authX, footY + 14)
+  ctx.letterSpacing = '0px'
+
+  ctx.fillStyle = TEXT_COLORS.text
+  ctx.font = `600 16px ${DISPLAY_FONT}`
+  ctx.fillText(design.editionSub, authX, footY + 38)
+
+  ctx.fillStyle = TEXT_COLORS.muted
+  ctx.font = `500 12.5px ${MONO_FONT}`
+  ctx.fillText(`ISSUED ${issueText.toUpperCase()}`, authX, footY + 57)
+
+  drawExecutiveSeal(ctx, leftRight - 46, footY + 28, design)
 
   return canvas
 }
@@ -1353,7 +1143,7 @@ export async function shareCertificateCard(stats: Stats, opts: CertificateOption
       await nav.share({
         files: [file],
         title: 'Trading performance certificate',
-        text: 'Traders Area — Verified Performance Certificate',
+        text: 'Traders Area — Verified Consistency Certificate',
       })
       return
     } catch {

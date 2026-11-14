@@ -39,7 +39,6 @@ export function ShareButton({
         className={className}
         iconLeft={icon ?? <Award size={14} />}
         onClick={() => setOpen(true)}
-        disabled={!trades || trades.length === 0}
       >
         {label}
       </Button>

@@ -91,7 +91,7 @@ export function ShareCardModal({
 
   const activeTier = evaluation.tiers[selectedTier]
   const tierMeta = TIER_META[selectedTier]
-  const isUnlocked = Boolean(activeTier.unlocked && activeTier.stats && activeTier.stats.count > 0)
+  const isUnlocked = Boolean(activeTier.unlocked && activeTier.stats)
 
   const certOptions: CertificateOptions = {
     traderName: traderName.trim() || profile.name,

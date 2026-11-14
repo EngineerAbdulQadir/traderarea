@@ -14867,77 +14867,100 @@ button.calendar-day:hover {
 }
 
 .wl-success {
+  width: 100%;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.wl-success-head {
   display: flex;
   align-items: center;
   gap: 12px;
-  width: 100%;
-  padding: 14px 16px;
-  border-radius: 11px;
-  border: 1px solid var(--pos-border);
-  background: var(--pos-soft);
 }
 
 .wl-success-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
   display: grid;
   place-items: center;
   flex-shrink: 0;
   color: var(--pos-text);
-  background: var(--panel);
+  background: var(--pos-soft);
   border: 1px solid var(--pos-border);
 }
 
-.wl-success-copy {
+.wl-success-titles {
   min-width: 0;
-  flex: 1;
 }
 
 .wl-success-title {
-  margin: 0 0 2px;
-  font-size: 13.5px;
-  font-weight: 600;
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
   color: var(--text);
+}
+
+.wl-success-kicker {
+  margin: 2px 0 0;
+  font-size: 12px;
+  font-weight: 540;
+  color: var(--pos-text);
 }
 
 .wl-success-desc {
   margin: 0;
-  font-size: 12.5px;
-  line-height: 1.45;
+  font-size: 13.5px;
+  line-height: 1.6;
   color: var(--muted);
+  text-wrap: pretty;
 }
 
 .wl-mono {
   font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-size: 12px;
+  font-size: 12.5px;
+  font-weight: 500;
   color: var(--text);
+  word-break: break-word;
+}
+
+.wl-success-foot {
+  display: flex;
+  align-items: center;
+  padding-top: 2px;
 }
 
 .wl-success-reset {
-  flex-shrink: 0;
-  padding: 6px 10px;
-  border-radius: 7px;
-  border: 1px solid var(--line-strong);
-  background: var(--panel);
-  color: var(--text-2);
-  font-size: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12.5px;
   font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: var(--line-strong);
   white-space: nowrap;
-  transition: background 0.16s ease, color 0.16s ease;
+  transition: color 0.16s ease, text-decoration-color 0.16s ease;
 }
 
 .wl-success-reset:hover {
-  background: var(--panel-2);
   color: var(--text);
+  text-decoration-color: var(--text);
 }
 
 .wl-error {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   margin: 12px 0 0;
   font-size: 12.5px;
+  line-height: 1.45;
   color: var(--neg-text);
 }
 

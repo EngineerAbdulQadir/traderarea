@@ -136,28 +136,35 @@ export function WaitlistPage() {
           </p>
 
           {status === 'success' ? (
-            <div className="wl-success" role="status">
-              <span className="wl-success-icon" aria-hidden="true">
-                <Check size={16} strokeWidth={2.3} />
-              </span>
-              <div className="wl-success-copy">
-                <p className="wl-success-title">You&apos;re on the waitlist.</p>
-                <p className="wl-success-desc">
-                  Reserved for <span className="wl-mono">{submittedEmail}</span>. We&apos;ll email
-                  you when access opens.
-                </p>
+            <div className="wl-success" role="status" aria-live="polite">
+              <div className="wl-success-head">
+                <span className="wl-success-icon" aria-hidden="true">
+                  <Check size={16} strokeWidth={2.4} />
+                </span>
+                <div className="wl-success-titles">
+                  <p className="wl-success-title">You&apos;re on the waitlist</p>
+                  <p className="wl-success-kicker">Early access spot reserved</p>
+                </div>
               </div>
-              <button
-                type="button"
-                className="wl-success-reset"
-                onClick={() => {
-                  setStatus('idle')
-                  setEmail('')
-                  setMessage('')
-                }}
-              >
-                Add another
-              </button>
+
+              <p className="wl-success-desc">
+                We&apos;ve registered <span className="wl-mono">{submittedEmail}</span> and will
+                email you as soon as access opens.
+              </p>
+
+              <div className="wl-success-foot">
+                <button
+                  type="button"
+                  className="wl-success-reset"
+                  onClick={() => {
+                    setStatus('idle')
+                    setEmail('')
+                    setMessage('')
+                  }}
+                >
+                  Use a different email
+                </button>
+              </div>
             </div>
           ) : (
             <form className="wl-form" onSubmit={submitWaitlist} noValidate>

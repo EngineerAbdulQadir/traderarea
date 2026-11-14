@@ -15,9 +15,9 @@ service cloud.firestore {
       }
     }
 
-    // Public waitlist: anyone can join (or re-submit the same email), only signed-in users can read.
+    // Public waitlist: anyone can join once per email (updates disallowed), only signed-in users can read.
     match /waitlist/{email} {
-      allow create, update: if request.resource.data.keys().hasAll(['email', 'createdAt']) &&
+      allow create: if request.resource.data.keys().hasAll(['email', 'createdAt']) &&
         request.resource.data.keys().hasOnly(['email', 'createdAt', 'source']) &&
         request.resource.data.email is string &&
         request.resource.data.email.size() >= 5 &&

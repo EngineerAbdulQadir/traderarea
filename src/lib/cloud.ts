@@ -423,14 +423,57 @@ export interface WaitlistEntry {
   source?: string
 }
 
+const WAITLIST_LOCAL_KEY = 'ta-waitlist-emails'
+
+function getLocalWaitlistEmails(): string[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = window.localStorage.getItem(WAITLIST_LOCAL_KEY)
+    const parsed = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+function rememberWaitlistEmail(normalized: string): void {
+  if (typeof window === 'undefined') return
+  try {
+    const current = getLocalWaitlistEmails()
+    if (!current.includes(normalized)) {
+      window.localStorage.setItem(WAITLIST_LOCAL_KEY, JSON.stringify([...current, normalized]))
+    }
+  } catch {
+    // Ignore storage quota or private-mode restrictions.
+  }
+}
+
 export async function joinWaitlist(email: string): Promise<void> {
   const db = requireDb()
   const normalized = email.trim().toLowerCase()
-  await setDoc(doc(db, 'waitlist', normalized), {
-    email: normalized,
-    createdAt: new Date().toISOString(),
-    source: 'web',
-  })
+
+  if (getLocalWaitlistEmails().includes(normalized)) {
+    throw new Error('This email is already on the waitlist.')
+  }
+
+  try {
+    await setDoc(doc(db, 'waitlist', normalized), {
+      email: normalized,
+      createdAt: new Date().toISOString(),
+      source: 'web',
+    })
+    rememberWaitlistEmail(normalized)
+  } catch (error) {
+    const code =
+      typeof error === 'object' && error !== null && 'code' in error
+        ? String((error as { code?: unknown }).code)
+        : ''
+    if (code === 'permission-denied' || code === 'already-exists') {
+      rememberWaitlistEmail(normalized)
+      throw new Error('This email is already on the waitlist.')
+    }
+    throw error
+  }
 }
 
 export async function listWaitlistEntries(): Promise<WaitlistEntry[]> {

@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useState } from 'react'
-import { CheckCircle2, Download, Lock } from 'lucide-react'
+import { BadgeCheck, Download, LockKeyhole } from 'lucide-react'
 import { Modal, ModalClose } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { useProfile } from '@/hooks/useProfile'
@@ -166,20 +166,14 @@ export function ShareCardModal({
     }
   }
 
-  const accountContext = [accountName, firmName].filter(Boolean).join(' · ')
-
   return (
     <Modal open={open} onClose={onClose} size="lg" labelledBy={titleId} className="share-modal">
       <div className="modal-head share-modal-head">
         <div className="modal-head-copy">
-          <div className="modal-eyebrow">Consistency milestones</div>
           <h2 id={titleId} className="modal-title">
             Performance certificates
           </h2>
-          <p className="modal-sub">
-            Earned through consecutive profitable calendar months
-            {accountContext ? ` · ${accountContext}` : '.'}
-          </p>
+          <p className="modal-sub">Verified monthly consistency milestones</p>
         </div>
         <ModalClose onClick={onClose} />
       </div>
@@ -207,9 +201,9 @@ export function ShareCardModal({
                 <span className="share-tier-top">
                   <span className="share-tier-level">{meta.level}</span>
                   {status.unlocked ? (
-                    <CheckCircle2 size={13} className="share-tier-icon is-unlocked" />
+                    <BadgeCheck size={14} strokeWidth={1.9} className="share-tier-icon is-unlocked" />
                   ) : (
-                    <Lock size={12} className="share-tier-icon is-locked" />
+                    <LockKeyhole size={13} strokeWidth={1.75} className="share-tier-icon is-locked" />
                   )}
                 </span>
                 <span className="share-tier-bottom">
@@ -253,11 +247,11 @@ export function ShareCardModal({
             <>
               <div className="share-toolbar-meta num">
                 <span>
-                  Current streak: <strong>{evaluation.currentStreak} mo</strong>
+                  Profitable months: <strong>{evaluation.profitableMonthsCount}</strong>
                 </span>
                 <span aria-hidden="true">·</span>
                 <span>
-                  Best streak: <strong>{evaluation.longestStreak} mo</strong>
+                  Months logged: <strong>{evaluation.months.length}</strong>
                 </span>
               </div>
             </>
@@ -280,7 +274,7 @@ export function ShareCardModal({
           <div className="share-tracker" data-tier={selectedTier}>
             <div className="share-tracker-head">
               <div className="share-tracker-icon">
-                <Lock size={17} />
+                <LockKeyhole size={17} strokeWidth={1.75} />
               </div>
               <div className="share-tracker-copy">
                 <div className="share-tracker-kicker">
@@ -300,7 +294,7 @@ export function ShareCardModal({
               <div
                 className="share-tracker-segments"
                 style={{ gridTemplateColumns: `repeat(${selectedTier}, minmax(0, 1fr))` }}
-                aria-label={`${activeTier.progressMonths} of ${selectedTier} consecutive profitable months`}
+                aria-label={`${activeTier.progressMonths} of ${selectedTier} profitable months`}
               >
                 {Array.from({ length: selectedTier }, (_, idx) => {
                   const filled = idx < activeTier.progressMonths
@@ -313,7 +307,7 @@ export function ShareCardModal({
                 })}
               </div>
               <div className="share-tracker-hint num">
-                {activeTier.remainingMonths} more consecutive profitable{' '}
+                {activeTier.remainingMonths} more profitable{' '}
                 {activeTier.remainingMonths === 1 ? 'month' : 'months'} needed to unlock
               </div>
             </div>
@@ -334,7 +328,7 @@ export function ShareCardModal({
             size="sm"
             loading={downloading}
             disabled={!isUnlocked}
-            iconLeft={<Download size={13} />}
+            iconLeft={<Download size={14} strokeWidth={1.85} />}
             onClick={handleDownload}
           >
             Download PNG

@@ -130,11 +130,6 @@ export function WaitlistPage() {
             A modern trading journal built for serious traders.
           </h1>
 
-          <p className="wl-subtitle">
-            Log your trades, review your performance, and track your edge in one clean workspace,
-            built to take you from a retail trader to an HNI.
-          </p>
-
           {status === 'success' ? (
             <div className="wl-success" role="status" aria-live="polite">
               <div className="wl-success-head">

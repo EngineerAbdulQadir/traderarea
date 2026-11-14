@@ -14769,7 +14769,7 @@ button.calendar-day:hover {
 }
 
 .wl-title {
-  margin: 0 0 12px;
+  margin: 0 0 24px;
   font-family: "Plus Jakarta Sans", var(--font-sans);
   font-size: clamp(1.75rem, 3.2vw, 2.25rem);
   font-weight: 700;
@@ -14777,14 +14777,6 @@ button.calendar-day:hover {
   letter-spacing: -0.035em;
   color: var(--text);
   text-wrap: balance;
-}
-
-.wl-subtitle {
-  margin: 0 0 26px;
-  font-size: 14.5px;
-  line-height: 1.6;
-  color: var(--muted);
-  text-wrap: pretty;
 }
 
 .wl-form {

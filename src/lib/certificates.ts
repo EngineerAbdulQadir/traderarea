@@ -32,6 +32,7 @@ export interface ConsistencyEvaluation {
   tiers: Record<ConsistencyTier, ConsistencyTierStatus>
   unlockedTiers: ConsistencyTier[]
   highestUnlocked: ConsistencyTier | null
+  profitableMonthsCount: number
   currentStreak: number
   longestStreak: number
   months: MonthlyPerformance[]
@@ -109,16 +110,12 @@ export function evaluateConsistencyCertificates(
       profitable: bucket.count > 0 && bucket.net > 0,
     }))
 
+  const profitableMonths = months.filter((m) => m.profitable)
+  const profitableMonthsCount = profitableMonths.length
+
   let longestStreak = 0
   let running: MonthlyPerformance[] = []
   let prevMonth = ''
-
-  const qualifyingWindows: Record<ConsistencyTier, MonthlyPerformance[] | null> = {
-    3: null,
-    6: null,
-    9: null,
-    12: null,
-  }
 
   for (const month of months) {
     if (month.profitable) {
@@ -129,12 +126,6 @@ export function evaluateConsistencyCertificates(
       }
       prevMonth = month.month
       longestStreak = Math.max(longestStreak, running.length)
-
-      for (const tier of CONSISTENCY_TIERS) {
-        if (running.length >= tier) {
-          qualifyingWindows[tier] = running.slice(-tier)
-        }
-      }
     } else {
       running = []
       prevMonth = ''
@@ -147,12 +138,15 @@ export function evaluateConsistencyCertificates(
   const unlockedTiers: ConsistencyTier[] = []
 
   for (const tier of CONSISTENCY_TIERS) {
-    const windowMonths = qualifyingWindows[tier]
-    const unlocked = Boolean(windowMonths && windowMonths.length === tier)
+    const unlocked = profitableMonthsCount >= tier
     if (unlocked) unlockedTiers.push(tier)
 
-    const progressMonths = unlocked ? tier : Math.min(tier, longestStreak)
-    const windowTrades = windowMonths ? windowMonths.flatMap((m) => m.trades) : []
+    const windowMonths = unlocked
+      ? profitableMonths.slice(-tier)
+      : profitableMonths.slice(-Math.min(profitableMonthsCount, tier))
+
+    const progressMonths = Math.min(tier, profitableMonthsCount)
+    const windowTrades = unlocked ? windowMonths.flatMap((m) => m.trades) : []
 
     tiers[tier] = {
       tier,
@@ -160,9 +154,9 @@ export function evaluateConsistencyCertificates(
       unlocked,
       progressMonths,
       remainingMonths: Math.max(0, tier - progressMonths),
-      windowMonths: windowMonths ?? months.slice(-Math.min(months.length, tier)),
+      windowMonths,
       stats: unlocked ? computeStats(windowTrades, startingBalance) : null,
-      rangeLabel: windowMonths ? formatMonthWindowLabel(windowMonths) : '',
+      rangeLabel: unlocked ? formatMonthWindowLabel(windowMonths) : '',
     }
   }
 
@@ -172,6 +166,7 @@ export function evaluateConsistencyCertificates(
     tiers,
     unlockedTiers,
     highestUnlocked,
+    profitableMonthsCount,
     currentStreak,
     longestStreak,
     months,

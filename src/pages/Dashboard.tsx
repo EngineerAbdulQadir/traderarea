@@ -149,14 +149,6 @@ export function DashboardPage() {
         className="dashboard-toolbar"
         actions={
           <>
-            <ShareButton
-              trades={certificateTrades}
-              startingBalance={starting}
-              accountName={activeAccount ? titleFor(activeAccount) : undefined}
-              firmName={activeAccount?.firm}
-              accountMeta={activeAccount ? heroMeta : undefined}
-              currency={activeAccount?.currency}
-            />
             <DateRangePicker
               from={rangeFrom}
               to={rangeTo}
@@ -166,6 +158,14 @@ export function DashboardPage() {
                 setStoredFrom(nextFrom)
                 setStoredTo(nextTo)
               }}
+            />
+            <ShareButton
+              trades={certificateTrades}
+              startingBalance={starting}
+              accountName={activeAccount ? titleFor(activeAccount) : undefined}
+              firmName={activeAccount?.firm}
+              accountMeta={activeAccount ? heroMeta : undefined}
+              currency={activeAccount?.currency}
             />
           </>
         }

@@ -1,6 +1,11 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
-import { GuestOnly, RequireAuth } from '@/components/layout/AuthGate'
+import {
+  GuestOnly,
+  RequireAuth,
+  RootRedirect,
+  SignupGate,
+} from '@/components/layout/AuthGate'
 import { CommandPalette } from '@/components/layout/CommandPalette'
 import { ToastStack } from '@/components/layout/ToastStack'
 import { ChallengeModal } from '@/components/modals/ChallengeModal'
@@ -17,11 +22,13 @@ import { NotesPage } from '@/pages/Notes'
 import { ReportsPage } from '@/pages/Reports'
 import { WaitlistPage } from '@/pages/Waitlist'
 import { StatsPage } from '@/pages/Stats'
+import { ownerLoginSlug } from '@/lib/access'
 
 export default function App() {
   return (
     <>
       <Routes>
+        <Route index element={<RootRedirect />} />
         <Route
           path="auth"
           element={
@@ -41,9 +48,9 @@ export default function App() {
         <Route
           path="auth/signup"
           element={
-            <GuestOnly>
+            <SignupGate>
               <AuthPage mode="signup" />
-            </GuestOnly>
+            </SignupGate>
           }
         />
         <Route
@@ -54,10 +61,25 @@ export default function App() {
             </GuestOnly>
           }
         />
+        <Route
+          path={ownerLoginSlug}
+          element={
+            <GuestOnly allowSecretRoute>
+              <AuthPage mode="login" />
+            </GuestOnly>
+          }
+        />
+        <Route
+          path={`${ownerLoginSlug}/forgot-password`}
+          element={
+            <GuestOnly allowSecretRoute>
+              <AuthPage mode="forgot" />
+            </GuestOnly>
+          }
+        />
         <Route path="waitlist" element={<WaitlistPage />} />
         <Route element={<RequireAuth />}>
           <Route element={<AppShell />}>
-            <Route index element={<Navigate to="/metrics" replace />} />
             <Route path="metrics" element={<DashboardPage />} />
             <Route path="journal" element={<JournalPage />} />
             <Route path="portfolio" element={<AccountsPage />} />
@@ -69,6 +91,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/metrics" replace />} />
           </Route>
         </Route>
+        <Route path="*" element={<RootRedirect />} />
       </Routes>
       <ChallengeModal />
       <TradeModal />

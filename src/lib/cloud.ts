@@ -417,12 +417,32 @@ export async function deleteCloudWorkspace(uid: string): Promise<void> {
   }
 }
 
+export interface WaitlistEntry {
+  email: string
+  createdAt: string
+  source?: string
+}
+
 export async function joinWaitlist(email: string): Promise<void> {
   const db = requireDb()
   const normalized = email.trim().toLowerCase()
-  await setDoc(doc(db, 'waitlist', normalized), {
-    email: normalized,
-    createdAt: new Date().toISOString(),
-    source: 'web',
-  }, { merge: true })
+  await setDoc(
+    doc(db, 'waitlist', normalized),
+    {
+      email: normalized,
+      createdAt: new Date().toISOString(),
+      source: 'web',
+    },
+    { merge: true },
+  )
 }
+
+export async function listWaitlistEntries(): Promise<WaitlistEntry[]> {
+  const db = requireDb()
+  const snapshot = await getDocs(collection(db, 'waitlist'))
+  return snapshot.docs
+    .map((item) => item.data() as WaitlistEntry)
+    .filter((entry) => Boolean(entry.email))
+    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+}
+

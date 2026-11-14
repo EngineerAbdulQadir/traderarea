@@ -57,6 +57,7 @@ export function DashboardPage() {
     activeAccount,
     activeTrades,
     activeIsDemo,
+    getAllTradesForAccount,
     openChallenge,
     openDayReview,
     viewingPhaseIndex,
@@ -96,6 +97,10 @@ export function DashboardPage() {
   })()
 
   const starting = getStartingBalance(activeAccount)
+  const certificateTrades = useMemo(
+    () => (activeAccount ? getAllTradesForAccount(activeAccount) : []),
+    [activeAccount, getAllTradesForAccount],
+  )
   const rangeTrades = useMemo(
     () => filterByDateRange(activeTrades, rangeFrom, rangeTo),
     [activeTrades, rangeFrom, rangeTo],
@@ -144,7 +149,14 @@ export function DashboardPage() {
         className="dashboard-toolbar"
         actions={
           <>
-            <ShareButton stats={stats} accountName={activeAccount ? titleFor(activeAccount) : undefined} rangeLabel={`${rangeFrom} → ${rangeTo}`} />
+            <ShareButton
+              trades={certificateTrades}
+              startingBalance={starting}
+              accountName={activeAccount ? titleFor(activeAccount) : undefined}
+              firmName={activeAccount?.firm}
+              accountMeta={activeAccount ? heroMeta : undefined}
+              currency={activeAccount?.currency}
+            />
             <DateRangePicker
               from={rangeFrom}
               to={rangeTo}

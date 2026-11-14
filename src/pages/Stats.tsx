@@ -40,6 +40,7 @@ import {
   type GroupStats,
 } from '@/lib/stats'
 import { tradeGrade, tradeHoldMinutes, tradeHour } from '@/lib/trades'
+import { accountMetaCompact, titleFor } from '@/lib/accounts'
 import {
   formatHold,
   formatMoney,
@@ -97,12 +98,16 @@ function PerfTable({ map, head }: { map: Map<string | number, GroupStats>; head:
 }
 
 export function StatsPage() {
-  const { activeAccount, activeTrades, activeIsDemo, openTradeEditor } = useApp()
+  const { activeAccount, activeTrades, activeIsDemo, getAllTradesForAccount, openTradeEditor } = useApp()
   const navigate = useNavigate()
   const [storedRange, setStoredRange] = usePersistentState(STORAGE_KEYS.statsRange, 'all')
   const rangeKey = DASHBOARD_RANGES[storedRange] ? storedRange : 'all'
 
   const starting = getStartingBalance(activeAccount)
+  const certificateTrades = useMemo(
+    () => (activeAccount ? getAllTradesForAccount(activeAccount) : []),
+    [activeAccount, getAllTradesForAccount],
+  )
   const trades = useMemo(() => filterByRange(activeTrades, rangeKey), [activeTrades, rangeKey])
   const stats = useMemo(() => computeStats(trades, starting), [trades, starting])
   const insights = useMemo(() => buildInsights(trades, stats), [trades, stats])
@@ -326,7 +331,14 @@ export function StatsPage() {
               onChange={setStoredRange}
               size="sm"
             />
-            <ShareButton stats={stats} accountName={activeAccount?.firm} rangeLabel="Statistics" />
+            <ShareButton
+              trades={certificateTrades}
+              startingBalance={starting}
+              accountName={activeAccount ? titleFor(activeAccount) : undefined}
+              firmName={activeAccount?.firm}
+              accountMeta={activeAccount ? accountMetaCompact(activeAccount) : undefined}
+              currency={activeAccount?.currency}
+            />
             <Button variant="primary" size="sm" iconLeft={<Plus size={13} />} onClick={() => openTradeEditor()}>
               Log trade
             </Button>

@@ -16,19 +16,21 @@ import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { AccountAvatar } from '@/components/ui/AccountAvatar'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { ShareButton } from '@/components/ui/ShareButton'
 import { PhaseHistoryModal } from '@/components/modals/PhaseHistoryModal'
 import { ACCOUNT_PHASES } from '@/data/firms'
 import {
   accountBadge,
   accountGradient,
   accountMeta,
+  accountMetaCompact,
   nextStageFor,
   phaseState,
   titleFor,
 } from '@/lib/accounts'
 import { computeStats, evaluateAccount, getStartingBalance, type AccountEvaluation } from '@/lib/stats'
 import { cn } from '@/lib/cn'
-import type { Account } from '@/lib/types'
+import type { Account, Trade } from '@/lib/types'
 
 export function AccountsPage() {
   const {
@@ -37,6 +39,7 @@ export function AccountsPage() {
     setActiveAccount,
     advanceAccount,
     getTradesForAccount,
+    getAllTradesForAccount,
     openChallenge,
     removeAccount,
     showToast,
@@ -48,13 +51,21 @@ export function AccountsPage() {
   const [historyAccount, setHistoryAccount] = useState<Account | null>(null)
 
   const evaluations = useMemo(() => {
-    const map = new Map<string, AccountEvaluation>()
+    const map = new Map<
+      string,
+      { evaluation: AccountEvaluation; allTrades: Trade[]; startingBalance: number }
+    >()
     accounts.forEach((account) => {
-      const stats = computeStats(getTradesForAccount(account), getStartingBalance(account))
-      map.set(account.id, evaluateAccount(account, stats))
+      const startingBalance = getStartingBalance(account)
+      const stats = computeStats(getTradesForAccount(account), startingBalance)
+      map.set(account.id, {
+        evaluation: evaluateAccount(account, stats),
+        allTrades: getAllTradesForAccount(account),
+        startingBalance,
+      })
     })
     return map
-  }, [accounts, getTradesForAccount])
+  }, [accounts, getTradesForAccount, getAllTradesForAccount])
 
   const openAccount = (account: Account) => {
     setActiveAccount(account.id)
@@ -110,7 +121,10 @@ export function AccountsPage() {
           <div className="accounts-grid">
             {accounts.map((account) => {
               const active = activeAccount?.id === account.id
-              const evaluation = evaluations.get(account.id)
+              const entry = evaluations.get(account.id)
+              const evaluation = entry?.evaluation
+              const allAccountTrades = entry?.allTrades ?? []
+              const accountStarting = entry?.startingBalance ?? getStartingBalance(account)
               const passed = evaluation?.status === 'passed'
               const breached = evaluation?.status === 'breached'
               const nextStage = nextStageFor(account.type, account.stage)
@@ -199,6 +213,18 @@ export function AccountsPage() {
                       >
                         Move to {nextStage}
                       </Button>
+                    )}
+                    {allAccountTrades.length > 0 && (
+                      <ShareButton
+                        trades={allAccountTrades}
+                        startingBalance={accountStarting}
+                        accountName={titleFor(account)}
+                        firmName={account.firm}
+                        accountMeta={accountMetaCompact(account)}
+                        currency={account.currency}
+                        variant="secondary"
+                        label="Certificate"
+                      />
                     )}
                     <Button
                       variant={active ? 'soft' : 'secondary'}

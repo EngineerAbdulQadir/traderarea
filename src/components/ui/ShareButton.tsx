@@ -1,36 +1,59 @@
-import { useState } from 'react'
-import { Share2, Loader2 } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { Award } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { shareCard } from '@/lib/shareCard'
-import type { Stats } from '@/lib/types'
+import { ShareCardModal } from '@/components/modals/ShareCardModal'
+import type { Trade } from '@/lib/types'
 
 interface ShareButtonProps {
-  stats: Stats
+  trades: Trade[]
+  startingBalance: number
   accountName?: string
-  rangeLabel?: string
+  firmName?: string
+  accountMeta?: string
+  currency?: string
+  label?: string
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'soft'
+  icon?: ReactNode
   className?: string
 }
 
-export function ShareButton({ stats, accountName, rangeLabel, className }: ShareButtonProps) {
-  const [busy, setBusy] = useState(false)
-  const onClick = async () => {
-    setBusy(true)
-    try {
-      await shareCard(stats, { accountName, rangeLabel })
-    } finally {
-      setBusy(false)
-    }
-  }
+export function ShareButton({
+  trades,
+  startingBalance,
+  accountName,
+  firmName,
+  accountMeta,
+  currency,
+  label = 'Certificate',
+  variant = 'primary',
+  icon,
+  className,
+}: ShareButtonProps) {
+  const [open, setOpen] = useState(false)
+
   return (
-    <Button
-      variant="primary"
-      size="sm"
-      className={className}
-      iconLeft={busy ? <Loader2 size={14} className="btn-spinner" /> : <Share2 size={14} />}
-      onClick={onClick}
-      disabled={busy || !stats || stats.count === 0}
-    >
-      Share stats
-    </Button>
+    <>
+      <Button
+        variant={variant}
+        size="sm"
+        className={className}
+        iconLeft={icon ?? <Award size={14} />}
+        onClick={() => setOpen(true)}
+        disabled={!trades || trades.length === 0}
+      >
+        {label}
+      </Button>
+
+      <ShareCardModal
+        open={open}
+        onClose={() => setOpen(false)}
+        trades={trades}
+        startingBalance={startingBalance}
+        accountName={accountName}
+        firmName={firmName}
+        accountMeta={accountMeta}
+        currency={currency}
+      />
+    </>
   )
 }

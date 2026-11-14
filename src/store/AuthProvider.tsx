@@ -18,6 +18,7 @@ import {
 } from 'firebase/auth'
 import { auth, isFirebaseConfigured } from '@/lib/firebase'
 import { ensureUserProfile } from '@/lib/cloud'
+import { isWaitlistOnly } from '@/lib/access'
 
 interface AuthContextValue {
   user: User | null
@@ -72,6 +73,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signUp = useCallback(async (name: string, email: string, password: string) => {
+    if (isWaitlistOnly) {
+      throw new Error('Public registration is closed during private beta.')
+    }
     if (!auth) throw new Error('Firebase is not configured.')
     const credential = await createUserWithEmailAndPassword(auth, email.trim(), password)
     const displayName = name.trim()

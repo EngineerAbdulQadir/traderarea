@@ -3,6 +3,8 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { Layers, BarChart3, NotebookPen, LogOut, Plus, ChevronsUpDown, Settings } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useApp } from '@/store/AppStore'
+import { useAuth } from '@/store/AuthProvider'
+import { clearOwnerSessions, isWaitlistOnly } from '@/lib/access'
 import { cn } from '@/lib/cn'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useTheme } from '@/hooks/useTheme'
@@ -23,6 +25,7 @@ export function Sidebar({
   onCloseMobile: () => void
 }) {
   const { openChallenge, openSettings } = useApp()
+  const { signOut, configured } = useAuth()
   const { isDark } = useTheme()
   const profile = useProfile()
   const initials = initialsFor(profile.name)
@@ -130,9 +133,17 @@ export function Sidebar({
                   <button
                     className="profile-menu-item"
                     type="button"
-                    onClick={() => {
+                    onClick={async () => {
                       setProfileOpen(false)
-                      navigate('/auth/login')
+                      clearOwnerSessions()
+                      if (configured) {
+                        try {
+                          await signOut()
+                        } catch {
+                          // Navigate regardless of transient signOut errors.
+                        }
+                      }
+                      navigate(isWaitlistOnly ? '/waitlist' : '/auth/login')
                     }}
                   >
                     <span className="profile-menu-icon">

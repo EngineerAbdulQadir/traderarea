@@ -15,11 +15,18 @@ service cloud.firestore {
       }
     }
 
-    // Public waitlist: anyone can join, only signed-in users (you) can read.
+    // Public waitlist: anyone can join (or re-submit the same email), only signed-in users can read.
     match /waitlist/{email} {
-      allow create: if request.resource.data.keys().hasAll(['email', 'createdAt']) &&
+      allow create, update: if request.resource.data.keys().hasAll(['email', 'createdAt']) &&
+        request.resource.data.keys().hasOnly(['email', 'createdAt', 'source']) &&
         request.resource.data.email is string &&
-        request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
+        request.resource.data.email.size() >= 5 &&
+        request.resource.data.email.size() <= 254 &&
+        request.resource.data.email == email &&
+        request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$') &&
+        request.resource.data.createdAt is string &&
+        request.resource.data.createdAt.size() <= 64 &&
+        (!('source' in request.resource.data) || (request.resource.data.source is string && request.resource.data.source.size() <= 32));
       allow read: if request.auth != null;
     }
   }

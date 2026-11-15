@@ -20,6 +20,7 @@ export interface PhaseRecord {
 
 export interface Account {
   id: string
+  name?: string
   firm: string
   firmBadge: string
   firmGradient: string
@@ -33,6 +34,7 @@ export interface Account {
   startingBalance: number
   rules: Rules
   source?: string
+  demoTone?: 'profitable' | 'loss'
   createdAt: string
   /** Trades at or before this date-time belong to a completed phase. */
   phaseStartedAt?: string

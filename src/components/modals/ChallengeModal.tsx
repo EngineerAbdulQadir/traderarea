@@ -35,6 +35,7 @@ export function ChallengeModal() {
   const { challengeOpen, closeChallenge, addAccount, showToast } = useApp()
   const navigate = useNavigate()
 
+  const [name, setName] = useState('')
   const [firmId, setFirmId] = useState(PROP_FIRMS[0]?.id ?? 'eze')
   const [type, setType] = useState<AccountType>('step1')
   const [stage, setStage] = useState<Stage>('Phase 1')
@@ -45,6 +46,7 @@ export function ChallengeModal() {
 
   useEffect(() => {
     if (!challengeOpen) return
+    setName('')
     setFirmId(PROP_FIRMS[0]?.id ?? 'eze')
     setType('step1')
     setStage('Phase 1')
@@ -97,10 +99,18 @@ export function ChallengeModal() {
     event.preventDefault()
     if (submitting || !firm || !(size > 0)) return
     setSubmitting(true)
-    const account = createAccountFromDraft({ firmId: firm.id, type, stage, platform, size, rules })
+    const account = createAccountFromDraft({
+      name: name.trim() || undefined,
+      firmId: firm.id,
+      type,
+      stage,
+      platform,
+      size,
+      rules,
+    })
     addAccount(account)
     closeChallenge()
-    navigate('/portfolio')
+    navigate('/accounts')
     showToast(
       'Challenge created',
       `${titleFor(account)} is ready with ${formatMoney(account.startingBalance)} in starting capital.`,
@@ -130,6 +140,27 @@ export function ChallengeModal() {
         <div className="modal-body challenge-body">
           <section className="challenge-section">
             <div className="challenge-section-head">
+              <label className="field-label" htmlFor="challenge-account-name">
+                Account name
+              </label>
+              <span className="challenge-count">
+                Optional · defaults to {firm?.name ?? 'Eze Funded'} {formatSize(size)}
+              </span>
+            </div>
+            <input
+              id="challenge-account-name"
+              className="input challenge-name-input"
+              type="text"
+              maxLength={48}
+              data-autofocus
+              placeholder={`e.g. ${firm?.name ?? 'Eze Funded'} ${formatSize(size)} or London Breakout`}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </section>
+
+          <section className="challenge-section">
+            <div className="challenge-section-head">
               <span className="field-label">
                 <Building2 size={12} /> Prop firm
               </span>
@@ -138,7 +169,7 @@ export function ChallengeModal() {
               </span>
             </div>
             <div className="firm-grid" role="radiogroup" aria-label="Prop firm">
-              {PROP_FIRMS.map((item, index) => {
+              {PROP_FIRMS.map((item) => {
                 const selected = item.id === firmId
                 return (
                   <button
@@ -147,7 +178,6 @@ export function ChallengeModal() {
                     type="button"
                     role="radio"
                     aria-checked={selected}
-                    data-autofocus={index === 0 ? true : undefined}
                     onClick={() => setFirmId(item.id)}
                   >
                     <AccountAvatar badge={item.badge} gradient={item.gradient} size="md" />
@@ -312,7 +342,7 @@ export function ChallengeModal() {
             <div className="rule-preview">
               <div>
                 <span>Account</span>
-                <b>{firm?.name ?? 'Prop firm'} · {TYPE_LABELS[type]} · {formatSize(size)}</b>
+                <b>{name.trim() || `${firm?.name ?? 'Prop firm'} ${formatSize(size)}`}</b>
               </div>
               <div>
                 <span>{funded ? 'Funded balance' : 'Profit target'}</span>

@@ -57,7 +57,128 @@ function pickFrom<T>(rng: () => number, list: T[]): T {
   return list[Math.floor(rng() * list.length) % list.length]
 }
 
+function generateTonedDemoTrades(account: Account, tone: 'profitable' | 'loss'): Trade[] {
+  const seed = hashString(`${account.id}|${tone}|${account.startingBalance || account.size || 0}`)
+  const rng = mulberry32(seed)
+  const starting = Number(account.startingBalance) || Number(account.size) || 10_000
+  const today = startOfDay(new Date())
+  const trades: Trade[] = []
+
+  const weekdays: Date[] = []
+  for (let offset = 36; offset >= 0; offset--) {
+    const day = addDays(today, -offset)
+    const dow = day.getDay()
+    if (dow === 0 || dow === 6) continue
+    weekdays.push(day)
+  }
+
+  const targetDayCount = tone === 'profitable' ? 18 : 16
+  const selectedDays = weekdays.slice(-targetDayCount)
+  const dailyLimitPct = Number(account.rules?.daily) || 5
+  const maxLimitPct = Number(account.rules?.max) || 8
+  const targetPct = Number(account.rules?.target) || 10
+
+  // Target final net P&L cleanly above target (for profitable) or cleanly past max loss (for loss)
+  const desiredNet =
+    tone === 'profitable'
+      ? Math.round(starting * ((targetPct + 3.8) / 100))
+      : -Math.round(starting * ((maxLimitPct + 1.4) / 100))
+
+  // Distribute daily outcomes smoothly and realistically
+  const dayMultipliers =
+    tone === 'profitable'
+      ? [1.1, -0.45, 1.35, 0.85, -0.5, 1.45, 0.95, 1.2, -0.6, 1.3, 0.75, 1.15, -0.4, 1.25, 0.9, -0.55, 1.4, 1.1]
+      : [-0.85, 0.55, -1.1, -0.95, 0.45, -1.25, -0.8, 0.6, -1.35, -0.9, 0.4, -1.2, -0.95, 0.35, -1.15, -1.05]
+
+  const baseSum = dayMultipliers.reduce((sum, v) => sum + v, 0)
+  const scale = desiredNet / (baseSum || 1)
+  const maxSafeDailyLoss = starting * ((dailyLimitPct * 0.45) / 100)
+
+  selectedDays.forEach((day, dayIdx) => {
+    const rawDayTarget = dayMultipliers[dayIdx % dayMultipliers.length] * scale
+    const dayTarget =
+      tone === 'profitable' && rawDayTarget < 0
+        ? -Math.min(Math.abs(rawDayTarget), maxSafeDailyLoss)
+        : rawDayTarget
+    const count = 2 + Math.floor(rng() * 2) // 2-3 trades per day
+    const parts: number[] = []
+    for (let i = 0; i < count; i++) {
+      parts.push(0.75 + rng() * 0.5)
+    }
+    const partSum = parts.reduce((acc, v) => acc + v, 0)
+    const dayPnls = parts.map((weight, idx) => {
+      if (idx === count - 1) {
+        const prevSum = parts.slice(0, -1).reduce((s, w) => s + Math.round((dayTarget * w) / partSum), 0)
+        return Math.round(dayTarget - prevSum)
+      }
+      return Math.round((dayTarget * weight) / partSum)
+    })
+
+    // Introduce realistic single counter-trade within multi-trade days while preserving exact day net
+    if (count >= 3) {
+      const nudge = Math.round(Math.abs(dayTarget) * 0.28)
+      dayPnls[0] += tone === 'profitable' ? nudge : -nudge
+      dayPnls[1] -= tone === 'profitable' ? nudge : -nudge
+    }
+
+    dayPnls.forEach((pnl, i) => {
+      const market = DEMO_MARKETS[6 + Math.floor(rng() * 3)] ?? DEMO_MARKETS[0]
+      const risk = Math.max(25, Math.round(starting * 0.0045))
+      const fees = Math.round(2 + rng() * 4)
+      const gross = pnl + fees
+      const openMinute = 9 * 60 + 35 + i * 78 + Math.floor(rng() * 35)
+      const duration = 8 + Math.floor(rng() * 46)
+      const closeMinute = Math.min(15 * 60 + 55, openMinute + duration)
+      const timeString = (minutes: number) =>
+        `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+      const side = rng() < 0.54 ? 'LONG' : 'SHORT'
+      const volume = Math.max(1, Math.min(4, 1 + Math.floor(rng() * 3)))
+      const priceDigits = market.price > 50 ? 2 : 3
+      const entry = Number((market.price * (0.994 + rng() * 0.012)).toFixed(priceDigits))
+      const move = (gross / (volume * market.multiplier || 1)) * (side === 'LONG' ? 1 : -1)
+      const exit = Number((entry + move).toFixed(priceDigits))
+      const notional = Math.max(1, volume * entry * market.multiplier)
+      const roi = (pnl / notional) * 100
+      const monthCode =
+        day.toLocaleDateString('en-US', { month: 'short' }).toUpperCase() +
+        String(day.getFullYear()).slice(-2)
+      const instrument = `${market.ticker} · ${monthCode}`
+
+      trades.push({
+        id: `${account.id}-demo-${tone}-${dayIdx}-${i}`,
+        accountId: account.id,
+        date: dateToISO(day),
+        openTime: `${timeString(openMinute)}:${String(Math.floor(rng() * 60)).padStart(2, '0')}`,
+        closeTime: `${timeString(closeMinute)}:${String(Math.floor(rng() * 60)).padStart(2, '0')}`,
+        ticker: market.ticker,
+        instrument,
+        side,
+        volume,
+        entry: Number.isFinite(entry) ? entry : 0,
+        exit: Number.isFinite(exit) ? exit : 0,
+        pnl,
+        gross,
+        fees,
+        roi,
+        rMultiple: pnl / risk,
+        risk,
+        playbook: pickFrom(rng, DEMO_PLAYBOOKS),
+        quality: Math.round(clamp((pnl >= 0 ? 68 : 34) + rng() * 24, 10, 96)),
+        tags: [],
+        note: '',
+        manual: false,
+      })
+    })
+  })
+
+  return trades.sort((a, b) => (a.date + a.openTime).localeCompare(b.date + b.openTime))
+}
+
 export function generateDemoTrades(account: Account): Trade[] {
+  if (account.demoTone === 'profitable' || account.demoTone === 'loss') {
+    return generateTonedDemoTrades(account, account.demoTone)
+  }
+
   const seed = hashString(`${account.id}|${account.startingBalance || account.size || 0}`)
   const rng = mulberry32(seed)
   const starting = Number(account.startingBalance) || Number(account.size) || 100_000
@@ -152,7 +273,7 @@ export function generateDemoTrades(account: Account): Trade[] {
 const demoCache = new Map<string, Trade[]>()
 
 export function getDemoTrades(account: Account): Trade[] {
-  const key = `${account.id}|${todayISO()}`
+  const key = `${account.id}|${account.demoTone ?? 'default'}|${todayISO()}`
   if (!demoCache.has(key)) demoCache.set(key, generateDemoTrades(account))
   return demoCache.get(key) ?? []
 }

@@ -91,13 +91,13 @@ export function Sidebar({
           </NavLink>
 
           <NavLink
-            to="/portfolio"
+            to="/accounts"
             className={({ isActive }) => cn('nav-item', isActive && 'active')}
             onClick={onCloseMobile}
           >
             <Layers size={16} strokeWidth={1.7} />
-            <span className="nav-label">Portfolio</span>
-            {collapsed && !isMobile && <span className="nav-tooltip">Portfolio</span>}
+            <span className="nav-label">Accounts</span>
+            {collapsed && !isMobile && <span className="nav-tooltip">Accounts</span>}
           </NavLink>
         </div>
 

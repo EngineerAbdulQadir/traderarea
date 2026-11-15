@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { Account, Note, NotesByAccount, Trade } from '@/lib/types'
+import type { Account, Note, NotesByAccount, Platform, Rules, Trade } from '@/lib/types'
 import {
   effectivePhaseHistory,
   latestTradeKey,
@@ -19,6 +19,7 @@ import {
   createDemoAccount,
 } from '@/lib/accounts'
 import { fundedAccountSize, rulesFor } from '@/data/firms'
+import { getDemoTrades } from '@/lib/demo'
 import { getStartingBalance } from '@/lib/stats'
 import { seedDemoNotes } from '@/lib/notes'
 import {
@@ -87,9 +88,10 @@ interface AppContextValue {
   storedTradeCount: number
   setActiveAccount: (id: string) => void
   addAccount: (account: Account) => void
+  updateAccount: (id: string, patch: { name?: string; platform?: Platform; rules?: Rules }) => void
   advanceAccount: (id: string) => void
   removeAccount: (id: string) => void
-  addDemoAccount: () => void
+  addDemoAccount: (tone?: 'profitable' | 'loss') => void
   getTradesForAccount: (account: Account) => Trade[]
   getAllTradesForAccount: (account: Account) => Trade[]
   isDemo: (account: Account | null | undefined) => boolean
@@ -486,6 +488,67 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [accounts.length, authLoading, syncStatus])
 
+  // Repair any previously advanced demo accounts that advanced before demo phase cutoffs were recorded.
+  useEffect(() => {
+    const broken = accounts.filter(
+      (account) =>
+        account.source === 'demo' &&
+        (account.phaseHistory?.length ?? 0) > 0 &&
+        !account.phaseStartedAt &&
+        realTradesForAccount(trades, account.id).length === 0,
+    )
+    if (!broken.length) return
+
+    const extraTrades: Trade[] = []
+    const cutoffs = new Map<string, string>()
+
+    broken.forEach((account) => {
+      const history = account.phaseHistory ?? []
+      const firstPhase = history[0]
+      if (!firstPhase) return
+      const snapshot: Account = {
+        ...account,
+        stage: firstPhase.stage,
+        startingBalance: firstPhase.startingBalance,
+        size: firstPhase.startingBalance,
+        rules: firstPhase.rules,
+      }
+      const demoTrades = getDemoTrades(snapshot)
+      const cutoff = latestTradeKey(demoTrades)
+      if (!cutoff) return
+      extraTrades.push(...demoTrades)
+      cutoffs.set(account.id, cutoff)
+    })
+
+    if (!cutoffs.size) return
+
+    if (extraTrades.length) {
+      setTrades((previous) => {
+        const existingIds = new Set(previous.map((item) => item.id))
+        const added = extraTrades.filter((item) => !existingIds.has(item.id))
+        if (!added.length) return previous
+        return [...previous, ...added].sort((a, b) =>
+          (a.date + a.openTime).localeCompare(b.date + b.openTime),
+        )
+      })
+    }
+
+    setAccounts((previous) =>
+      previous.map((item) => {
+        const cutoff = cutoffs.get(item.id)
+        if (!cutoff) return item
+        const updatedHistory = item.phaseHistory?.map((record) =>
+          record.endedAt ? record : { ...record, endedAt: cutoff },
+        )
+        return {
+          ...item,
+          phaseStartedAt: cutoff,
+          ...(updatedHistory ? { phaseHistory: updatedHistory } : {}),
+        }
+      }),
+    )
+  }, [accounts, trades])
+
   const migrateWorkspace = useCallback(async () => {
     if (!cloudUserId) return
     setMigrating(true)
@@ -535,6 +598,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setActiveAccountId(account.id)
   }, [])
 
+  const updateAccount = useCallback(
+    (id: string, patch: { name?: string; platform?: Platform; rules?: Rules }) => {
+      setAccounts((previous) =>
+        previous.map((item) => {
+          if (item.id !== id) return item
+          const next: Account = { ...item }
+          if (patch.name !== undefined) {
+            const trimmed = patch.name.trim()
+            if (trimmed) next.name = trimmed
+            else delete next.name
+          }
+          if (patch.platform !== undefined) next.platform = patch.platform
+          if (patch.rules !== undefined) next.rules = patch.rules
+          return next
+        }),
+      )
+    },
+    [],
+  )
+
   const advanceAccount = useCallback(
     (id: string) => {
       const account = accounts.find((item) => item.id === id)
@@ -542,7 +625,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const nextStage = nextStageFor(account.type, account.stage)
       if (!nextStage) return
 
-      const phaseTrades = tradesForPhase(account, realTradesForAccount(trades, id))
+      const realTrades = realTradesForAccount(trades, id)
+      const phaseTrades = tradesForPhase(account, resolveTrades(trades, account))
       const cutoff = latestTradeKey(phaseTrades)
       const funded = nextStage === 'Funded'
       const nextBalance = funded
@@ -554,6 +638,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
         rules: account.rules,
         endedAt: cutoff || account.phaseStartedAt || '',
         status: 'passed' as const,
+      }
+
+      if (realTrades.length === 0 && account.source === 'demo' && phaseTrades.length > 0) {
+        setTrades((previous) => {
+          const existingIds = new Set(previous.map((item) => item.id))
+          const added = phaseTrades.filter((item) => !existingIds.has(item.id))
+          if (!added.length) return previous
+          return [...previous, ...added].sort((a, b) =>
+            (a.date + a.openTime).localeCompare(b.date + b.openTime),
+          )
+        })
       }
 
       setAccounts((previous) =>
@@ -601,11 +696,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [activeAccountId],
   )
 
-  const addDemoAccount = useCallback(() => {
-    const account = createDemoAccount()
-    addAccount(account)
-    showToast('Demo workspace ready', `${titleFor(account)} loaded with sample trades.`)
-  }, [addAccount, showToast])
+  const addDemoAccount = useCallback(
+    (tone?: 'profitable' | 'loss') => {
+      const account = createDemoAccount(tone)
+      addAccount(account)
+      const label =
+        tone === 'profitable'
+          ? 'Profitable demo ready'
+          : tone === 'loss'
+            ? 'Non-profitable demo ready'
+            : 'Demo workspace ready'
+      showToast(label, `${titleFor(account)} loaded with sample trades.`)
+    },
+    [addAccount, showToast],
+  )
 
   const getTradesForAccount = useCallback(
     (account: Account) => tradesForPhase(account, resolveTrades(trades, account)),
@@ -725,6 +829,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       storedTradeCount: trades.length,
       setActiveAccount,
       addAccount,
+      updateAccount,
       advanceAccount,
       removeAccount,
       addDemoAccount,
@@ -772,6 +877,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       workspaceTrades,
       setActiveAccount,
       addAccount,
+      updateAccount,
       advanceAccount,
       removeAccount,
       addDemoAccount,

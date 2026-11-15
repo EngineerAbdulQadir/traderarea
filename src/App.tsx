@@ -82,8 +82,8 @@ export default function App() {
           <Route element={<AppShell />}>
             <Route path="metrics" element={<DashboardPage />} />
             <Route path="journal" element={<JournalPage />} />
-            <Route path="portfolio" element={<AccountsPage />} />
-            <Route path="accounts" element={<Navigate to="/portfolio" replace />} />
+            <Route path="accounts" element={<AccountsPage />} />
+            <Route path="portfolio" element={<Navigate to="/accounts" replace />} />
             <Route path="stats" element={<StatsPage />} />
             <Route path="entries" element={<EntriesPage />} />
             <Route path="notes" element={<NotesPage />} />

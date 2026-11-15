@@ -132,7 +132,7 @@ export function ReportsPage() {
           title="Reports need a workspace"
           description="Start a challenge or open a demo account. Report periods, breakdowns and exports will populate automatically."
           actions={
-            <Button variant="primary" iconLeft={<Wallet size={14} />} onClick={() => navigate('/portfolio')}>
+            <Button variant="primary" iconLeft={<Wallet size={14} />} onClick={() => navigate('/accounts')}>
               Go to accounts
             </Button>
           }

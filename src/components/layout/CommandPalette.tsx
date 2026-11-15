@@ -58,7 +58,7 @@ export function CommandPalette() {
     const pages: CommandItem[] = [
       { id: 'page-metrics', label: 'Metrics', hint: 'Performance & KPI dashboard', group: 'Navigate', icon: <BarChart3 size={15} />, run: closeAnd(() => navigate('/metrics')) },
       { id: 'page-journal', label: 'Journal', hint: 'Session calendar & reflections', group: 'Navigate', icon: <CalendarDays size={15} />, run: closeAnd(() => navigate('/journal')) },
-      { id: 'page-accounts', label: 'Portfolio', hint: 'Challenges and phases', group: 'Navigate', icon: <Wallet size={15} />, run: closeAnd(() => navigate('/portfolio')) },
+      { id: 'page-accounts', label: 'Accounts', hint: 'Challenges and phases', group: 'Navigate', icon: <Wallet size={15} />, run: closeAnd(() => navigate('/accounts')) },
       { id: 'page-stats', label: 'Stats', hint: 'Timing, markets, behaviour', group: 'Navigate', icon: <BarChart3 size={15} />, run: closeAnd(() => navigate('/stats')) },
       { id: 'page-entries', label: 'Entries', hint: 'Every trade in the journal', group: 'Navigate', icon: <ListOrdered size={15} />, run: closeAnd(() => navigate('/entries')) },
       { id: 'page-notes', label: 'Notes', hint: 'Daily session reflections', group: 'Navigate', icon: <BookOpenText size={15} />, run: closeAnd(() => navigate('/notes')) },

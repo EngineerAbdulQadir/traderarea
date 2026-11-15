@@ -137,22 +137,16 @@ export function evaluateConsistencyCertificates(
   const tiers = {} as Record<ConsistencyTier, ConsistencyTierStatus>
   const unlockedTiers: ConsistencyTier[] = []
 
-  const allTrades = Array.isArray(trades) ? trades : []
-  const fallbackRangeLabel = months.length ? formatMonthWindowLabel(months) : ''
-
   for (const tier of CONSISTENCY_TIERS) {
-    const earnedNaturally = profitableMonthsCount >= tier
-    const unlocked = true
+    const unlocked = profitableMonthsCount >= tier
     if (unlocked) unlockedTiers.push(tier)
 
-    const windowMonths = earnedNaturally
+    const windowMonths = unlocked
       ? profitableMonths.slice(-tier)
-      : profitableMonths.length > 0
-        ? profitableMonths.slice(-Math.min(profitableMonthsCount, tier))
-        : months.slice(-Math.min(months.length, tier))
+      : profitableMonths.slice(-Math.min(profitableMonthsCount, tier))
 
-    const progressMonths = earnedNaturally ? tier : Math.min(tier, profitableMonthsCount)
-    const windowTrades = earnedNaturally ? windowMonths.flatMap((m) => m.trades) : allTrades
+    const progressMonths = unlocked ? tier : Math.min(tier, profitableMonthsCount)
+    const windowTrades = windowMonths.flatMap((m) => m.trades)
 
     tiers[tier] = {
       tier,
@@ -161,8 +155,8 @@ export function evaluateConsistencyCertificates(
       progressMonths,
       remainingMonths: Math.max(0, tier - progressMonths),
       windowMonths,
-      stats: computeStats(windowTrades, startingBalance),
-      rangeLabel: earnedNaturally ? formatMonthWindowLabel(windowMonths) : fallbackRangeLabel,
+      stats: unlocked ? computeStats(windowTrades, startingBalance) : null,
+      rangeLabel: unlocked ? formatMonthWindowLabel(windowMonths) : '',
     }
   }
 

@@ -4,6 +4,8 @@ import { formatSize } from '@/lib/format'
 import { todayISO } from '@/lib/dates'
 
 export function titleFor(account: Account): string {
+  const custom = account.name?.trim()
+  if (custom) return custom
   return account.firm + ' ' + formatSize(account.challengeSize || account.size)
 }
 
@@ -96,6 +98,7 @@ export function newAccountId(): string {
 }
 
 export interface AccountDraft {
+  name?: string
   firmId: string
   type: AccountType
   stage: Stage
@@ -108,8 +111,10 @@ export function createAccountFromDraft(draft: AccountDraft): Account {
   const firm = getFirm(draft.firmId)
   const funded = draft.stage === 'Funded'
   const balance = funded ? draft.size / 10 : draft.size
+  const customName = draft.name?.trim()
   return {
     id: newAccountId(),
+    ...(customName ? { name: customName } : {}),
     firm: firm.name,
     firmBadge: firm.badge,
     firmGradient: firm.gradient,
@@ -127,8 +132,50 @@ export function createAccountFromDraft(draft: AccountDraft): Account {
   }
 }
 
-export function createDemoAccount(): Account {
+export function createDemoAccount(tone?: 'profitable' | 'loss'): Account {
   const firm = getFirm('eze')
+  if (tone === 'profitable') {
+    return {
+      id: newAccountId(),
+      name: 'London Core 10K',
+      firm: firm.name,
+      firmBadge: firm.badge,
+      firmGradient: firm.gradient,
+      type: 'step2',
+      size: 10_000,
+      challengeSize: 10_000,
+      stage: 'Phase 1',
+      platform: 'MT5',
+      startDate: todayISO(),
+      currency: 'USD',
+      startingBalance: 10_000,
+      rules: { target: 10, daily: 5, max: 10, days: 5 },
+      source: 'demo',
+      demoTone: 'profitable',
+      createdAt: new Date().toISOString(),
+    }
+  }
+  if (tone === 'loss') {
+    return {
+      id: newAccountId(),
+      name: 'NY Reversal 5K',
+      firm: firm.name,
+      firmBadge: firm.badge,
+      firmGradient: firm.gradient,
+      type: 'step1',
+      size: 5_000,
+      challengeSize: 5_000,
+      stage: 'Phase 1',
+      platform: 'MT5',
+      startDate: todayISO(),
+      currency: 'USD',
+      startingBalance: 5_000,
+      rules: { target: 12, daily: 4, max: 8, days: 5 },
+      source: 'demo',
+      demoTone: 'loss',
+      createdAt: new Date().toISOString(),
+    }
+  }
   return {
     id: newAccountId(),
     firm: firm.name,

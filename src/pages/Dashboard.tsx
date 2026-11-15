@@ -14,7 +14,6 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { AccountAvatar } from '@/components/ui/AccountAvatar'
 import { ShareButton } from '@/components/ui/ShareButton'
 import { DateRangePicker } from '@/components/ui/DateRangePicker'
 import { PnlHeatmap } from '@/components/charts/PnlHeatmap'
@@ -25,7 +24,7 @@ import { AvgWinLossChart } from '@/components/charts/AvgWinLossChart'
 import { RadarChart } from '@/components/charts/RadarChart'
 import { usePersistentState } from '@/hooks/usePersistentState'
 import { consumeDashboardRangeReset, STORAGE_KEYS } from '@/lib/persistence'
-import { accountBadge, accountGradient, accountMetaCompact, titleFor } from '@/lib/accounts'
+import { accountMetaCompact, titleFor } from '@/lib/accounts'
 import {
   buildRules,
   computeEdgeScore,
@@ -186,15 +185,7 @@ export function DashboardPage() {
       <section className="hero-card card card-glow" data-hero={heroVariant}>
         <div className="hero-main">
           <div className="hero-top">
-            <button className="hero-account" type="button" onClick={() => navigate('/portfolio')}>
-              <span className="hero-avatar-wrap">
-                <AccountAvatar
-                  badge={accountBadge(activeAccount)}
-                  gradient={accountGradient(activeAccount)}
-                  size="md"
-                />
-                <i className="hero-status-dot" aria-hidden="true" />
-              </span>
+            <button className="hero-account" type="button" onClick={() => navigate('/accounts')}>
               <span className="hero-account-copy">
                 <b>{titleFor(activeAccount)}</b>
                 <span className="hero-account-meta">

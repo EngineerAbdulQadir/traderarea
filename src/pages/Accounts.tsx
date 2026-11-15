@@ -1,107 +1,110 @@
-import { useId, useMemo, useState, type MouseEvent } from 'react'
+import { useEffect, useId, useMemo, useState, type MouseEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import {
-  AlertTriangle,
   ArrowRight,
   ArrowUpRight,
   Check,
-  CheckCircle2,
   History,
   Layers,
+  Pencil,
   Plus,
   Trash2,
+  TrendingDown,
+  TrendingUp,
 } from 'lucide-react'
 import { useApp } from '@/store/AppStore'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { AccountAvatar } from '@/components/ui/AccountAvatar'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { Modal, ModalClose } from '@/components/ui/Modal'
 import { PhaseHistoryModal } from '@/components/modals/PhaseHistoryModal'
 import { ACCOUNT_PHASES } from '@/data/firms'
 import {
-  accountBadge,
-  accountGradient,
-  accountMeta,
   nextStageFor,
   phaseState,
   titleFor,
 } from '@/lib/accounts'
 import { computeStats, evaluateAccount, getStartingBalance, type AccountEvaluation } from '@/lib/stats'
-import { formatMoney, plainPercent, signedMoney, signedPercent } from '@/lib/format'
+import { formatMoney, formatSize, plainPercent, signedMoney, signedPercent } from '@/lib/format'
 import { cn } from '@/lib/cn'
-import type { Account, Stats } from '@/lib/types'
+import type { Account, Rules, Stats } from '@/lib/types'
 
-type CandleTone = 'sapphire' | 'emerald' | 'sovereign' | 'slate'
+type CandleTone = 'sapphire' | 'emerald' | 'sovereign' | 'crimson'
 
 const CANDLE_PALETTES: Record<
   CandleTone,
   {
     label: string
-    coreStart: string
+    coreDeep: string
     coreMid: string
-    coreEnd: string
-    facetLight: string
-    facetDark: string
-    rimStroke: string
-    metalLight: string
-    metalMid: string
-    metalDark: string
+    coreBright: string
+    leftLit: string
+    rightShadow: string
+    refractLight: string
+    cageLight: string
+    cageMid: string
+    cageDark: string
+    cageEdge: string
     aura: string
   }
 > = {
   sapphire: {
     label: 'ACTIVE',
-    coreStart: '#3b82f6',
-    coreMid: '#1d4ed8',
-    coreEnd: '#09245e',
-    facetLight: '#93c5fd',
-    facetDark: '#071b47',
-    rimStroke: '#60a5fa',
-    metalLight: '#f8fafc',
-    metalMid: '#94a3b8',
-    metalDark: '#334155',
-    aura: 'rgba(37, 99, 235, 0.22)',
+    coreDeep: '#061238',
+    coreMid: '#1238a8',
+    coreBright: '#3b82f6',
+    leftLit: '#93c5fd',
+    rightShadow: '#040b24',
+    refractLight: '#dbeafe',
+    cageLight: '#f1f5f9',
+    cageMid: '#94a3b8',
+    cageDark: '#334155',
+    cageEdge: '#ffffff',
+    aura: 'rgba(37, 99, 235, 0.12)',
   },
   emerald: {
     label: 'PASSED',
-    coreStart: '#34d399',
-    coreMid: '#059669',
-    coreEnd: '#064e3b',
-    facetLight: '#a7f3d0',
-    facetDark: '#022c22',
-    rimStroke: '#6ee7b7',
-    metalLight: '#f1f5f9',
-    metalMid: '#94a3b8',
-    metalDark: '#334155',
-    aura: 'rgba(16, 185, 129, 0.22)',
+    coreDeep: '#02231b',
+    coreMid: '#047857',
+    coreBright: '#10b981',
+    leftLit: '#6ee7b7',
+    rightShadow: '#011711',
+    refractLight: '#d1fae5',
+    cageLight: '#e2e8f0',
+    cageMid: '#64748b',
+    cageDark: '#1e293b',
+    cageEdge: '#f8fafc',
+    aura: 'rgba(16, 185, 129, 0.12)',
   },
   sovereign: {
     label: 'FUNDED',
-    coreStart: '#334155',
+    coreDeep: '#04070d',
     coreMid: '#111827',
-    coreEnd: '#030712',
-    facetLight: '#64748b',
-    facetDark: '#020617',
-    rimStroke: '#f5d084',
-    metalLight: '#fef3c7',
-    metalMid: '#d4a64a',
-    metalDark: '#785113',
-    aura: 'rgba(212, 166, 74, 0.24)',
+    coreBright: '#334155',
+    leftLit: '#94a3b8',
+    rightShadow: '#020408',
+    refractLight: '#fef3c7',
+    cageLight: '#fef08a',
+    cageMid: '#d4a64a',
+    cageDark: '#6b4710',
+    cageEdge: '#fffbeb',
+    aura: 'rgba(212, 166, 74, 0.14)',
   },
-  slate: {
+  crimson: {
     label: 'BREACHED',
-    coreStart: '#64748b',
-    coreMid: '#334155',
-    coreEnd: '#0f172a',
-    facetLight: '#cbd5e1',
-    facetDark: '#0f172a',
-    rimStroke: '#94a3b8',
-    metalLight: '#f1f5f9',
-    metalMid: '#94a3b8',
-    metalDark: '#334155',
-    aura: 'rgba(100, 116, 139, 0.16)',
+    coreDeep: '#240508',
+    coreMid: '#991b1b',
+    coreBright: '#ef4444',
+    leftLit: '#fca5a5',
+    rightShadow: '#160204',
+    refractLight: '#fee2e2',
+    cageLight: '#e2e8f0',
+    cageMid: '#64748b',
+    cageDark: '#1e293b',
+    cageEdge: '#f8fafc',
+    aura: 'rgba(220, 38, 38, 0.12)',
   },
 }
 
@@ -110,179 +113,251 @@ function selectCandleTone(
   passed: boolean,
   breached: boolean,
 ): CandleTone {
-  if (breached) return 'slate'
+  if (breached) return 'crimson'
   if (passed) return 'emerald'
   if (account.stage === 'Funded') return 'sovereign'
   return 'sapphire'
 }
 
+function accountCardSubtitle(account: Account): string {
+  if (account.name?.trim()) {
+    return `${account.firm} · ${formatSize(account.challengeSize || account.size)}`
+  }
+  if (account.stage === 'Funded') return 'Funded Account'
+  if (account.type === 'step1') return '1-Step Evaluation'
+  if (account.type === 'step2prime') return '2-Step Prime'
+  return '2-Step Evaluation'
+}
+
+/**
+ * Bespoke 3D skeleton-cage crystal candlestick inspired by sculptural luxury
+ * instruments: faceted jewel core locked inside a machined architectural cage
+ * with stepped turret collars and lathe-turned needle spires.
+ */
 function SculptedCandleArtwork({ tone }: { tone: CandleTone }) {
   const uid = useId().replace(/:/g, '')
   const p = CANDLE_PALETTES[tone]
 
   return (
     <svg
-      viewBox="0 0 120 176"
-      width="102"
-      height="150"
+      viewBox="0 0 132 204"
+      width="106"
+      height="164"
       className="acct-candle-svg"
       fill="none"
       aria-hidden="true"
     >
       <defs>
-        <linearGradient id={`core-${uid}`} x1="36" y1="42" x2="84" y2="134" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor={p.coreStart} />
-          <stop offset="52%" stopColor={p.coreMid} />
-          <stop offset="100%" stopColor={p.coreEnd} />
+        <linearGradient id={`core-grad-${uid}`} x1="36" y1="48" x2="96" y2="156" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor={p.coreBright} />
+          <stop offset="48%" stopColor={p.coreMid} />
+          <stop offset="100%" stopColor={p.coreDeep} />
         </linearGradient>
 
-        <linearGradient id={`facet-l-${uid}`} x1="34" y1="44" x2="54" y2="132" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor={p.facetLight} stopOpacity="0.65" />
-          <stop offset="100%" stopColor={p.coreMid} stopOpacity="0.25" />
+        <linearGradient id={`flank-l-${uid}`} x1="36" y1="54" x2="48" y2="150" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor={p.leftLit} stopOpacity="0.82" />
+          <stop offset="65%" stopColor={p.coreBright} stopOpacity="0.65" />
+          <stop offset="100%" stopColor={p.coreMid} stopOpacity="0.9" />
         </linearGradient>
 
-        <linearGradient id={`facet-r-${uid}`} x1="68" y1="44" x2="86" y2="132" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor={p.coreMid} stopOpacity="0.45" />
-          <stop offset="100%" stopColor={p.facetDark} stopOpacity="0.88" />
+        <linearGradient id={`flank-r-${uid}`} x1="82" y1="50" x2="96" y2="152" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor={p.coreMid} />
+          <stop offset="100%" stopColor={p.rightShadow} />
         </linearGradient>
 
-        <linearGradient id={`metal-h-${uid}`} x1="30" y1="0" x2="90" y2="0" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor={p.metalDark} />
-          <stop offset="28%" stopColor={p.metalLight} />
-          <stop offset="55%" stopColor={p.metalMid} />
-          <stop offset="82%" stopColor={p.metalLight} />
-          <stop offset="100%" stopColor={p.metalDark} />
+        <linearGradient id={`cage-face-${uid}`} x1="30" y1="40" x2="102" y2="164" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor={p.cageLight} />
+          <stop offset="46%" stopColor={p.cageMid} />
+          <stop offset="100%" stopColor={p.cageDark} />
         </linearGradient>
 
-        <linearGradient id={`wick-grad-${uid}`} x1="53" y1="0" x2="67" y2="0" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor={p.metalDark} />
-          <stop offset="38%" stopColor={p.metalLight} />
-          <stop offset="100%" stopColor={p.metalMid} />
+        <linearGradient id={`cage-depth-${uid}`} x1="80" y1="44" x2="98" y2="160" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor={p.cageMid} />
+          <stop offset="100%" stopColor={p.cageDark} />
         </linearGradient>
 
-        <linearGradient id={`sheen-${uid}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0" />
-          <stop offset="50%" stopColor="#ffffff" stopOpacity="0.48" />
-          <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+        <linearGradient id={`collar-band-${uid}`} x1="48" y1="0" x2="84" y2="0" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor={p.cageDark} />
+          <stop offset="30%" stopColor={p.cageLight} />
+          <stop offset="62%" stopColor={p.cageMid} />
+          <stop offset="100%" stopColor={p.cageDark} />
         </linearGradient>
 
-        <clipPath id={`body-clip-${uid}`}>
-          <polygon points="44,44 76,44 86,56 86,120 76,132 44,132 34,120 34,56" />
+        <clipPath id={`crystal-clip-${uid}`}>
+          <polygon points="48,48 82,48 94,58 94,146 82,156 48,156 38,146 38,58" />
         </clipPath>
       </defs>
 
-      <g transform="rotate(11 60 88)">
-        {/* Upper precision spike wick */}
-        <polygon points="60,12 64.5,35 55.5,35" fill={`url(#wick-grad-${uid})`} />
-        <rect x="52" y="34.5" width="16" height="4.2" rx="1.5" fill={`url(#metal-h-${uid})`} />
+      {/* Upper lathe-turned needle spire + stepped turret collar */}
+      <polygon points="66,9 66,35 62.6,35" fill={p.cageLight} />
+      <polygon points="66,9 69.4,35 66,35" fill={p.cageDark} />
+      <line x1="66" y1="9" x2="66" y2="35" stroke={p.cageEdge} strokeOpacity="0.7" strokeWidth="0.6" />
+      <polygon points="57,35 75,35 77,38.5 55,38.5" fill={`url(#collar-band-${uid})`} />
+      <polygon points="52,38.5 80,38.5 82,43 50,43" fill={`url(#collar-band-${uid})`} stroke={p.cageDark} strokeOpacity="0.35" strokeWidth="0.5" />
+      <rect x="55" y="43" width="22" height="2.2" fill={p.cageDark} fillOpacity="0.65" />
 
-        {/* Lower precision spike wick */}
-        <rect x="52" y="137.3" width="16" height="4.2" rx="1.5" fill={`url(#metal-h-${uid})`} />
-        <polygon points="55.5,141 64.5,141 60,164" fill={`url(#wick-grad-${uid})`} />
+      {/* Lower stepped turret collar + lathe-turned needle spire */}
+      <rect x="55" y="158.8" width="22" height="2.2" fill={p.cageDark} fillOpacity="0.65" />
+      <polygon points="50,161 82,161 80,165.5 52,165.5" fill={`url(#collar-band-${uid})`} stroke={p.cageDark} strokeOpacity="0.35" strokeWidth="0.5" />
+      <polygon points="55,165.5 77,165.5 75,169 57,169" fill={`url(#collar-band-${uid})`} />
+      <polygon points="62.6,169 66,169 66,195" fill={p.cageLight} />
+      <polygon points="66,169 69.4,169 66,195" fill={p.cageDark} />
+      <line x1="66" y1="169" x2="66" y2="195" stroke={p.cageEdge} strokeOpacity="0.45" strokeWidth="0.6" />
 
-        {/* Outer titanium/gold beveled frame */}
-        <polygon
-          points="42,38.5 78,38.5 91,53.5 91,122.5 78,137.5 42,137.5 29,122.5 29,53.5"
-          fill={`url(#metal-h-${uid})`}
-          stroke={p.metalDark}
-          strokeOpacity="0.32"
-          strokeWidth="0.9"
-        />
+      {/* Faceted 3D crystal core */}
+      <g clipPath={`url(#crystal-clip-${uid})`}>
+        {/* Base crystal body */}
+        <polygon points="38,48 94,48 94,156 38,156" fill={`url(#core-grad-${uid})`} />
 
-        {/* Faceted crystal body */}
-        <polygon
-          points="44,44 76,44 86,56 86,120 76,132 44,132 34,120 34,56"
-          fill={`url(#core-${uid})`}
-        />
+        {/* Left 3D illuminated bevel facet */}
+        <polygon points="38,58 49,54 49,150 38,146" fill={`url(#flank-l-${uid})`} />
+        {/* Right 3D deep-shadow facet */}
+        <polygon points="83,54 94,58 94,146 83,150" fill={`url(#flank-r-${uid})`} />
 
-        {/* Left beveled refraction facet */}
-        <polygon points="44,44 53,54 53,122 44,132 34,120 34,56" fill={`url(#facet-l-${uid})`} />
+        {/* Deep inner shadow core for genuine optical glass depth */}
+        <polygon points="53,60 79,60 79,144 53,144" fill={p.rightShadow} fillOpacity="0.42" />
 
-        {/* Right shadowed crystal facet */}
-        <polygon points="76,44 86,56 86,120 76,132 67,122 67,54" fill={`url(#facet-r-${uid})`} />
+        {/* Internal angular crystal cleavage planes */}
+        <polygon points="48,48 82,48 83,58 49,78 38,58" fill={p.refractLight} fillOpacity="0.28" />
+        <polygon points="49,82 83,64 83,96 49,116" fill={p.leftLit} fillOpacity="0.2" />
+        <polygon points="49,128 83,110 83,148 49,150" fill={p.refractLight} fillOpacity="0.14" />
 
-        {/* Center jewel crown facets */}
-        <polygon points="53,54 67,54 76,44 44,44" fill={p.facetLight} fillOpacity="0.34" />
-        <polygon points="53,122 67,122 76,132 44,132" fill={p.facetDark} fillOpacity="0.46" />
+        {/* Crisp internal refraction catchlight vectors */}
+        <line x1="49" y1="78" x2="83" y2="58" stroke={p.refractLight} strokeOpacity="0.55" strokeWidth="0.7" />
+        <line x1="49" y1="116" x2="83" y2="96" stroke={p.leftLit} strokeOpacity="0.4" strokeWidth="0.65" />
+        <line x1="65" y1="50" x2="65" y2="154" stroke={p.refractLight} strokeOpacity="0.28" strokeWidth="0.7" />
 
-        {/* Animated light sweep gliding across the crystal core */}
-        <g clipPath={`url(#body-clip-${uid})`}>
-          <motion.rect
-            x="24"
-            y="40"
-            width="72"
-            height="28"
-            fill={`url(#sheen-${uid})`}
-            transform="rotate(-18 60 88)"
-            initial={{ y: -32 }}
-            animate={{ y: [-32, 138, 138] }}
-            transition={{
-              duration: 4.4,
-              times: [0, 0.45, 1],
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }}
-          />
-        </g>
-
-        {/* Crisp lattice strut ribs */}
-        <path
-          d="M44 44 L53 54 L67 54 L76 44 M44 132 L53 122 L67 122 L76 132 M53 54 L53 122 M67 54 L67 122"
-          stroke={p.rimStroke}
-          strokeOpacity="0.45"
-          strokeWidth="1"
-        />
-        <polygon
-          points="44,44 76,44 86,56 86,120 76,132 44,132 34,120 34,56"
-          stroke={p.metalLight}
-          strokeOpacity="0.52"
-          strokeWidth="1"
-        />
+        {/* Bottom crown shadow */}
+        <polygon points="38,146 49,149 83,149 94,146 82,156 48,156" fill={p.rightShadow} fillOpacity="0.78" />
       </g>
+
+      {/* Machined 3D Exoskeleton Cage */}
+      {/* Right depth flank strut */}
+      <polygon
+        points="82,45 87,45 97,56 97,148 87,159 82,159 82,155.5 92.5,146 92.5,58 82,48.5"
+        fill={`url(#cage-depth-${uid})`}
+        stroke={p.cageDark}
+        strokeOpacity="0.4"
+        strokeWidth="0.5"
+      />
+      {/* Top machined crown bridge */}
+      <polygon
+        points="45,45 87,45 93,52 82,52 80,48.5 52,48.5 50,52 39,52"
+        fill={`url(#cage-face-${uid})`}
+        stroke={p.cageDark}
+        strokeOpacity="0.32"
+        strokeWidth="0.5"
+      />
+      {/* Bottom machined base bridge */}
+      <polygon
+        points="39,152 50,152 52,155.5 80,155.5 82,152 93,152 87,159 45,159"
+        fill={`url(#cage-face-${uid})`}
+        stroke={p.cageDark}
+        strokeOpacity="0.32"
+        strokeWidth="0.5"
+      />
+      {/* Left main vertical bevel rail */}
+      <polygon
+        points="35,56 45,45 49.5,48.5 40.5,58 40.5,146 49.5,155.5 45,159 35,148"
+        fill={`url(#cage-face-${uid})`}
+        stroke={p.cageDark}
+        strokeOpacity="0.35"
+        strokeWidth="0.5"
+      />
+      {/* Diagonal upper architectural skeleton truss */}
+      <polygon
+        points="40,76 62,50 67.5,50 40,83"
+        fill={`url(#cage-face-${uid})`}
+        stroke={p.cageDark}
+        strokeOpacity="0.35"
+        strokeWidth="0.45"
+      />
+      {/* Diagonal lower opposing skeleton truss */}
+      <polygon
+        points="66,154 92.5,123 92.5,130 71.5,154"
+        fill={`url(#cage-depth-${uid})`}
+        stroke={p.cageDark}
+        strokeOpacity="0.35"
+        strokeWidth="0.45"
+      />
+      {/* Center vertical spine rib + precision micro-pins */}
+      <polygon
+        points="63.5,48.5 68.5,48.5 68.5,64 66,68 63.5,64"
+        fill={`url(#cage-face-${uid})`}
+      />
+      <polygon
+        points="63.5,140 66,136 68.5,140 68.5,155.5 63.5,155.5"
+        fill={`url(#cage-face-${uid})`}
+      />
+      <circle cx="66" cy="54.5" r="1.25" fill={p.cageDark} stroke={p.cageEdge} strokeOpacity="0.5" strokeWidth="0.4" />
+      <circle cx="66" cy="149.5" r="1.25" fill={p.cageDark} stroke={p.cageEdge} strokeOpacity="0.5" strokeWidth="0.4" />
+
+      {/* Outer crisp specular catchlights */}
+      <polyline
+        points="35.5,147 35.5,56 45,45.5 87,45.5"
+        stroke={p.cageEdge}
+        strokeOpacity="0.75"
+        strokeWidth="0.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }
 
-function DormantCandleGlyph() {
+function DormantCandleGlyph({ breached }: { breached: boolean }) {
+  const uid = useId().replace(/:/g, '')
+  const lightTone = breached ? '#94a3b8' : '#cbd5e1'
+  const darkTone = breached ? '#475569' : '#64748b'
+
   return (
     <svg
-      viewBox="0 0 88 148"
-      width="74"
-      height="124"
+      viewBox="0 0 132 204"
+      width="98"
+      height="152"
       className="acct-dormant-svg"
       fill="none"
       aria-hidden="true"
     >
-      <line x1="14" y1="74" x2="22" y2="74" stroke="currentColor" strokeWidth="1" opacity="0.28" />
-      <line x1="66" y1="74" x2="74" y2="74" stroke="currentColor" strokeWidth="1" opacity="0.28" />
-      <line
-        x1="44"
-        y1="10"
-        x2="44"
-        y2="138"
+      <defs>
+        <linearGradient id={`dorm-core-${uid}`} x1="38" y1="50" x2="94" y2="154" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor={lightTone} stopOpacity="0.32" />
+          <stop offset="100%" stopColor={darkTone} stopOpacity="0.18" />
+        </linearGradient>
+      </defs>
+
+      {/* Needle wicks & turret collars */}
+      <polygon points="66,12 66,36 63,36" fill="currentColor" fillOpacity="0.34" />
+      <polygon points="66,12 69,36 66,36" fill="currentColor" fillOpacity="0.18" />
+      <polygon points="53,38 79,38 81,43 51,43" fill="currentColor" fillOpacity="0.22" stroke="currentColor" strokeOpacity="0.35" strokeWidth="0.6" />
+
+      <polygon points="51,161 81,161 79,166 53,166" fill="currentColor" fillOpacity="0.22" stroke="currentColor" strokeOpacity="0.35" strokeWidth="0.6" />
+      <polygon points="63,168 66,168 66,192" fill="currentColor" fillOpacity="0.32" />
+      <polygon points="66,168 69,168 66,192" fill="currentColor" fillOpacity="0.16" />
+
+      {/* Crystal chamber */}
+      <polygon
+        points="46,47 86,47 95,57 95,147 86,157 46,157 37,147 37,57"
+        fill={`url(#dorm-core-${uid})`}
         stroke="currentColor"
-        strokeWidth="1"
-        strokeDasharray="2 4"
-        opacity="0.2"
+        strokeOpacity="0.4"
+        strokeWidth="0.85"
       />
 
-      {/* Wicks */}
-      <polygon points="44,15 47,33 41,33" stroke="currentColor" strokeWidth="1.15" opacity="0.52" />
-      <polygon points="41,115 47,115 44,133" stroke="currentColor" strokeWidth="1.15" opacity="0.52" />
-
-      {/* Chamfered candle frame */}
+      {/* Skeleton cage wire geometry */}
       <polygon
-        points="34,37 54,37 62,46 62,102 54,111 34,111 26,102 26,46"
-        stroke="currentColor"
-        strokeWidth="1.25"
-        opacity="0.54"
+        points="40,76 62,50 67,50 40,82.5"
+        fill="currentColor"
+        fillOpacity="0.22"
       />
       <polygon
-        points="37,43 51,43 56,50 56,98 51,105 37,105 32,98 32,50"
-        stroke="currentColor"
-        strokeWidth="0.9"
-        opacity="0.28"
+        points="66,154 92,124 92,130.5 71.5,154"
+        fill="currentColor"
+        fillOpacity="0.22"
       />
+      <line x1="48" y1="47" x2="48" y2="157" stroke="currentColor" strokeOpacity="0.2" strokeWidth="0.65" />
+      <line x1="84" y1="47" x2="84" y2="157" stroke="currentColor" strokeOpacity="0.28" strokeWidth="0.65" />
+      <line x1="49" y1="116" x2="83" y2="96" stroke="currentColor" strokeOpacity="0.22" strokeWidth="0.65" />
     </svg>
   )
 }
@@ -312,25 +387,23 @@ function AccountCandleWing({
         <div className="acct-wing-divider" aria-hidden="true" />
 
         <div className="acct-wing-stage">
-          <motion.div
+          <div
             className="acct-wing-aura"
-            style={{ background: `radial-gradient(circle, ${palette.aura} 0%, transparent 72%)` }}
+            style={{ background: `radial-gradient(ellipse at center, ${palette.aura} 0%, transparent 70%)` }}
             aria-hidden="true"
-            animate={{ opacity: [0.65, 1, 0.65], scale: [0.94, 1.06, 0.94] }}
-            transition={{ duration: 4.8, repeat: Infinity, ease: 'easeInOut' }}
           />
 
           <AnimatePresence mode="wait">
             <motion.div
               key={`${account.id}-${tone}`}
               className="acct-candle-float-wrap"
-              initial={{ opacity: 0, scale: 0.88, y: 8 }}
+              initial={{ opacity: 0, scale: 0.92, y: 6 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: -6 }}
-              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              exit={{ opacity: 0, scale: 0.94, y: -4 }}
+              transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
             >
               <motion.div
-                animate={{ y: [-3.5, 3.5, -3.5] }}
+                animate={{ y: [-2.5, 2.5, -2.5] }}
                 transition={{ duration: 5.2, repeat: Infinity, ease: 'easeInOut' }}
               >
                 <SculptedCandleArtwork tone={tone} />
@@ -341,7 +414,7 @@ function AccountCandleWing({
           <motion.span
             className="acct-candle-shadow"
             aria-hidden="true"
-            animate={{ scaleX: [0.9, 1.08, 0.9], opacity: [0.35, 0.6, 0.35] }}
+            animate={{ scaleX: [0.92, 1.06, 0.92], opacity: [0.28, 0.46, 0.28] }}
             transition={{ duration: 5.2, repeat: Infinity, ease: 'easeInOut' }}
           />
         </div>
@@ -357,19 +430,19 @@ function AccountCandleWing({
   return (
     <button
       type="button"
-      className="acct-wing is-dormant"
+      className={cn('acct-wing is-dormant', breached && 'is-breached')}
       onClick={onActivate}
       title={`Set ${titleFor(account)} as active`}
       aria-label={`Set ${titleFor(account)} as active account`}
     >
       <div className="acct-wing-divider" aria-hidden="true" />
       <div className="acct-wing-stage">
-        <DormantCandleGlyph />
+        <DormantCandleGlyph breached={breached} />
       </div>
       <div className="acct-wing-floor">
         <span className="acct-wing-rule" aria-hidden="true" />
         <span className="acct-wing-tag acct-wing-tag-dormant">
-          <span className="acct-tag-rest">STANDBY</span>
+          <span className="acct-tag-rest">{breached ? 'BREACHED' : 'STANDBY'}</span>
           <span className="acct-tag-hover">ACTIVATE</span>
         </span>
       </div>
@@ -377,100 +450,315 @@ function AccountCandleWing({
   )
 }
 
-function PhaseBranchTree({
+function PhasePipeline({
   phases,
-  activeCard,
+  passed,
   breached,
 }: {
   phases: { stage: string; index: number; state: 'done' | 'current' | 'upcoming' | 'skipped' }[]
-  activeCard: boolean
+  passed: boolean
   breached: boolean
 }) {
+  const currentIdx = Math.max(0, phases.findIndex((p) => p.state === 'current'))
+
   return (
-    <div className="acct-tree" aria-label="Stage progression tree">
-      {phases.map(({ stage, state }, idx) => {
-        const isLast = idx === phases.length - 1
-        const prevState = idx > 0 ? phases[idx - 1].state : null
-        const branchTone =
-          state === 'done' || (prevState === 'done' && state === 'current')
-            ? state === 'done'
-              ? 'is-done'
-              : breached
-                ? 'is-neg'
-                : 'is-active'
-            : 'is-muted'
+    <div className="acct-pipeline" aria-label="Account phase progression">
+      <div className="acct-stepper">
+        {phases.map(({ stage, state }, idx) => {
+          const isLast = idx === phases.length - 1
+          const isCurrent = state === 'current'
+          const isDone = state === 'done'
+          const isFundedNode = stage === 'Funded'
+          const isBreachedNode = isCurrent && breached
+          const isPassedCurrent = isCurrent && passed
 
-        return (
-          <div
-            key={stage}
-            className={cn('acct-tree-row', `state-${state}`, breached && state === 'current' && 'is-breached')}
-            style={{ paddingLeft: `${idx * 22}px` }}
-          >
-            {idx > 0 && (
-              <svg
-                className={cn('acct-tree-branch', branchTone)}
-                style={{ left: `${(idx - 1) * 22}px` }}
-                width="22"
-                height="22"
-                viewBox="0 0 22 22"
-                fill="none"
-                aria-hidden="true"
-              >
-                <path
-                  d="M7 0 L7 13 Q7 21 15 21 L21 21"
-                  stroke="currentColor"
-                  strokeOpacity="0.22"
-                  strokeWidth="1.4"
-                  strokeLinecap="round"
-                />
-                {(state === 'done' || state === 'current') && (
-                  <motion.path
-                    d="M7 0 L7 13 Q7 21 15 21 L21 21"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    initial={{ pathLength: 0 }}
-                    animate={{ pathLength: 1 }}
-                    transition={{
-                      duration: 0.52,
-                      delay: 0.1 + idx * 0.12,
-                      ease: [0.22, 1, 0.36, 1],
-                    }}
-                  />
-                )}
-              </svg>
-            )}
-
-            <span className={cn('acct-tree-node', isLast && 'is-terminal')} aria-hidden="true">
-              {state === 'done' ? (
-                <Check size={8} strokeWidth={3} />
-              ) : isLast ? (
-                <span className="acct-tree-diamond" />
-              ) : (
-                <span className="acct-tree-dot" />
-              )}
-              {state === 'current' && activeCard && !breached && (
-                <span className="acct-tree-ring" />
-              )}
-            </span>
-
-            <span className="acct-tree-label">{stage}</span>
-
-            <span className="acct-tree-status">
-              {state === 'done'
-                ? 'Cleared'
-                : state === 'current'
-                  ? breached
-                    ? 'Breached'
+          const stateCaption = isDone
+            ? 'Cleared'
+            : isCurrent
+              ? breached
+                ? 'Breached'
+                : passed
+                  ? 'Target met'
+                  : isFundedNode
+                    ? 'Live'
                     : 'Current'
-                  : isLast
-                    ? 'Target'
-                    : 'Locked'}
-            </span>
-          </div>
-        )
-      })}
+              : isLast
+                ? 'Target'
+                : 'Next'
+
+          const railFilled = isDone
+          const railActive = !railFilled && idx < currentIdx
+
+          return (
+            <div className="acct-step-wrap" key={stage}>
+              <div
+                className={cn(
+                  'acct-step',
+                  `state-${state}`,
+                  isFundedNode && 'is-funded',
+                  isBreachedNode && 'is-breached',
+                  isPassedCurrent && 'is-passed',
+                )}
+              >
+                <span className="acct-step-node" aria-hidden="true">
+                  {isDone ? (
+                    <Check size={9} strokeWidth={3} />
+                  ) : isBreachedNode ? (
+                    <span className="acct-step-exclaim">!</span>
+                  ) : isFundedNode ? (
+                    <span className="acct-step-diamond" />
+                  ) : (
+                    <span className="acct-step-dot" />
+                  )}
+                </span>
+
+                <div className="acct-step-copy">
+                  <span className="acct-step-label">{stage}</span>
+                  <span className="acct-step-state">{stateCaption}</span>
+                </div>
+              </div>
+
+              {!isLast && (
+                <div
+                  className={cn(
+                    'acct-step-rail',
+                    railFilled && 'is-done',
+                    railActive && 'is-active',
+                  )}
+                  aria-hidden="true"
+                >
+                  <i />
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
     </div>
+  )
+}
+
+function DemoAccountModal({
+  open,
+  onClose,
+  onSelect,
+}: {
+  open: boolean
+  onClose: () => void
+  onSelect: (tone: 'profitable' | 'loss') => void
+}) {
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      size="sm"
+      className="demo-picker-modal"
+      labelledBy="demo-picker-title"
+      initialFocus="[data-autofocus]"
+    >
+      <header className="modal-head">
+        <div className="modal-head-copy">
+          <h2 className="modal-title" id="demo-picker-title">
+            Initialize demo account
+          </h2>
+          <p className="modal-sub">
+            Pick an account outcome to inspect the card, metrics, and candle states.
+          </p>
+        </div>
+        <ModalClose onClick={onClose} />
+      </header>
+
+      <div className="modal-body demo-picker-body">
+        <button
+          type="button"
+          className="demo-choice-card is-pos"
+          data-autofocus
+          onClick={() => onSelect('profitable')}
+        >
+          <span className="demo-choice-icon" aria-hidden="true">
+            <TrendingUp size={16} />
+          </span>
+          <span className="demo-choice-copy">
+            <strong>Profitable account</strong>
+            <span>London Core 10K · Phase 1 target met &amp; ready to advance</span>
+          </span>
+          <span className="demo-choice-metric num">+$1,380</span>
+        </button>
+
+        <button
+          type="button"
+          className="demo-choice-card is-neg"
+          onClick={() => onSelect('loss')}
+        >
+          <span className="demo-choice-icon" aria-hidden="true">
+            <TrendingDown size={16} />
+          </span>
+          <span className="demo-choice-copy">
+            <strong>Non-profitable account</strong>
+            <span>NY Reversal 5K · Max drawdown breached in Phase 1</span>
+          </span>
+          <span className="demo-choice-metric num">-$470</span>
+        </button>
+      </div>
+
+      <footer className="modal-foot">
+        <span className="spacer" />
+        <Button variant="ghost" type="button" onClick={onClose}>
+          Cancel
+        </Button>
+      </footer>
+    </Modal>
+  )
+}
+
+function EditAccountModal({
+  account,
+  onClose,
+  onSave,
+}: {
+  account: Account | null
+  onClose: () => void
+  onSave: (id: string, patch: { name?: string; rules?: Rules }) => void
+}) {
+  const [name, setName] = useState('')
+  const [rules, setRules] = useState<Rules>({ target: 10, daily: 5, max: 10, days: 5 })
+
+  useEffect(() => {
+    if (!account) return
+    setName(account.name ?? '')
+    setRules({ ...account.rules })
+  }, [account])
+
+  if (!account) {
+    return (
+      <Modal open={false} onClose={onClose} size="md" labelledBy="edit-account-title">
+        <div />
+      </Modal>
+    )
+  }
+
+  const funded = account.stage === 'Funded'
+  const defaultTitle = `${account.firm} ${formatSize(account.challengeSize || account.size)}`
+
+  const updateRule = (key: keyof Rules, raw: string) => {
+    const value = raw === '' ? 0 : Math.max(0, Number(raw) || 0)
+    setRules((previous) => ({ ...previous, [key]: value }))
+  }
+
+  const submit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    onSave(account.id, { name, rules })
+    onClose()
+  }
+
+  return (
+    <Modal
+      open={!!account}
+      onClose={onClose}
+      size="md"
+      className="edit-account-modal"
+      labelledBy="edit-account-title"
+      initialFocus="[data-autofocus]"
+    >
+      <form className="challenge-form" onSubmit={submit} noValidate>
+        <header className="modal-head">
+          <div className="modal-head-copy">
+            <h2 className="modal-title" id="edit-account-title">
+              Edit account
+            </h2>
+            <p className="modal-sub">
+              Update the label or {account.stage} rules for this account.
+            </p>
+          </div>
+          <ModalClose onClick={onClose} />
+        </header>
+
+        <div className="modal-body challenge-body">
+          <section className="challenge-section">
+            <div className="challenge-section-head">
+              <label className="field-label" htmlFor="edit-account-name">
+                Account name
+              </label>
+              <span className="challenge-count">Optional · defaults to {defaultTitle}</span>
+            </div>
+            <input
+              id="edit-account-name"
+              className="input challenge-name-input"
+              type="text"
+              maxLength={48}
+              data-autofocus
+              placeholder={defaultTitle}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </section>
+
+          <section className="challenge-section">
+            <span className="field-label">{account.stage} rules</span>
+            <div className="rule-grid">
+              {!funded && (
+                <label className="field">
+                  <span className="field-label">Profit target (%)</span>
+                  <input
+                    className="input num"
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    value={rules.target}
+                    onChange={(event) => updateRule('target', event.target.value)}
+                  />
+                </label>
+              )}
+              <label className="field">
+                <span className="field-label">Daily loss (%)</span>
+                <input
+                  className="input num"
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={rules.daily}
+                  onChange={(event) => updateRule('daily', event.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span className="field-label">Max total loss (%)</span>
+                <input
+                  className="input num"
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={rules.max}
+                  onChange={(event) => updateRule('max', event.target.value)}
+                />
+              </label>
+              {!funded && (
+                <label className="field">
+                  <span className="field-label">Min trading days</span>
+                  <input
+                    className="input num"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={rules.days}
+                    onChange={(event) => updateRule('days', event.target.value)}
+                  />
+                </label>
+              )}
+            </div>
+          </section>
+        </div>
+
+        <footer className="modal-foot">
+          <span className="spacer" />
+          <Button variant="ghost" type="button" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant="primary" type="submit">
+            Save changes
+          </Button>
+        </footer>
+      </form>
+    </Modal>
   )
 }
 
@@ -479,17 +767,21 @@ export function AccountsPage() {
     accounts,
     activeAccount,
     setActiveAccount,
+    updateAccount,
     advanceAccount,
+    addDemoAccount,
+    removeAccount,
     getTradesForAccount,
     openChallenge,
-    removeAccount,
     showToast,
     viewingPhaseIndex,
     setViewingPhase,
   } = useApp()
   const navigate = useNavigate()
   const [pendingRemove, setPendingRemove] = useState<Account | null>(null)
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null)
   const [historyAccount, setHistoryAccount] = useState<Account | null>(null)
+  const [demoPickerOpen, setDemoPickerOpen] = useState(false)
 
   const evaluations = useMemo(() => {
     const map = new Map<
@@ -521,6 +813,19 @@ export function AccountsPage() {
     setPendingRemove(null)
   }
 
+  const handleInitDemo = (tone: 'profitable' | 'loss') => {
+    addDemoAccount(tone)
+    setDemoPickerOpen(false)
+  }
+
+  const handleSaveEdit = (
+    id: string,
+    patch: { name?: string; rules?: Rules },
+  ) => {
+    updateAccount(id, patch)
+    showToast('Account updated', 'Your account settings have been saved.')
+  }
+
   const handleCardPointerMove = (e: MouseEvent<HTMLElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
     e.currentTarget.style.setProperty('--mx', `${e.clientX - rect.left}px`)
@@ -532,11 +837,14 @@ export function AccountsPage() {
       <PageHeader
         className="page-head--actions-end"
         actions={
-          accounts.length > 0 ? (
+          <div className="accounts-head-actions">
+            <Button variant="secondary" size="sm" onClick={() => setDemoPickerOpen(true)}>
+              Demo account
+            </Button>
             <Button variant="primary" size="sm" iconLeft={<Plus size={14} />} onClick={openChallenge}>
               Start challenge
             </Button>
-          ) : null
+          </div>
         }
       />
 
@@ -558,9 +866,14 @@ export function AccountsPage() {
           title="Your capital starts here"
           description="Create a challenge to set the rules, phase and starting balance. Trader Area then tracks every trade against them."
           actions={
-            <Button variant="primary" iconLeft={<Plus size={14} />} onClick={openChallenge}>
-              Start a challenge
-            </Button>
+            <div className="accounts-head-actions">
+              <Button variant="secondary" onClick={() => setDemoPickerOpen(true)}>
+                Demo account
+              </Button>
+              <Button variant="primary" iconLeft={<Plus size={14} />} onClick={openChallenge}>
+                Start a challenge
+              </Button>
+            </div>
           }
         />
       ) : (
@@ -576,6 +889,7 @@ export function AccountsPage() {
             const returnPct = startingBalance > 0 ? (net / startingBalance) * 100 : 0
             const passed = evaluation?.status === 'passed'
             const breached = evaluation?.status === 'breached'
+            const isFunded = account.stage === 'Funded'
             const nextStage = nextStageFor(account.type, account.stage)
             const canAdvance = passed && !!nextStage
             const phases = ACCOUNT_PHASES.map((stage, index) => ({
@@ -592,6 +906,7 @@ export function AccountsPage() {
                   active && 'is-active',
                   passed && 'is-passed',
                   breached && 'is-breached',
+                  isFunded && !breached && 'is-funded',
                 )}
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -600,47 +915,39 @@ export function AccountsPage() {
                   delay: Math.min(idx * 0.045, 0.2),
                   ease: [0.22, 1, 0.36, 1],
                 }}
-                whileHover={{ y: -2, transition: { duration: 0.16, ease: 'easeOut' } }}
                 onMouseMove={handleCardPointerMove}
               >
                 <div className="acct-card-sheen" aria-hidden="true" />
-                {active && <div className="acct-card-beam" aria-hidden="true" />}
 
                 <div className="acct-card-main">
                   <header className="acct-card-head">
-                    <AccountAvatar
-                      badge={accountBadge(account)}
-                      gradient={accountGradient(account)}
-                      size="sm"
-                    />
                     <div className="acct-card-identity">
                       <h3 title={titleFor(account)}>{titleFor(account)}</h3>
-                      <p className="acct-card-meta num">
-                        <span>{accountMeta(account)}</span>
-                        {passed && (
-                          <>
-                            <span aria-hidden="true">·</span>
-                            <span className="acct-state-text is-pos">Passed</span>
-                          </>
-                        )}
-                        {breached && (
-                          <>
-                            <span aria-hidden="true">·</span>
-                            <span className="acct-state-text is-neg">Breached</span>
-                          </>
-                        )}
+                      <p className="acct-card-meta">
+                        <span>{accountCardSubtitle(account)}</span>
                       </p>
                     </div>
 
-                    <button
-                      className="account-remove acct-remove-btn"
-                      type="button"
-                      onClick={() => setPendingRemove(account)}
-                      aria-label={`Remove ${titleFor(account)}`}
-                      title="Remove account"
-                    >
-                      <Trash2 size={13} />
-                    </button>
+                    <div className="acct-head-actions">
+                      <button
+                        className="account-remove acct-head-btn acct-edit-btn"
+                        type="button"
+                        onClick={() => setEditingAccount(account)}
+                        aria-label={`Edit ${titleFor(account)}`}
+                        title="Edit account"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                      <button
+                        className="account-remove acct-head-btn acct-remove-btn"
+                        type="button"
+                        onClick={() => setPendingRemove(account)}
+                        aria-label={`Remove ${titleFor(account)}`}
+                        title="Remove account"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </header>
 
                   <div className="acct-equity-block">
@@ -665,55 +972,38 @@ export function AccountsPage() {
                           : 'No trades'}
                       </span>
                     </div>
-
-                    {(passed || breached) && evaluation && (
-                      <p className={cn('acct-rule-notice', passed ? 'is-pos' : 'is-neg')}>
-                        {passed ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
-                        <span>{evaluation.reason}</span>
-                      </p>
-                    )}
                   </div>
 
-                  <div className="acct-progression">
-                    <PhaseBranchTree
-                      phases={phases}
-                      activeCard={active}
-                      breached={breached}
-                    />
-                  </div>
+                  <PhasePipeline
+                    phases={phases}
+                    passed={passed}
+                    breached={breached}
+                  />
 
                   <footer className="acct-card-foot">
-                    <div className="acct-foot-left">
-                      {(account.phaseHistory?.length || account.phaseStartedAt) ? (
+                    {(account.phaseHistory?.length || account.phaseStartedAt) ? (
+                      <div className="acct-foot-left">
                         <button
-                          className="phase-history-btn"
+                          className="acct-foot-btn"
                           type="button"
                           onClick={() => setHistoryAccount(account)}
                         >
-                          <History size={11} />
-                          History
+                          <History size={12} />
+                          <span>History</span>
                         </button>
-                      ) : !active ? (
-                        <button
-                          type="button"
-                          className="acct-activate-link"
-                          onClick={() => setActiveAccount(account.id)}
-                        >
-                          Set active
-                        </button>
-                      ) : null}
-                    </div>
+                      </div>
+                    ) : null}
 
                     <div className="acct-foot-actions">
                       {canAdvance && (
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          iconRight={<ArrowRight size={13} />}
+                        <button
+                          type="button"
+                          className="acct-advance-btn"
                           onClick={() => advanceAccount(account.id)}
                         >
-                          Move to {nextStage}
-                        </Button>
+                          <span>Move to {nextStage}</span>
+                          <ArrowRight size={13} />
+                        </button>
                       )}
                       <button
                         type="button"
@@ -742,6 +1032,18 @@ export function AccountsPage() {
           })}
         </div>
       )}
+
+      <DemoAccountModal
+        open={demoPickerOpen}
+        onClose={() => setDemoPickerOpen(false)}
+        onSelect={handleInitDemo}
+      />
+
+      <EditAccountModal
+        account={editingAccount}
+        onClose={() => setEditingAccount(null)}
+        onSave={handleSaveEdit}
+      />
 
       <ConfirmDialog
         open={!!pendingRemove}

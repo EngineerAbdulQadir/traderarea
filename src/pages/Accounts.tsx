@@ -10,8 +10,6 @@ import {
   Pencil,
   Plus,
   Trash2,
-  TrendingDown,
-  TrendingUp,
 } from 'lucide-react'
 import { useApp } from '@/store/AppStore'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -538,79 +536,6 @@ function PhasePipeline({
   )
 }
 
-function DemoAccountModal({
-  open,
-  onClose,
-  onSelect,
-}: {
-  open: boolean
-  onClose: () => void
-  onSelect: (tone: 'profitable' | 'loss') => void
-}) {
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      size="sm"
-      className="demo-picker-modal"
-      labelledBy="demo-picker-title"
-      initialFocus="[data-autofocus]"
-    >
-      <header className="modal-head">
-        <div className="modal-head-copy">
-          <h2 className="modal-title" id="demo-picker-title">
-            Initialize demo account
-          </h2>
-          <p className="modal-sub">
-            Pick an account outcome to inspect the card, metrics, and candle states.
-          </p>
-        </div>
-        <ModalClose onClick={onClose} />
-      </header>
-
-      <div className="modal-body demo-picker-body">
-        <button
-          type="button"
-          className="demo-choice-card is-pos"
-          data-autofocus
-          onClick={() => onSelect('profitable')}
-        >
-          <span className="demo-choice-icon" aria-hidden="true">
-            <TrendingUp size={16} />
-          </span>
-          <span className="demo-choice-copy">
-            <strong>Profitable account</strong>
-            <span>London Core 10K · Phase 1 target met &amp; ready to advance</span>
-          </span>
-          <span className="demo-choice-metric num">+$1,380</span>
-        </button>
-
-        <button
-          type="button"
-          className="demo-choice-card is-neg"
-          onClick={() => onSelect('loss')}
-        >
-          <span className="demo-choice-icon" aria-hidden="true">
-            <TrendingDown size={16} />
-          </span>
-          <span className="demo-choice-copy">
-            <strong>Non-profitable account</strong>
-            <span>NY Reversal 5K · Max drawdown breached in Phase 1</span>
-          </span>
-          <span className="demo-choice-metric num">-$470</span>
-        </button>
-      </div>
-
-      <footer className="modal-foot">
-        <span className="spacer" />
-        <Button variant="ghost" type="button" onClick={onClose}>
-          Cancel
-        </Button>
-      </footer>
-    </Modal>
-  )
-}
-
 function EditAccountModal({
   account,
   onClose,
@@ -769,7 +694,6 @@ export function AccountsPage() {
     setActiveAccount,
     updateAccount,
     advanceAccount,
-    addDemoAccount,
     removeAccount,
     getTradesForAccount,
     openChallenge,
@@ -781,7 +705,6 @@ export function AccountsPage() {
   const [pendingRemove, setPendingRemove] = useState<Account | null>(null)
   const [editingAccount, setEditingAccount] = useState<Account | null>(null)
   const [historyAccount, setHistoryAccount] = useState<Account | null>(null)
-  const [demoPickerOpen, setDemoPickerOpen] = useState(false)
 
   const evaluations = useMemo(() => {
     const map = new Map<
@@ -813,11 +736,6 @@ export function AccountsPage() {
     setPendingRemove(null)
   }
 
-  const handleInitDemo = (tone: 'profitable' | 'loss') => {
-    addDemoAccount(tone)
-    setDemoPickerOpen(false)
-  }
-
   const handleSaveEdit = (
     id: string,
     patch: { name?: string; rules?: Rules },
@@ -838,9 +756,6 @@ export function AccountsPage() {
         className="page-head--actions-end"
         actions={
           <div className="accounts-head-actions">
-            <Button variant="secondary" size="sm" onClick={() => setDemoPickerOpen(true)}>
-              Demo account
-            </Button>
             <Button variant="primary" size="sm" iconLeft={<Plus size={14} />} onClick={openChallenge}>
               Start challenge
             </Button>
@@ -867,9 +782,6 @@ export function AccountsPage() {
           description="Create a challenge to set the rules, phase and starting balance. Trader Area then tracks every trade against them."
           actions={
             <div className="accounts-head-actions">
-              <Button variant="secondary" onClick={() => setDemoPickerOpen(true)}>
-                Demo account
-              </Button>
               <Button variant="primary" iconLeft={<Plus size={14} />} onClick={openChallenge}>
                 Start a challenge
               </Button>
@@ -1032,12 +944,6 @@ export function AccountsPage() {
           })}
         </div>
       )}
-
-      <DemoAccountModal
-        open={demoPickerOpen}
-        onClose={() => setDemoPickerOpen(false)}
-        onSelect={handleInitDemo}
-      />
 
       <EditAccountModal
         account={editingAccount}

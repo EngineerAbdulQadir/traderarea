@@ -16,8 +16,17 @@ import logoLight from '../../assets/logolight.png'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { useWorkspaceAccess } from '@/components/layout/AuthGate'
 import { useTheme } from '@/hooks/useTheme'
+import { useAuth } from '@/store/AuthProvider'
 import { isFirebaseConfigured } from '@/lib/firebase'
-import { joinWaitlist, listWaitlistEntries, type WaitlistEntry } from '@/lib/cloud'
+import {
+  joinWaitlist,
+  listAllPartnerVerifications,
+  listWaitlistEntries,
+  reviewCloudPartnerVerification,
+  type WaitlistEntry,
+} from '@/lib/cloud'
+import { formatSize } from '@/lib/format'
+import type { PartnerVerificationRequest } from '@/lib/partner'
 import { cn } from '@/lib/cn'
 
 type Status = 'idle' | 'loading' | 'success' | 'error'
@@ -28,17 +37,21 @@ export function WaitlistPage() {
   const { isDark } = useTheme()
   const navigate = useNavigate()
   const { allowed: isOwnerSignedIn, configured } = useWorkspaceAccess()
+  const { user } = useAuth()
 
   const [email, setEmail] = useState('')
   const [submittedEmail, setSubmittedEmail] = useState('')
   const [status, setStatus] = useState<Status>('idle')
   const [message, setMessage] = useState('')
 
-  // Owner-only waitlist directory (rendered only when already signed in)
+  // Owner-only directory (rendered only when already signed in)
   const [showSignups, setShowSignups] = useState(false)
+  const [ownerTab, setOwnerTab] = useState<'waitlist' | 'verifications'>('waitlist')
   const [signups, setSignups] = useState<WaitlistEntry[]>([])
+  const [verifications, setVerifications] = useState<PartnerVerificationRequest[]>([])
   const [signupsLoading, setSignupsLoading] = useState(false)
   const [signupsError, setSignupsError] = useState('')
+  const [reviewingId, setReviewingId] = useState<string | null>(null)
 
   const submitWaitlist = async (event: FormEvent) => {
     event.preventDefault()
@@ -73,13 +86,15 @@ export function WaitlistPage() {
     let cancelled = false
     setSignupsLoading(true)
     setSignupsError('')
-    listWaitlistEntries()
-      .then((entries) => {
-        if (!cancelled) setSignups(entries)
+    Promise.all([listWaitlistEntries(), listAllPartnerVerifications()])
+      .then(([waitlistItems, verificationItems]) => {
+        if (cancelled) return
+        setSignups(waitlistItems)
+        setVerifications(verificationItems)
       })
       .catch((error) => {
         if (!cancelled) {
-          setSignupsError(error instanceof Error ? error.message : 'Failed to load waitlist entries.')
+          setSignupsError(error instanceof Error ? error.message : 'Failed to load owner records.')
         }
       })
       .finally(() => {
@@ -89,6 +104,25 @@ export function WaitlistPage() {
       cancelled = true
     }
   }, [showSignups, isOwnerSignedIn, configured])
+
+  const handleReviewVerification = async (id: string, nextStatus: 'approved' | 'rejected') => {
+    setReviewingId(id)
+    try {
+      const reviewer = user?.email ?? 'owner'
+      await reviewCloudPartnerVerification(id, nextStatus, reviewer)
+      setVerifications((previous) =>
+        previous.map((item) =>
+          item.id === id
+            ? { ...item, status: nextStatus, reviewedAt: new Date().toISOString(), reviewedBy: reviewer }
+            : item,
+        ),
+      )
+    } catch (error) {
+      setSignupsError(error instanceof Error ? error.message : 'Failed to update verification.')
+    } finally {
+      setReviewingId(null)
+    }
+  }
 
   return (
     <div className="wl-page">
@@ -210,11 +244,11 @@ export function WaitlistPage() {
         </section>
 
         {isOwnerSignedIn && configured && (
-          <section className="wl-owner-panel" aria-label="Owner waitlist signups">
+          <section className="wl-owner-panel" aria-label="Owner console">
             <div className="wl-owner-head">
               <div className="wl-owner-title">
                 <ShieldCheck size={15} />
-                <span>Owner Console · Waitlist Directory</span>
+                <span>Owner Console · Directory &amp; Verifications</span>
               </div>
               <button
                 type="button"
@@ -222,7 +256,7 @@ export function WaitlistPage() {
                 onClick={() => setShowSignups((value) => !value)}
               >
                 <Users size={14} />
-                <span>{showSignups ? 'Hide signups' : 'View signups'}</span>
+                <span>{showSignups ? 'Hide records' : 'View records'}</span>
                 <ChevronRight
                   size={14}
                   className={cn('wl-owner-chevron', showSignups && 'is-open')}
@@ -232,36 +266,111 @@ export function WaitlistPage() {
 
             {showSignups && (
               <div className="wl-owner-body">
+                <div className="wl-owner-tabs" role="tablist" aria-label="Owner console sections">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={ownerTab === 'waitlist'}
+                    className={cn('wl-owner-tab', ownerTab === 'waitlist' && 'is-active')}
+                    onClick={() => setOwnerTab('waitlist')}
+                  >
+                    Waitlist ({signups.length})
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={ownerTab === 'verifications'}
+                    className={cn('wl-owner-tab', ownerTab === 'verifications' && 'is-active')}
+                    onClick={() => setOwnerTab('verifications')}
+                  >
+                    Partner Verifications ({verifications.length})
+                  </button>
+                </div>
+
                 {signupsLoading ? (
-                  <p className="wl-owner-empty">Loading signups…</p>
+                  <p className="wl-owner-empty">Loading records…</p>
                 ) : signupsError ? (
                   <p className="wl-owner-error">{signupsError}</p>
-                ) : signups.length === 0 ? (
-                  <p className="wl-owner-empty">No waitlist signups recorded yet.</p>
+                ) : ownerTab === 'waitlist' ? (
+                  signups.length === 0 ? (
+                    <p className="wl-owner-empty">No waitlist signups recorded yet.</p>
+                  ) : (
+                    <div className="wl-owner-table-wrap">
+                      <table className="wl-owner-table">
+                        <thead>
+                          <tr>
+                            <th>Email</th>
+                            <th>Joined</th>
+                            <th>Source</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {signups.map((entry) => (
+                            <tr key={entry.email}>
+                              <td className="wl-mono">{entry.email}</td>
+                              <td className="num">
+                                {entry.createdAt
+                                  ? new Date(entry.createdAt).toLocaleDateString(undefined, {
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: 'numeric',
+                                    })
+                                  : '—'}
+                              </td>
+                              <td>{entry.source ?? 'web'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                ) : verifications.length === 0 ? (
+                  <p className="wl-owner-empty">No Eze Funded partner verifications submitted yet.</p>
                 ) : (
                   <div className="wl-owner-table-wrap">
                     <table className="wl-owner-table">
                       <thead>
                         <tr>
-                          <th>Email</th>
-                          <th>Joined</th>
-                          <th>Source</th>
+                          <th>User</th>
+                          <th>Order ID</th>
+                          <th>Eze email</th>
+                          <th>Size</th>
+                          <th>Status</th>
+                          <th>Action</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {signups.map((entry) => (
-                          <tr key={entry.email}>
-                            <td className="wl-mono">{entry.email}</td>
-                            <td className="num">
-                              {entry.createdAt
-                                ? new Date(entry.createdAt).toLocaleDateString(undefined, {
-                                    year: 'numeric',
-                                    month: 'short',
-                                    day: 'numeric',
-                                  })
-                                : '—'}
+                        {verifications.map((item) => (
+                          <tr key={item.id}>
+                            <td className="wl-mono">{item.userEmail || '—'}</td>
+                            <td className="wl-mono">{item.orderId}</td>
+                            <td className="wl-mono">{item.ezeEmail}</td>
+                            <td className="num">{formatSize(item.challengeSize)}</td>
+                            <td>{item.status}</td>
+                            <td>
+                              <div className="wl-owner-actions">
+                                {item.status !== 'approved' && (
+                                  <button
+                                    type="button"
+                                    className="wl-owner-action is-approve"
+                                    disabled={reviewingId === item.id}
+                                    onClick={() => handleReviewVerification(item.id, 'approved')}
+                                  >
+                                    Approve +1
+                                  </button>
+                                )}
+                                {item.status !== 'rejected' && (
+                                  <button
+                                    type="button"
+                                    className="wl-owner-action"
+                                    disabled={reviewingId === item.id}
+                                    onClick={() => handleReviewVerification(item.id, 'rejected')}
+                                  >
+                                    Decline
+                                  </button>
+                                )}
+                              </div>
                             </td>
-                            <td>{entry.source ?? 'web'}</td>
                           </tr>
                         ))}
                       </tbody>

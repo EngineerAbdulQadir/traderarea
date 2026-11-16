@@ -8,6 +8,8 @@ import {
   onSnapshot,
   query,
   setDoc,
+  updateDoc,
+  where,
   writeBatch,
   type DocumentData,
   type DocumentReference,
@@ -15,6 +17,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import type { Account, Note, NotesByAccount, Trade } from '@/lib/types'
+import type { PartnerVerificationRequest, PartnerVerificationStatus } from '@/lib/partner'
 
 const BATCH_LIMIT = 400
 
@@ -65,6 +68,20 @@ export async function ensureUserProfile(
   if (profile.name) payload.name = profile.name
   if (profile.email) payload.email = profile.email
   await setDoc(doc(requireDb(), 'users', uid), payload, { merge: true })
+}
+
+export async function readUserFreeSlotConsumed(uid: string): Promise<boolean> {
+  const snapshot = await getDoc(doc(requireDb(), 'users', uid))
+  if (!snapshot.exists()) return false
+  return Boolean((snapshot.data() as { freeSlotConsumed?: unknown }).freeSlotConsumed)
+}
+
+export async function markUserFreeSlotConsumed(uid: string): Promise<void> {
+  await setDoc(
+    doc(requireDb(), 'users', uid),
+    { freeSlotConsumed: true, updatedAt: new Date().toISOString() },
+    { merge: true },
+  )
 }
 
 /* ------------------------------------------------------------------ */
@@ -484,4 +501,71 @@ export async function listWaitlistEntries(): Promise<WaitlistEntry[]> {
     .filter((entry) => Boolean(entry.email))
     .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
 }
+
+/* ------------------------------------------------------------------ */
+/* Partner verification requests (Eze Funded)                          */
+/* ------------------------------------------------------------------ */
+
+function partnerVerificationsCol() {
+  return collection(requireDb(), 'partner_verifications')
+}
+
+export function subscribeUserPartnerVerifications(
+  uid: string,
+  next: (items: PartnerVerificationRequest[]) => void,
+  onError?: (error: Error) => void,
+): Unsubscribe {
+  const q = query(partnerVerificationsCol(), where('uid', '==', uid))
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const items = snapshot.docs
+        .map((item) => ({ ...(item.data() as Omit<PartnerVerificationRequest, 'id'>), id: item.id }))
+        .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+      next(items)
+    },
+    (error) => onError?.(error),
+  )
+}
+
+export async function submitCloudPartnerVerification(input: {
+  uid: string
+  userEmail: string
+  ezeEmail: string
+  orderId: string
+  challengeSize: number
+}): Promise<PartnerVerificationRequest> {
+  const id = `pv_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
+  const payload: Omit<PartnerVerificationRequest, 'id'> = {
+    uid: input.uid,
+    userEmail: input.userEmail.trim().toLowerCase(),
+    ezeEmail: input.ezeEmail.trim().toLowerCase(),
+    orderId: input.orderId.trim(),
+    challengeSize: input.challengeSize,
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+  }
+  await setDoc(doc(partnerVerificationsCol(), id), payload)
+  return { id, ...payload }
+}
+
+export async function listAllPartnerVerifications(): Promise<PartnerVerificationRequest[]> {
+  const snapshot = await getDocs(partnerVerificationsCol())
+  return snapshot.docs
+    .map((item) => ({ ...(item.data() as Omit<PartnerVerificationRequest, 'id'>), id: item.id }))
+    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+}
+
+export async function reviewCloudPartnerVerification(
+  id: string,
+  status: Extract<PartnerVerificationStatus, 'approved' | 'rejected'>,
+  reviewedBy: string,
+): Promise<void> {
+  await updateDoc(doc(partnerVerificationsCol(), id), {
+    status,
+    reviewedAt: new Date().toISOString(),
+    reviewedBy: reviewedBy.trim().toLowerCase(),
+  })
+}
+
 

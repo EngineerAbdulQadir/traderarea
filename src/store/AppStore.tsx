@@ -42,15 +42,30 @@ import { isFirebaseConfigured } from '@/lib/firebase'
 import {
   deleteCloudWorkspace,
   hasCloudWorkspace,
+  markUserFreeSlotConsumed,
   notesForCache,
   pushWorkspaceToCloud,
+  readUserFreeSlotConsumed,
+  reviewCloudPartnerVerification,
+  submitCloudPartnerVerification,
   subscribeAccounts,
   subscribeNotes,
   subscribeTrades,
+  subscribeUserPartnerVerifications,
   syncAccounts,
   syncNotes,
   syncTrades,
 } from '@/lib/cloud'
+import {
+  computePartnerSlotSummary,
+  readFreeSlotConsumed,
+  readLocalVerifications,
+  writeFreeSlotConsumed,
+  writeLocalVerifications,
+  type PartnerSlotSummary,
+  type PartnerVerificationRequest,
+} from '@/lib/partner'
+import { isAuthorizedOwner, hasDevOwnerSession } from '@/lib/access'
 import { authErrorMessage, useAuth } from '@/store/AuthProvider'
 
 export type SyncStatus = 'local' | 'checking' | 'migration' | 'syncing' | 'ready' | 'error'
@@ -114,6 +129,18 @@ interface AppContextValue {
   settingsOpen: boolean
   openSettings: () => void
   closeSettings: () => void
+  plansOpen: boolean
+  plansReason: 'browse' | 'limit-reached'
+  openPlans: (reason?: 'browse' | 'limit-reached') => void
+  closePlans: () => void
+  partnerSummary: PartnerSlotSummary
+  partnerVerifications: PartnerVerificationRequest[]
+  submitPartnerVerification: (input: {
+    ezeEmail: string
+    orderId: string
+    challengeSize: number
+  }) => Promise<PartnerVerificationRequest>
+  reviewPartnerVerification: (id: string, status: 'approved' | 'rejected') => Promise<void>
   toasts: ToastItem[]
   showToast: (title: string, message: string, tone?: ToastTone) => void
   dismissToast: (id: string) => void
@@ -151,6 +178,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [dayReview, setDayReview] = useState<DayReviewState | null>(null)
   const [commandOpen, setCommandOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [plansOpen, setPlansOpen] = useState(false)
+  const [plansReason, setPlansReason] = useState<'browse' | 'limit-reached'>('browse')
+  const [freeSlotConsumed, setFreeSlotConsumed] = useState<boolean>(() =>
+    readFreeSlotConsumed(isFirebaseConfigured ? user?.uid ?? null : null),
+  )
+  const [partnerVerifications, setPartnerVerifications] = useState<PartnerVerificationRequest[]>(() =>
+    readLocalVerifications(),
+  )
   const [viewingPhaseIndex, setViewingPhaseIndex] = useState<number | null>(null)
   const [toasts, setToasts] = useState<ToastItem[]>([])
   const [journalRevision, setJournalRevision] = useState(0)
@@ -441,6 +476,51 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [cloudUserId, shouldSubscribe, showToast])
 
+  // Sync free-slot entitlement and partner verifications from Firestore (or local storage).
+  useEffect(() => {
+    const localConsumed = readFreeSlotConsumed(cloudUserId)
+    const hasRealLocal = accounts.some((account) => account.source !== 'demo')
+    if (localConsumed || hasRealLocal) {
+      setFreeSlotConsumed(true)
+      writeFreeSlotConsumed(cloudUserId, true)
+    } else {
+      setFreeSlotConsumed(false)
+    }
+
+    if (!isFirebaseConfigured || !cloudUserId) {
+      setPartnerVerifications(readLocalVerifications())
+      return
+    }
+
+    let cancelled = false
+    readUserFreeSlotConsumed(cloudUserId)
+      .then((consumed) => {
+        if (cancelled) return
+        if (consumed) {
+          setFreeSlotConsumed(true)
+          writeFreeSlotConsumed(cloudUserId, true)
+        }
+      })
+      .catch(() => {
+        // Keep local entitlement state if cloud read fails transiently.
+      })
+
+    const unsubscribeVerifications = subscribeUserPartnerVerifications(
+      cloudUserId,
+      (items) => {
+        if (!cancelled) setPartnerVerifications(items)
+      },
+      () => {
+        // Ignore transient verification listener errors.
+      },
+    )
+
+    return () => {
+      cancelled = true
+      unsubscribeVerifications()
+    }
+  }, [cloudUserId, accounts])
+
   // Push only the documents that actually changed since the last snapshot.
   useEffect(() => {
     if (!cloudUserId || syncStatus !== 'ready') return
@@ -593,10 +673,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const setViewingPhase = useCallback((index: number | null) => setViewingPhaseIndex(index), [])
 
-  const addAccount = useCallback((account: Account) => {
-    setAccounts((previous) => [account, ...previous.filter((item) => item.id !== account.id)])
-    setActiveAccountId(account.id)
-  }, [])
+  const addAccount = useCallback(
+    (account: Account) => {
+      setAccounts((previous) => [account, ...previous.filter((item) => item.id !== account.id)])
+      setActiveAccountId(account.id)
+      if (account.source !== 'demo') {
+        setFreeSlotConsumed(true)
+        writeFreeSlotConsumed(cloudUserId, true)
+        if (cloudUserId && isFirebaseConfigured) {
+          markUserFreeSlotConsumed(cloudUserId).catch(() => {
+            // Local marker already persisted; cloud will sync on next write.
+          })
+        }
+      }
+    },
+    [cloudUserId],
+  )
 
   const updateAccount = useCallback(
     (id: string, patch: { name?: string; platform?: Platform; rules?: Rules }) => {
@@ -782,10 +874,95 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const partnerSummary = useMemo(
+    () => computePartnerSlotSummary(accounts, freeSlotConsumed, partnerVerifications),
+    [accounts, freeSlotConsumed, partnerVerifications],
+  )
+
+  const openPlans = useCallback((reason: 'browse' | 'limit-reached' = 'browse') => {
+    setCommandOpen(false)
+    setPlansReason(reason)
+    setPlansOpen(true)
+  }, [])
+
+  const closePlans = useCallback(() => setPlansOpen(false), [])
+
+  const submitPartnerVerification = useCallback(
+    async (input: { ezeEmail: string; orderId: string; challengeSize: number }) => {
+      const normalizedEzeEmail = input.ezeEmail.trim().toLowerCase()
+      const cleanOrderId = input.orderId.trim()
+
+      if (cloudUserId && isFirebaseConfigured) {
+        const created = await submitCloudPartnerVerification({
+          uid: cloudUserId,
+          userEmail: user?.email ?? normalizedEzeEmail,
+          ezeEmail: normalizedEzeEmail,
+          orderId: cleanOrderId,
+          challengeSize: input.challengeSize,
+        })
+        return created
+      }
+
+      const created: PartnerVerificationRequest = {
+        id: `pv_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`,
+        uid: 'local',
+        userEmail: user?.email ?? normalizedEzeEmail,
+        ezeEmail: normalizedEzeEmail,
+        orderId: cleanOrderId,
+        challengeSize: input.challengeSize,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      }
+      setPartnerVerifications((previous) => {
+        const next = [created, ...previous]
+        writeLocalVerifications(next)
+        return next
+      })
+      return created
+    },
+    [cloudUserId, user?.email],
+  )
+
+  const reviewPartnerVerification = useCallback(
+    async (id: string, status: 'approved' | 'rejected') => {
+      const isOwner = isAuthorizedOwner(user) || hasDevOwnerSession()
+      if (!isOwner) {
+        throw new Error('Only authorized owners can review verification requests.')
+      }
+      const reviewer = user?.email ?? 'owner-local'
+
+      if (cloudUserId && isFirebaseConfigured) {
+        await reviewCloudPartnerVerification(id, status, reviewer)
+        return
+      }
+
+      setPartnerVerifications((previous) => {
+        const next = previous.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                status,
+                reviewedAt: new Date().toISOString(),
+                reviewedBy: reviewer,
+              }
+            : item,
+        )
+        writeLocalVerifications(next)
+        return next
+      })
+    },
+    [cloudUserId, user],
+  )
+
   const openChallenge = useCallback(() => {
     setCommandOpen(false)
+    if (!partnerSummary.canAddAccount) {
+      setPlansReason('limit-reached')
+      setPlansOpen(true)
+      return
+    }
     setChallengeOpen(true)
-  }, [])
+  }, [partnerSummary.canAddAccount])
 
   const closeChallenge = useCallback(() => setChallengeOpen(false), [])
 
@@ -855,6 +1032,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       settingsOpen,
       openSettings,
       closeSettings,
+      plansOpen,
+      plansReason,
+      openPlans,
+      closePlans,
+      partnerSummary,
+      partnerVerifications,
+      submitPartnerVerification,
+      reviewPartnerVerification,
       toasts,
       showToast,
       dismissToast,
@@ -902,6 +1087,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       settingsOpen,
       openSettings,
       closeSettings,
+      plansOpen,
+      plansReason,
+      openPlans,
+      closePlans,
+      partnerSummary,
+      partnerVerifications,
+      submitPartnerVerification,
+      reviewPartnerVerification,
       toasts,
       showToast,
       dismissToast,

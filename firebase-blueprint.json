@@ -1,0 +1,117 @@
+{
+  "entities": {
+    "UserWorkspace": {
+      "title": "UserWorkspace",
+      "description": "User profile metadata and free account slot entitlement marker.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254
+        },
+        "freeSlotConsumed": {
+          "type": "boolean"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "maxLength": 64
+        }
+      }
+    },
+    "WaitlistEntry": {
+      "title": "WaitlistEntry",
+      "description": "Public waitlist signup entry.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 5,
+          "maxLength": 254,
+          "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "maxLength": 64
+        },
+        "source": {
+          "type": "string",
+          "maxLength": 32
+        }
+      },
+      "required": ["email", "createdAt"]
+    },
+    "PartnerVerification": {
+      "title": "PartnerVerification",
+      "description": "Eze Funded partner purchase verification request used to unlock additional trading account slots.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "userEmail": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254
+        },
+        "ezeEmail": {
+          "type": "string",
+          "format": "email",
+          "minLength": 5,
+          "maxLength": 254,
+          "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+        },
+        "orderId": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "challengeSize": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "maxLength": 64
+        },
+        "reviewedAt": {
+          "type": "string",
+          "format": "date-time",
+          "maxLength": 64
+        },
+        "reviewedBy": {
+          "type": "string",
+          "maxLength": 254
+        }
+      },
+      "required": ["uid", "userEmail", "ezeEmail", "orderId", "challengeSize", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": { "$ref": "#/entities/UserWorkspace" },
+      "description": "Per-user workspace metadata and free-slot entitlement."
+    },
+    "/waitlist/{email}": {
+      "schema": { "$ref": "#/entities/WaitlistEntry" },
+      "description": "Public waitlist signups keyed by normalized email."
+    },
+    "/partner_verifications/{requestId}": {
+      "schema": { "$ref": "#/entities/PartnerVerification" },
+      "description": "Eze Funded partner purchase verification requests for unlocking extra account slots."
+    }
+  }
+}

@@ -9,6 +9,7 @@ import {
   Layers,
   Pencil,
   Plus,
+  ShieldCheck,
   Trash2,
 } from 'lucide-react'
 import { useApp } from '@/store/AppStore'
@@ -697,6 +698,8 @@ export function AccountsPage() {
     removeAccount,
     getTradesForAccount,
     openChallenge,
+    openPlans,
+    partnerSummary,
     showToast,
     viewingPhaseIndex,
     setViewingPhase,
@@ -756,8 +759,18 @@ export function AccountsPage() {
         className="page-head--actions-end"
         actions={
           <div className="accounts-head-actions">
+            <Button
+              variant="ghost"
+              size="sm"
+              iconLeft={<ShieldCheck size={14} />}
+              onClick={() => openPlans(partnerSummary.canAddAccount ? 'browse' : 'limit-reached')}
+            >
+              <span className="num">
+                {partnerSummary.usedSlots}/{partnerSummary.totalSlots} accounts
+              </span>
+            </Button>
             <Button variant="primary" size="sm" iconLeft={<Plus size={14} />} onClick={openChallenge}>
-              Start challenge
+              {partnerSummary.canAddAccount ? 'Start challenge' : 'Unlock account'}
             </Button>
           </div>
         }

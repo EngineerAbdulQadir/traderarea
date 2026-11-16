@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { Layers, BarChart3, NotebookPen, LogOut, Plus, ChevronsUpDown, Settings } from 'lucide-react'
+import { Layers, BarChart3, NotebookPen, LogOut, Plus, ChevronsUpDown, Settings, ShieldCheck } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useApp } from '@/store/AppStore'
 import { useAuth } from '@/store/AuthProvider'
@@ -24,7 +24,7 @@ export function Sidebar({
   mobileOpen: boolean
   onCloseMobile: () => void
 }) {
-  const { openChallenge, openSettings } = useApp()
+  const { openChallenge, openSettings, openPlans, partnerSummary } = useApp()
   const { signOut, configured } = useAuth()
   const { isDark } = useTheme()
   const profile = useProfile()
@@ -102,6 +102,22 @@ export function Sidebar({
         </div>
 
         <div className="sidebar-footer">
+          <button
+            className="sidebar-plan-btn"
+            type="button"
+            onClick={() => {
+              openPlans('browse')
+              if (isMobile) onCloseMobile()
+            }}
+          >
+            <ShieldCheck size={15} strokeWidth={1.7} />
+            <span className="nav-label">Plans &amp; Access</span>
+            <span className="sidebar-plan-count num">
+              {partnerSummary.usedSlots}/{partnerSummary.totalSlots}
+            </span>
+            {collapsed && !isMobile && <span className="nav-tooltip">Plans &amp; Access</span>}
+          </button>
+
           <div className="sidebar-profile" ref={profileRef}>
             <AnimatePresence>
               {profileOpen && (

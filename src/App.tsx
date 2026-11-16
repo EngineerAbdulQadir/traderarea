@@ -13,6 +13,7 @@ import { DayReviewModal } from '@/components/modals/DayReviewModal'
 import { MigrationModal } from '@/components/modals/MigrationModal'
 import { TradeModal } from '@/components/modals/TradeModal'
 import { SettingsModal } from '@/components/modals/SettingsModal'
+import { PlansModal } from '@/components/modals/PlansModal'
 import { AccountsPage } from '@/pages/Accounts'
 import { AuthPage } from '@/pages/Auth'
 import { DashboardPage } from '@/pages/Dashboard'
@@ -97,6 +98,7 @@ export default function App() {
       <TradeModal />
       <DayReviewModal />
       <SettingsModal />
+      <PlansModal />
       <MigrationModal />
       <CommandPalette />
       <ToastStack />

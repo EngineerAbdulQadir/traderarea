@@ -31,7 +31,7 @@ function presetFor(type: AccountType, stage: Stage): Rules {
 }
 
 export function ChallengeModal() {
-  const { challengeOpen, closeChallenge, addAccount, showToast } = useApp()
+  const { challengeOpen, closeChallenge, addAccount, showToast, partnerSummary, openPlans } = useApp()
   const navigate = useNavigate()
 
   const [name, setName] = useState('')
@@ -96,6 +96,11 @@ export function ChallengeModal() {
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (!partnerSummary.canAddAccount) {
+      closeChallenge()
+      openPlans('limit-reached')
+      return
+    }
     if (submitting || !firm || !(size > 0)) return
     setSubmitting(true)
     const account = createAccountFromDraft({

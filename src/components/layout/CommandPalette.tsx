@@ -18,8 +18,7 @@ import {
 import { Modal } from '@/components/ui/Modal'
 import { useApp } from '@/store/AppStore'
 import { useTheme } from '@/hooks/useTheme'
-import { accountBadge, accountGradient, titleFor } from '@/lib/accounts'
-import { AccountAvatar } from '@/components/ui/AccountAvatar'
+import { titleFor } from '@/lib/accounts'
 import { cn } from '@/lib/cn'
 
 interface CommandItem {
@@ -27,7 +26,7 @@ interface CommandItem {
   label: string
   hint?: string
   group: string
-  icon: ReactNode
+  icon?: ReactNode
   run: () => void
 }
 
@@ -84,7 +83,6 @@ export function CommandPalette() {
       label: titleFor(account),
       hint: `${account.stage} · ${account.platform} · ${account.firm}`,
       group: 'Switch account',
-      icon: <AccountAvatar badge={accountBadge(account)} gradient={accountGradient(account)} size="xs" />,
       run: closeAnd(() => setActiveAccount(account.id)),
     }))
 
@@ -175,7 +173,7 @@ export function CommandPalette() {
                   onMouseEnter={() => setActiveIndex(index)}
                   onClick={item.run}
                 >
-                  <span className="command-item-icon">{item.icon}</span>
+                  {item.icon && <span className="command-item-icon">{item.icon}</span>}
                   <span className="command-item-copy">
                     <b>{item.label}</b>
                     {item.hint && <span>{item.hint}</span>}

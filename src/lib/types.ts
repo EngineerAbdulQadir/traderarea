@@ -185,3 +185,4 @@ export interface DayRowGroup {
   avg: number
   avgR: number
 }
+

@@ -7975,6 +7975,21 @@ button.calendar-day:hover:not(:disabled) {
   font-size: 12.5px;
 }
 
+.challenge-modal .input {
+  border-color: var(--line);
+  background: var(--panel);
+}
+
+.challenge-modal .input:hover {
+  border-color: var(--line-strong);
+}
+
+.challenge-modal .input:focus {
+  border-color: var(--accent);
+  background: var(--panel);
+  box-shadow: 0 0 0 3px var(--focus-ring-soft);
+}
+
 .challenge-balance {
   color: var(--faint);
   font-size: 8.5px;
@@ -7997,7 +8012,7 @@ button.calendar-day:hover:not(:disabled) {
   min-width: 0;
   align-items: center;
   gap: 9px;
-  padding: 8px;
+  padding: 10px 12px;
   border-radius: 9px;
   border: 1px solid var(--line);
   background: rgb(var(--overlay-rgb) / 0.018);

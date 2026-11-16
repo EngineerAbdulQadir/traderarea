@@ -4,7 +4,6 @@ import { ArrowRight, Building2, ShieldCheck, Sparkles, Wallet } from 'lucide-rea
 import { Modal, ModalClose } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Segmented } from '@/components/ui/Segmented'
-import { AccountAvatar } from '@/components/ui/AccountAvatar'
 import { useApp } from '@/store/AppStore'
 import {
   CHALLENGE_SIZES,
@@ -180,7 +179,6 @@ export function ChallengeModal() {
                     aria-checked={selected}
                     onClick={() => setFirmId(item.id)}
                   >
-                    <AccountAvatar badge={item.badge} gradient={item.gradient} size="md" />
                     <span className="firm-choice-copy">
                       <b>{item.name}</b>
                       <span>{item.meta}</span>

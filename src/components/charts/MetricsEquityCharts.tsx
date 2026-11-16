@@ -25,11 +25,11 @@ interface SharedChartProps {
 }
 
 interface MetricsBalanceChartProps extends SharedChartProps {
-  mode: 'balance' | 'equity'
+  mode?: 'balance' | 'equity'
 }
 
 interface MetricsDrawdownChartProps extends SharedChartProps {
-  unit: 'pct' | 'usd'
+  unit?: 'pct' | 'usd'
 }
 
 function formatAxisSignedMoney(value: number): string {
@@ -37,9 +37,24 @@ function formatAxisSignedMoney(value: number): string {
   return value > 0 ? `+${axisMoney(value)}` : axisMoney(value)
 }
 
+function formatBalanceAxis(value: number, stepSpan: number): string {
+  const sign = value < 0 ? '−' : ''
+  const abs = Math.abs(value)
+  if (stepSpan < 2) {
+    return `${sign}$${abs.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`
+  }
+  if (abs < 100_000 || stepSpan < 2_000) {
+    return `${sign}$${Math.round(abs).toLocaleString('en-US')}`
+  }
+  return axisMoney(value)
+}
+
 export function MetricsBalanceChart({
   series,
-  mode,
+  mode = 'balance',
   height = 216,
   hoverIndex,
   onHoverChange,
@@ -53,13 +68,6 @@ export function MetricsBalanceChart({
 
   const geometry = useMemo(() => {
     if (!width || series.length < 2) return null
-
-    const left = 56
-    const right = width - 10
-    const top = 14
-    const bottom = height - 14
-    const plotW = Math.max(1, right - left)
-    const plotH = Math.max(1, bottom - top)
 
     const values = series.map((pt) => (mode === 'balance' ? pt.balance : pt.net))
     const peaks = series.map((pt) => (mode === 'balance' ? pt.peakBalance : pt.peakNet))
@@ -75,6 +83,26 @@ export function MetricsBalanceChart({
     const span = rawMax - rawMin
     const lo = rawMin - span * 0.1
     const hi = rawMax + span * 0.1
+    const stepSpan = (hi - lo) / 3
+
+    const tickEntries = [0, 1, 2, 3].map((step) => {
+      const val = lo + stepSpan * step
+      return {
+        val,
+        label:
+          mode === 'balance'
+            ? formatBalanceAxis(val, stepSpan)
+            : formatAxisSignedMoney(val),
+      }
+    })
+    const maxLabelLen = tickEntries.reduce((max, item) => Math.max(max, item.label.length), 0)
+
+    const left = Math.max(54, Math.ceil(maxLabelLen * 6.2) + 14)
+    const right = width - 10
+    const top = 14
+    const bottom = height - 14
+    const plotW = Math.max(1, right - left)
+    const plotH = Math.max(1, bottom - top)
 
     const yFor = (val: number) => top + ((hi - val) / (hi - lo)) * plotH
     const xFor = (idx: number) => left + (idx / Math.max(1, series.length - 1)) * plotW
@@ -95,13 +123,10 @@ export function MetricsBalanceChart({
 
     const hasPullback = series.some((pt) => pt.drawdown < -0.5)
 
-    const ticks = [0, 1, 2, 3].map((step) => {
-      const val = lo + ((hi - lo) * step) / 3
-      return {
-        y: yFor(val),
-        label: mode === 'balance' ? axisMoney(val) : formatAxisSignedMoney(val),
-      }
-    })
+    const ticks = tickEntries.map((entry) => ({
+      y: yFor(entry.val),
+      label: entry.label,
+    }))
 
     return {
       left,
@@ -147,7 +172,6 @@ export function MetricsBalanceChart({
     onHoverChange(null)
   }
 
-  const sessionCount = Math.max(0, series.length - 1)
   const lastDate = series[series.length - 1]?.date
 
   return (
@@ -302,9 +326,6 @@ export function MetricsBalanceChart({
 
       <div className="chart-axis">
         <span>Start</span>
-        <span>
-          {sessionCount} {sessionCount === 1 ? 'session' : 'sessions'}
-        </span>
         <span>{lastDate ? formatShortDate(lastDate) : '—'}</span>
       </div>
     </div>
@@ -313,7 +334,7 @@ export function MetricsBalanceChart({
 
 export function MetricsDrawdownChart({
   series,
-  unit,
+  unit = 'pct',
   height = 216,
   hoverIndex,
   onHoverChange,
@@ -426,10 +447,6 @@ export function MetricsDrawdownChart({
   }
 
   const lastPt = series[series.length - 1]
-  const currentDdText =
-    lastPt && lastPt.drawdown < -0.5
-      ? `Current −${formatMoney(Math.abs(lastPt.drawdown))} (${Math.abs(lastPt.drawdownPct).toFixed(2)}%)`
-      : 'At equity peak'
 
   return (
     <div className="metrics-chart-wrap">
@@ -562,7 +579,6 @@ export function MetricsDrawdownChart({
 
       <div className="chart-axis">
         <span>Start</span>
-        <span>{currentDdText}</span>
         <span>{lastPt?.date ? formatShortDate(lastPt.date) : '—'}</span>
       </div>
     </div>

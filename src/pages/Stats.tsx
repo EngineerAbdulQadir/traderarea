@@ -108,8 +108,6 @@ export function StatsPage() {
   const navigate = useNavigate()
   const [storedRange, setStoredRange] = usePersistentState(STORAGE_KEYS.statsRange, 'all')
   const rangeKey = DASHBOARD_RANGES[storedRange] ? storedRange : 'all'
-  const [curveMode, setCurveMode] = useState<'balance' | 'equity'>('balance')
-  const [ddUnit, setDdUnit] = useState<'pct' | 'usd'>('pct')
   const [chartHoverIndex, setChartHoverIndex] = useState<number | null>(null)
 
   const starting = getStartingBalance(activeAccount)
@@ -443,40 +441,19 @@ export function StatsPage() {
         <Card className="stats-card metrics-chart-card">
           <div className="card-head">
             <div className="card-head-copy">
-              <span className="card-kicker"><i className="dot" /> Account trajectory</span>
-              <h3 className="card-title">{curveMode === 'balance' ? 'Balance curve' : 'Equity P&L curve'}</h3>
-              <p className="card-sub">
-                {curveMode === 'balance'
-                  ? `From ${formatMoney(equityData.windowStartBalance)} · ${signedPercent(equityData.changePct)} in range`
-                  : `Cumulative closed P&L across ${stats.dayRows.length} sessions`}
-              </p>
+              <span className="card-kicker">Account trajectory</span>
             </div>
             <div className="metrics-card-actions">
               <div className="card-head-value">
                 <b className={cn('num', stats.net > 0 && 'is-pos', stats.net < 0 && 'is-neg')}>
-                  {curveMode === 'balance' ? formatUsd2(equityData.endingBalance) : signedMoney(stats.net)}
+                  {formatUsd2(equityData.endingBalance)}
                 </b>
-                <span>
-                  {curveMode === 'balance'
-                    ? `Net ${signedMoney(stats.net)}`
-                    : `${signedPercent(equityData.changePct)} return`}
-                </span>
+                <span>Net {signedMoney(stats.net)}</span>
               </div>
-              <Segmented
-                label="Curve mode"
-                size="sm"
-                value={curveMode}
-                onChange={setCurveMode}
-                options={[
-                  { value: 'balance', label: 'Balance' },
-                  { value: 'equity', label: 'Equity' },
-                ]}
-              />
             </div>
           </div>
           <MetricsBalanceChart
             series={equityData.series}
-            mode={curveMode}
             hoverIndex={chartHoverIndex}
             onHoverChange={setChartHoverIndex}
           />
@@ -485,38 +462,21 @@ export function StatsPage() {
         <Card className="stats-card metrics-chart-card">
           <div className="card-head">
             <div className="card-head-copy">
-              <span className="card-kicker"><i className="dot is-neg" /> Risk underwater</span>
-              <h3 className="card-title">Drawdown curve</h3>
-              <p className="card-sub">Retracement from equity high-water mark</p>
+              <span className="card-kicker">Risk underwater</span>
             </div>
             <div className="metrics-card-actions">
               <div className="card-head-value">
                 <b className={cn('num', equityData.maxDd > 0 && 'is-neg')}>
-                  {ddUnit === 'pct'
-                    ? (equityData.maxDdPct > 0 ? `−${equityData.maxDdPct.toFixed(2)}%` : '0.00%')
-                    : (equityData.maxDd > 0 ? `−${formatUsd2(equityData.maxDd)}` : '$0.00')}
+                  {equityData.maxDdPct > 0 ? `−${equityData.maxDdPct.toFixed(2)}%` : '0.00%'}
                 </b>
                 <span>
-                  {ddUnit === 'pct'
-                    ? (equityData.maxDd > 0 ? `Max −${formatMoney(equityData.maxDd)}` : 'At equity peak')
-                    : (equityData.maxDdPct > 0 ? `Max −${equityData.maxDdPct.toFixed(2)}%` : 'At equity peak')}
+                  {equityData.maxDd > 0 ? `Max −${formatMoney(equityData.maxDd)}` : 'At equity peak'}
                 </span>
               </div>
-              <Segmented
-                label="Drawdown unit"
-                size="sm"
-                value={ddUnit}
-                onChange={setDdUnit}
-                options={[
-                  { value: 'pct', label: '%' },
-                  { value: 'usd', label: '$' },
-                ]}
-              />
             </div>
           </div>
           <MetricsDrawdownChart
             series={equityData.series}
-            unit={ddUnit}
             hoverIndex={chartHoverIndex}
             onHoverChange={setChartHoverIndex}
           />

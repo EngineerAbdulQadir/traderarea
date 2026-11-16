@@ -60,11 +60,11 @@ export function Heatmap({ trades }: HeatmapProps) {
                   key={`${day}-${hour}`}
                   style={{
                     background: positive
-                      ? `rgb(var(--pos-rgb) / ${(0.09 + ratio * 0.46).toFixed(2)})`
-                      : `rgb(var(--neg-rgb) / ${(0.09 + ratio * 0.46).toFixed(2)})`,
+                      ? `rgb(var(--heat-blue-rgb) / ${(0.11 + ratio * 0.45).toFixed(2)})`
+                      : `rgb(var(--chart-negative-rgb) / ${(0.11 + ratio * 0.45).toFixed(2)})`,
                     borderColor: positive
-                      ? `rgb(var(--pos-rgb) / ${(0.12 + ratio * 0.24).toFixed(2)})`
-                      : `rgb(var(--neg-rgb) / ${(0.12 + ratio * 0.24).toFixed(2)})`,
+                      ? `rgb(var(--heat-blue-rgb) / ${(0.16 + ratio * 0.26).toFixed(2)})`
+                      : `rgb(var(--chart-negative-rgb) / ${(0.16 + ratio * 0.26).toFixed(2)})`,
                   }}
                   title={`${WD_SHORT[day]} ${hourLabel(hour)} · ${signedMoney(group.net)} · ${group.count} trades · ${plainPercent(group.winRate, 0)}% win`}
                 >

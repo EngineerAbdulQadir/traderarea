@@ -34,8 +34,8 @@ export function RadarChart({ components, hasData, size = 268, className }: Radar
       <svg viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Edge score radar">
         <defs>
           <linearGradient id={`radar-fill-${gradientId}`} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="var(--chart-line)" stopOpacity="0.32" />
-            <stop offset="100%" stopColor="var(--chart-positive)" stopOpacity="0.1" />
+            <stop offset="0%" stopColor="var(--chart-blue)" stopOpacity="0.34" />
+            <stop offset="100%" stopColor="var(--chart-blue-soft)" stopOpacity="0.1" />
           </linearGradient>
         </defs>
         {[0.25, 0.5, 0.75, 1].map((fraction) => (

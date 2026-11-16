@@ -360,7 +360,7 @@ export function DashboardPage() {
           <Donut
             segments={[
               { label: 'Wins', value: stats.wins, color: 'var(--chart-blue)' },
-              { label: 'Losses', value: stats.losses, color: 'var(--chart-blue-soft)' },
+              { label: 'Losses', value: stats.losses, color: 'var(--chart-negative)' },
               { label: 'Breakeven', value: stats.be, color: 'var(--chart-neutral)' },
             ]}
             size={82}

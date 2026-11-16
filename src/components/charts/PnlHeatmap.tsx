@@ -203,8 +203,15 @@ export function PnlHeatmap({ days, to, onOpenDay }: PnlHeatmapProps) {
                         let tint: CSSProperties = {}
                         if (row) {
                           const ratio = Math.min(1, Math.abs(row.pnl) / model.maxAbs)
-                          const alpha = row.pnl === 0 ? 0.12 : 0.28 + Math.pow(ratio, 0.5) * 0.62
-                          tint = { background: `rgb(var(--heat-blue-rgb) / ${alpha.toFixed(3)})` }
+                          const alpha = row.pnl === 0 ? 0.14 : 0.28 + Math.pow(ratio, 0.5) * 0.62
+                          tint = {
+                            background:
+                              row.pnl > 0
+                                ? `rgb(var(--heat-blue-rgb) / ${alpha.toFixed(3)})`
+                                : row.pnl < 0
+                                  ? `rgb(var(--chart-negative-rgb) / ${alpha.toFixed(3)})`
+                                  : `rgb(var(--overlay-rgb) / ${alpha.toFixed(3)})`,
+                          }
                         }
 
                         const label = row
@@ -256,16 +263,16 @@ export function PnlHeatmap({ days, to, onOpenDay }: PnlHeatmapProps) {
 
       <div className="pnl-heat-foot">
         <div className="pnl-heat-legend">
-          <span>Low</span>
-          <i className="is-low" />
-          <i className="is-low-mid" />
-          <i className="is-mid" />
-          <i className="is-high-mid" />
-          <i className="is-high" />
-          <span>High</span>
+          <span>Loss</span>
+          <i className="is-loss-high" />
+          <i className="is-loss-low" />
+          <i className="is-flat" />
+          <i className="is-profit-low" />
+          <i className="is-profit-high" />
+          <span>Profit</span>
         </div>
         <span className="pnl-heat-hint">
-          Each square is one trading day · darker means a larger result
+          Each square is one trading day · deeper color means a larger result
         </span>
       </div>
     </div>

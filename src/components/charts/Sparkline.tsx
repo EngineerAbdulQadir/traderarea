@@ -73,7 +73,7 @@ export function Sparkline({
   const padding = 2
   const verticalPadding = Math.max(4, height * 0.08)
   const { line, area } = buildPath(data, width, height, padding, verticalPadding)
-  const tone = color ?? (positive ? 'var(--chart-positive)' : 'var(--chart-negative)')
+  const tone = color ?? (positive ? 'var(--chart-blue)' : 'var(--chart-negative)')
   const last = data.length ? data[data.length - 1] : 0
   const min = data.length ? Math.min(...data) : 0
   const max = data.length ? Math.max(...data) : 0

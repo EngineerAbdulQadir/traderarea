@@ -128,6 +128,7 @@
   --chart-5: #f27166;
   --chart-positive: #4ebe7d;
   --chart-negative: #f27166;
+  --chart-negative-rgb: 242 113 102;
   --chart-warn: #eeb154;
   --chart-neutral: #b0b0b5;
   --chart-blue: #6b99e2;
@@ -260,6 +261,7 @@
   --chart-5: #cf4436;
   --chart-positive: #168a55;
   --chart-negative: #cf4436;
+  --chart-negative-rgb: 207 68 54;
   --chart-warn: #9a650f;
   --chart-neutral: #7d848e;
   --chart-blue: #0d3f8f;
@@ -3061,11 +3063,11 @@ ol {
 }
 
 .mini-bar i.pos {
-  background: var(--pos);
+  background: var(--chart-blue);
 }
 
 .mini-bar i.neg {
-  background: var(--neg);
+  background: var(--chart-negative);
 }
 
 .sort-idle {
@@ -3190,7 +3192,7 @@ ol {
 }
 
 .avg-wl-val.is-neg {
-  color: var(--chart-blue-muted);
+  color: var(--chart-negative);
 }
 
 .avg-wl-track {
@@ -3212,7 +3214,7 @@ ol {
 }
 
 .avg-wl-fill.is-neg {
-  background: linear-gradient(90deg, rgb(var(--accent-rgb) / 0.35), var(--chart-blue-muted));
+  background: linear-gradient(90deg, rgb(var(--chart-negative-rgb) / 0.42), var(--chart-negative));
 }
 
 .avg-wl-foot {
@@ -3251,11 +3253,11 @@ ol {
 }
 
 .day-strip i.pos {
-  background: linear-gradient(180deg, var(--pos), rgb(var(--pos-rgb) / 0.35));
+  background: linear-gradient(180deg, var(--chart-blue), rgb(var(--chart-blue-rgb) / 0.35));
 }
 
 .day-strip i.neg {
-  background: linear-gradient(180deg, rgb(var(--neg-rgb) / 0.45), var(--neg));
+  background: linear-gradient(180deg, rgb(var(--chart-negative-rgb) / 0.45), var(--chart-negative));
 }
 
 .day-strip i.flat {
@@ -3352,11 +3354,11 @@ ol {
 }
 
 .bar-row-track .bar.pos {
-  background: linear-gradient(90deg, rgb(var(--pos-rgb) / 0.35), var(--pos));
+  background: linear-gradient(90deg, rgb(var(--chart-blue-rgb) / 0.35), var(--chart-blue));
 }
 
 .bar-row-track .bar.neg {
-  background: linear-gradient(90deg, var(--neg), rgb(var(--neg-rgb) / 0.35));
+  background: linear-gradient(90deg, var(--chart-negative), rgb(var(--chart-negative-rgb) / 0.35));
 }
 
 .bar-row-track .bar.neutral {
@@ -3439,12 +3441,12 @@ ol {
 }
 
 .column-col-plot i.pos {
-  background: linear-gradient(180deg, var(--pos), rgb(var(--pos-rgb) / 0.32));
-  box-shadow: 0 -4px 14px -6px rgb(var(--pos-rgb) / 0.5);
+  background: linear-gradient(180deg, var(--chart-blue), rgb(var(--chart-blue-rgb) / 0.32));
+  box-shadow: 0 -4px 14px -6px rgb(var(--chart-blue-rgb) / 0.45);
 }
 
 .column-col-plot i.neg {
-  background: linear-gradient(0deg, var(--neg), rgb(var(--neg-rgb) / 0.32));
+  background: linear-gradient(0deg, var(--chart-negative), rgb(var(--chart-negative-rgb) / 0.32));
 }
 
 .column-col-label {
@@ -3511,11 +3513,11 @@ ol {
 }
 
 .r-histogram-track i.pos {
-  background: linear-gradient(180deg, var(--pos), rgb(var(--pos-rgb) / 0.28));
+  background: linear-gradient(180deg, var(--chart-blue), rgb(var(--chart-blue-rgb) / 0.28));
 }
 
 .r-histogram-track i.neg {
-  background: linear-gradient(180deg, rgb(var(--neg-rgb) / 0.38), var(--neg));
+  background: linear-gradient(180deg, rgb(var(--chart-negative-rgb) / 0.38), var(--chart-negative));
 }
 
 .r-histogram-label {
@@ -3628,7 +3630,7 @@ ol {
 }
 
 .heatmap-legend i.neg {
-  background: rgb(var(--neg-rgb) / 0.45);
+  background: rgb(var(--chart-negative-rgb) / 0.55);
 }
 
 .heatmap-legend i.flat {
@@ -3636,7 +3638,7 @@ ol {
 }
 
 .heatmap-legend i.pos {
-  background: rgb(var(--pos-rgb) / 0.45);
+  background: rgb(var(--heat-blue-rgb) / 0.55);
 }
 
 .heatmap-legend-hint {
@@ -10914,7 +10916,7 @@ body::after {
 }
 
 .dash-kpis .metric-wl-track > i.neg {
-  background: linear-gradient(180deg, var(--chart-blue-muted), rgb(var(--accent-rgb) / 0.35));
+  background: linear-gradient(180deg, rgb(var(--chart-negative-rgb) / 0.4), var(--chart-negative));
 }
 
 .dash-kpis .metric-wl-col > em {
@@ -10927,11 +10929,11 @@ body::after {
 }
 
 .dash-kpis .day-strip i.pos {
-  background: linear-gradient(180deg, var(--chart-blue), var(--chart-blue-soft) 58%, rgb(var(--accent-rgb) / 0.28));
+  background: linear-gradient(180deg, var(--chart-blue), var(--chart-blue-soft) 58%, rgb(var(--chart-blue-rgb) / 0.28));
 }
 
 .dash-kpis .day-strip i.neg {
-  background: linear-gradient(180deg, rgb(var(--accent-rgb) / 0.35), var(--chart-blue-muted));
+  background: linear-gradient(180deg, rgb(var(--chart-negative-rgb) / 0.42), var(--chart-negative));
 }
 
 .dash-kpis,
@@ -11188,20 +11190,24 @@ body::after {
   margin-left: 2px;
 }
 
+.pnl-heat-legend .is-flat {
+  background: rgb(var(--overlay-rgb) / 0.08);
+}
+
 .pnl-heat-legend .is-loss-low {
-  background: rgb(var(--neg-rgb) / 0.25);
+  background: rgb(var(--chart-negative-rgb) / 0.32);
 }
 
 .pnl-heat-legend .is-loss-high {
-  background: rgb(var(--neg-rgb) / 0.82);
+  background: rgb(var(--chart-negative-rgb) / 0.85);
 }
 
 .pnl-heat-legend .is-profit-low {
-  background: rgb(var(--pos-rgb) / 0.25);
+  background: rgb(var(--heat-blue-rgb) / 0.32);
 }
 
 .pnl-heat-legend .is-profit-high {
-  background: rgb(var(--pos-rgb) / 0.82);
+  background: rgb(var(--heat-blue-rgb) / 0.88);
 }
 
 .pnl-heat-hint {

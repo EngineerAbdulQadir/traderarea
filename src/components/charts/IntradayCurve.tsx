@@ -67,7 +67,8 @@ export function IntradayCurve({
   const activeIndex = hoverIndex !== null ? hoverIndex : externalHighlightIndex
   const activePoint = activeIndex !== null && points[activeIndex] ? points[activeIndex] : null
 
-  const color = 'var(--blue)'
+  const sessionNet = points.length ? points[points.length - 1].value : 0
+  const color = sessionNet < 0 ? 'var(--chart-negative)' : 'var(--chart-blue)'
 
   const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!geometry || points.length <= 1) return

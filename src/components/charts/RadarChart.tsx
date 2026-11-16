@@ -33,9 +33,15 @@ export function RadarChart({ components, hasData, size = 268, className }: Radar
     <div className={cn('radar-wrap', className)} style={{ width: size, height: size }}>
       <svg viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Edge score radar">
         <defs>
-          <linearGradient id={`radar-fill-${gradientId}`} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="var(--chart-blue)" stopOpacity="0.34" />
-            <stop offset="100%" stopColor="var(--chart-blue-soft)" stopOpacity="0.1" />
+          <linearGradient id={`radar-fill-${gradientId}`} x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0%" stopColor="var(--chart-negative)" stopOpacity="0.28" />
+            <stop offset="52%" stopColor="var(--chart-blue-soft)" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="var(--chart-blue)" stopOpacity="0.34" />
+          </linearGradient>
+          <linearGradient id={`radar-stroke-${gradientId}`} x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0%" stopColor="var(--chart-negative)" />
+            <stop offset="55%" stopColor="var(--chart-blue-soft)" />
+            <stop offset="100%" stopColor="var(--chart-blue)" />
           </linearGradient>
         </defs>
         {[0.25, 0.5, 0.75, 1].map((fraction) => (
@@ -67,8 +73,8 @@ export function RadarChart({ components, hasData, size = 268, className }: Radar
             <motion.polygon
               points={shape}
               fill={`url(#radar-fill-${gradientId})`}
-              stroke="var(--chart-line)"
-              strokeWidth={1.6}
+              stroke={`url(#radar-stroke-${gradientId})`}
+              strokeWidth={1.7}
               strokeLinejoin="round"
               initial={{ opacity: 0, scale: 0.7 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -82,8 +88,8 @@ export function RadarChart({ components, hasData, size = 268, className }: Radar
                   key={component.label}
                   cx={x}
                   cy={y}
-                  r={2.8}
-                  fill="var(--chart-line)"
+                  r={3}
+                  fill={component.score >= 50 ? 'var(--chart-blue)' : 'var(--chart-negative)'}
                   stroke="var(--panel)"
                   strokeWidth={1.4}
                 />

@@ -3710,11 +3710,11 @@ ol {
 }
 
 .calendar-month-net.is-pos {
-  color: var(--pos-text);
+  color: var(--chart-blue);
 }
 
 .calendar-month-net.is-neg {
-  color: var(--neg-text);
+  color: var(--chart-negative);
 }
 
 .calendar-head-meta {
@@ -3884,16 +3884,16 @@ button.calendar-day:hover:not(:disabled) {
 
 /* Clean, modern payoff tints */
 .calendar-day.is-win {
-  border-color: rgb(var(--pos-rgb) / 0.25);
+  border-color: rgb(var(--chart-blue-rgb) / 0.28);
   background:
-    linear-gradient(155deg, rgb(var(--pos-rgb) / 0.12) 0%, rgb(var(--pos-rgb) / 0.015) 100%),
+    linear-gradient(155deg, rgb(var(--chart-blue-rgb) / 0.14) 0%, rgb(var(--chart-blue-rgb) / 0.02) 100%),
     rgb(var(--overlay-rgb) / 0.012);
 }
 
 .calendar-day.is-loss {
-  border-color: rgb(var(--neg-rgb) / 0.25);
+  border-color: rgb(var(--chart-negative-rgb) / 0.28);
   background:
-    linear-gradient(155deg, rgb(var(--neg-rgb) / 0.12) 0%, rgb(var(--neg-rgb) / 0.015) 100%),
+    linear-gradient(155deg, rgb(var(--chart-negative-rgb) / 0.14) 0%, rgb(var(--chart-negative-rgb) / 0.02) 100%),
     rgb(var(--overlay-rgb) / 0.012);
 }
 
@@ -3990,11 +3990,11 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .calendar-day.is-win .calendar-pnl {
-  color: var(--pos-text);
+  color: var(--chart-blue);
 }
 
 .calendar-day.is-loss .calendar-pnl {
-  color: var(--neg-text);
+  color: var(--chart-negative);
 }
 
 .calendar-sub-stat {
@@ -4047,13 +4047,13 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .calendar-week-sum.is-win {
-  border-color: rgb(var(--pos-rgb) / 0.2);
-  background: rgb(var(--pos-rgb) / 0.04);
+  border-color: rgb(var(--chart-blue-rgb) / 0.24);
+  background: rgb(var(--chart-blue-rgb) / 0.06);
 }
 
 .calendar-week-sum.is-loss {
-  border-color: rgb(var(--neg-rgb) / 0.2);
-  background: rgb(var(--neg-rgb) / 0.04);
+  border-color: rgb(var(--chart-negative-rgb) / 0.24);
+  background: rgb(var(--chart-negative-rgb) / 0.06);
 }
 
 .calendar-week-pnl {
@@ -4095,12 +4095,12 @@ button.calendar-day:hover:not(:disabled) {
 
 .calendar-week-sum.is-win .calendar-week-pnl,
 .calendar-week-sum.is-win .calendar-week-r {
-  color: var(--pos-text);
+  color: var(--chart-blue);
 }
 
 .calendar-week-sum.is-loss .calendar-week-pnl,
 .calendar-week-sum.is-loss .calendar-week-r {
-  color: var(--neg-text);
+  color: var(--chart-negative);
 }
 
 /* Minimal, Elegant Footer */
@@ -7003,15 +7003,15 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .side-pill.is-long {
-  color: var(--pos-text);
-  background: var(--pos-soft);
-  border-color: rgb(var(--pos-rgb) / 0.12);
+  color: var(--chart-blue);
+  background: rgb(var(--chart-blue-rgb) / 0.12);
+  border-color: rgb(var(--chart-blue-rgb) / 0.2);
 }
 
 .side-pill.is-short {
-  color: var(--violet-text);
-  background: var(--violet-soft);
-  border-color: rgb(var(--violet-rgb) / 0.12);
+  color: var(--chart-negative);
+  background: rgb(var(--chart-negative-rgb) / 0.12);
+  border-color: rgb(var(--chart-negative-rgb) / 0.2);
 }
 
 .entry-setup {
@@ -10511,7 +10511,8 @@ body::after {
   padding: 16px 24px;
   border-left: 1px solid var(--line);
   background:
-    radial-gradient(110% 110% at 100% 0%, rgb(var(--accent-rgb) / 0.09), transparent 58%),
+    radial-gradient(110% 110% at 100% 0%, rgb(var(--chart-blue-rgb) / 0.1), transparent 56%),
+    radial-gradient(95% 95% at 0% 100%, rgb(var(--chart-negative-rgb) / 0.06), transparent 58%),
     linear-gradient(180deg, rgb(var(--overlay-rgb) / 0.018), transparent 74%);
 }
 
@@ -10520,7 +10521,7 @@ body::after {
   position: absolute;
   inset: 18px auto 18px 0;
   width: 1px;
-  background: linear-gradient(180deg, transparent, rgb(var(--accent-rgb) / 0.28), transparent);
+  background: linear-gradient(180deg, transparent, rgb(var(--chart-blue-rgb) / 0.32), rgb(var(--chart-negative-rgb) / 0.24), transparent);
   pointer-events: none;
 }
 
@@ -10571,7 +10572,7 @@ body::after {
 
 .hero-edge-score-track {
   position: relative;
-  height: 4px;
+  height: 5px;
   overflow: hidden;
   border-radius: 99px;
   background: rgb(var(--overlay-rgb) / 0.07);
@@ -10582,8 +10583,10 @@ body::after {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent-dim), var(--accent) 72%, var(--accent-strong));
-  box-shadow: 0 0 14px rgb(var(--accent-rgb) / 0.42);
+  background: linear-gradient(90deg, var(--chart-negative) 0%, var(--chart-blue-soft) 52%, var(--chart-blue) 100%);
+  box-shadow:
+    0 0 12px rgb(var(--chart-blue-rgb) / 0.32),
+    0 0 8px rgb(var(--chart-negative-rgb) / 0.22);
   transition: width 0.4s ease;
 }
 
@@ -11712,11 +11715,11 @@ body::after {
 }
 
 .note-card.is-win {
-  border-color: var(--pos-border);
+  border-color: rgb(var(--chart-blue-rgb) / 0.3);
 }
 
 .note-card.is-loss {
-  border-color: var(--neg-border);
+  border-color: rgb(var(--chart-negative-rgb) / 0.3);
 }
 
 .note-card.is-today {
@@ -11736,37 +11739,41 @@ button.calendar-day:hover {
 }
 
 .calendar-day.is-win {
-  border-color: var(--pos-border);
-  background: var(--pos-soft);
+  border-color: rgb(var(--chart-blue-rgb) / 0.3);
+  background:
+    linear-gradient(155deg, rgb(var(--chart-blue-rgb) / 0.13) 0%, rgb(var(--chart-blue-rgb) / 0.03) 100%),
+    var(--panel-2);
 }
 
 .calendar-day.is-loss {
-  border-color: var(--neg-border);
-  background: var(--neg-soft);
+  border-color: rgb(var(--chart-negative-rgb) / 0.3);
+  background:
+    linear-gradient(155deg, rgb(var(--chart-negative-rgb) / 0.13) 0%, rgb(var(--chart-negative-rgb) / 0.03) 100%),
+    var(--panel-2);
 }
 
 .calendar-day.is-win.lvl-2 {
-  background: rgb(var(--pos-rgb) / 0.18);
+  background: rgb(var(--chart-blue-rgb) / 0.16);
 }
 
 .calendar-day.is-win.lvl-3 {
-  background: rgb(var(--pos-rgb) / 0.24);
+  background: rgb(var(--chart-blue-rgb) / 0.22);
 }
 
 .calendar-day.is-win.lvl-4 {
-  background: rgb(var(--pos-rgb) / 0.3);
+  background: rgb(var(--chart-blue-rgb) / 0.28);
 }
 
 .calendar-day.is-loss.lvl-2 {
-  background: rgb(var(--neg-rgb) / 0.18);
+  background: rgb(var(--chart-negative-rgb) / 0.16);
 }
 
 .calendar-day.is-loss.lvl-3 {
-  background: rgb(var(--neg-rgb) / 0.24);
+  background: rgb(var(--chart-negative-rgb) / 0.22);
 }
 
 .calendar-day.is-loss.lvl-4 {
-  background: rgb(var(--neg-rgb) / 0.3);
+  background: rgb(var(--chart-negative-rgb) / 0.28);
 }
 
 .calendar-day.is-today {
@@ -11786,7 +11793,7 @@ button.calendar-day:hover {
 }
 
 .calendar-day.is-loss .calendar-pnl {
-  color: var(--chart-blue-muted);
+  color: var(--chart-negative);
 }
 
 .calendar-week-sum.is-win .calendar-week-pnl {
@@ -11794,7 +11801,17 @@ button.calendar-day:hover {
 }
 
 .calendar-week-sum.is-loss .calendar-week-pnl {
-  color: var(--chart-blue-muted);
+  color: var(--chart-negative);
+}
+
+.calendar .is-pos,
+.day-modal .is-pos {
+  color: var(--chart-blue);
+}
+
+.calendar .is-neg,
+.day-modal .is-neg {
+  color: var(--chart-negative);
 }
 
 .calendar-count {
@@ -11802,11 +11819,11 @@ button.calendar-day:hover {
 }
 
 .calendar-legend i.pos {
-  background: var(--pos);
+  background: var(--chart-blue);
 }
 
 .calendar-legend i.neg {
-  background: var(--neg);
+  background: var(--chart-negative);
 }
 
 .calendar-legend i.note {

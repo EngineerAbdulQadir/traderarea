@@ -376,7 +376,7 @@ export function StatsPage() {
   const sideCard = (side: 'LONG' | 'SHORT', group: GroupStats | undefined) => (
     <div className="side-block">
       <div className="side-block-top">
-        <Badge tone={side === 'LONG' ? 'pos' : 'violet'}>{side}</Badge>
+        <Badge tone={side === 'LONG' ? 'accent' : 'neg'}>{side}</Badge>
         <b className={cn('num', group && (group.net >= 0 ? 'is-pos' : 'is-neg'))}>
           {group ? signedMoney(group.net) : '—'}
         </b>
@@ -403,7 +403,7 @@ export function StatsPage() {
         subtitle="Timing, markets, execution and streaks. The details behind the equity curve."
         actions={
           <>
-            {activeIsDemo && <Badge tone="violet">Sample data</Badge>}
+            {activeIsDemo && <Badge tone="neutral">Sample data</Badge>}
             <AccountPill account={activeAccount} onClick={() => navigate('/accounts')} />
             <Segmented
               label="Stats range"

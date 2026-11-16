@@ -6279,13 +6279,13 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .stat-kpi.t-pos::after {
-  background: linear-gradient(90deg, var(--pos), transparent 80%);
-  opacity: 0.55;
+  background: linear-gradient(90deg, var(--chart-blue), transparent 80%);
+  opacity: 0.6;
 }
 
 .stat-kpi.t-neg::after {
-  background: linear-gradient(90deg, var(--neg), transparent 80%);
-  opacity: 0.5;
+  background: linear-gradient(90deg, var(--chart-negative), transparent 80%);
+  opacity: 0.55;
 }
 
 .stat-kpi-label {
@@ -6311,11 +6311,11 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .stat-kpi.t-pos .stat-kpi-label i {
-  background: var(--pos);
+  background: var(--chart-blue);
 }
 
 .stat-kpi.t-neg .stat-kpi-label i {
-  background: var(--neg);
+  background: var(--chart-negative);
 }
 
 .stat-kpi-value {
@@ -6364,33 +6364,33 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .insight-card.is-pos {
-  border-color: rgb(var(--pos-rgb) / 0.12);
+  border-color: rgb(var(--chart-blue-rgb) / 0.16);
   background:
-    linear-gradient(135deg, rgb(var(--pos-rgb) / 0.05), transparent 65%),
+    linear-gradient(135deg, rgb(var(--chart-blue-rgb) / 0.06), transparent 65%),
     rgb(var(--overlay-rgb) / 0.013);
 }
 
 .insight-card.is-neg {
-  border-color: rgb(var(--neg-rgb) / 0.12);
+  border-color: rgb(var(--chart-negative-rgb) / 0.16);
   background:
-    linear-gradient(135deg, rgb(var(--neg-rgb) / 0.045), transparent 65%),
+    linear-gradient(135deg, rgb(var(--chart-negative-rgb) / 0.055), transparent 65%),
     rgb(var(--overlay-rgb) / 0.013);
 }
 
 .insight-card.is-warn {
-  border-color: rgb(var(--warn-rgb) / 0.12);
+  border-color: rgb(var(--chart-negative-rgb) / 0.16);
+  background:
+    linear-gradient(135deg, rgb(var(--chart-negative-rgb) / 0.04), transparent 65%),
+    rgb(var(--overlay-rgb) / 0.013);
 }
 
 .insight-card.is-pos .insight-tag {
-  color: var(--pos-text);
+  color: var(--chart-blue);
 }
 
-.insight-card.is-neg .insight-tag {
-  color: var(--neg-text);
-}
-
+.insight-card.is-neg .insight-tag,
 .insight-card.is-warn .insight-tag {
-  color: var(--warn-text);
+  color: var(--chart-negative);
 }
 
 .insight-card > b {
@@ -6445,8 +6445,34 @@ button.calendar-day:hover:not(:disabled) {
   margin-left: auto;
 }
 
+.stats-page .card-kicker .dot {
+  background: var(--chart-blue);
+}
+
 .card-kicker .dot.is-neg {
-  background: var(--neg);
+  background: var(--chart-negative);
+}
+
+.stats-page .is-pos,
+.dashboard-page .is-pos {
+  color: var(--chart-blue);
+}
+
+.stats-page .is-neg,
+.dashboard-page .is-neg {
+  color: var(--chart-negative);
+}
+
+.stats-page .badge-accent {
+  color: var(--chart-blue);
+  background: rgb(var(--chart-blue-rgb) / 0.12);
+  border-color: rgb(var(--chart-blue-rgb) / 0.28);
+}
+
+.stats-page .badge-neg {
+  color: var(--chart-negative);
+  background: rgb(var(--chart-negative-rgb) / 0.12);
+  border-color: rgb(var(--chart-negative-rgb) / 0.28);
 }
 
 .metrics-chart-wrap {
@@ -6556,11 +6582,11 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .side-split .long {
-  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+  background: linear-gradient(90deg, var(--chart-blue-soft), var(--chart-blue));
 }
 
 .side-split .short {
-  background: linear-gradient(90deg, var(--violet), var(--violet));
+  background: linear-gradient(90deg, rgb(var(--chart-negative-rgb) / 0.72), var(--chart-negative));
 }
 
 .side-split-caption {
@@ -6608,21 +6634,21 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .grade-pill.good {
-  color: var(--pos-text);
-  background: var(--pos-soft);
-  border-color: rgb(var(--pos-rgb) / 0.13);
+  color: var(--chart-blue);
+  background: rgb(var(--chart-blue-rgb) / 0.12);
+  border-color: rgb(var(--chart-blue-rgb) / 0.2);
 }
 
 .grade-pill.ok {
-  color: var(--warn-text);
-  background: var(--warn-soft);
-  border-color: rgb(var(--warn-rgb) / 0.13);
+  color: var(--chart-blue-muted);
+  background: rgb(var(--chart-blue-rgb) / 0.07);
+  border-color: rgb(var(--chart-blue-rgb) / 0.13);
 }
 
 .grade-pill.bad {
-  color: var(--neg-text);
-  background: var(--neg-soft);
-  border-color: rgb(var(--neg-rgb) / 0.13);
+  color: var(--chart-negative);
+  background: rgb(var(--chart-negative-rgb) / 0.12);
+  border-color: rgb(var(--chart-negative-rgb) / 0.2);
 }
 
 .grade-track {
@@ -6640,15 +6666,15 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .grade-track i.good {
-  background: var(--pos);
+  background: var(--chart-blue);
 }
 
 .grade-track i.ok {
-  background: var(--warn);
+  background: var(--chart-blue-muted);
 }
 
 .grade-track i.bad {
-  background: var(--neg);
+  background: var(--chart-negative);
 }
 
 .grade-sub {
@@ -6665,25 +6691,25 @@ button.calendar-day:hover:not(:disabled) {
   margin-top: 2px;
   padding: 8px 9px;
   border-radius: 7px;
-  border: 1px solid rgb(var(--neg-rgb) / 0.1);
-  background: rgb(var(--neg-rgb) / 0.035);
+  border: 1px solid rgb(var(--chart-negative-rgb) / 0.14);
+  background: rgb(var(--chart-negative-rgb) / 0.04);
   color: var(--faint);
   font-size: 8.5px;
   line-height: 1.5;
 }
 
 .grade-callout b {
-  color: var(--neg-text);
+  color: var(--chart-negative);
   font-weight: 540;
 }
 
 .grade-callout.is-good {
-  border-color: rgb(var(--pos-rgb) / 0.1);
-  background: rgb(var(--pos-rgb) / 0.025);
+  border-color: rgb(var(--chart-blue-rgb) / 0.14);
+  background: rgb(var(--chart-blue-rgb) / 0.04);
 }
 
 .grade-callout.is-good b {
-  color: var(--pos-text);
+  color: var(--chart-blue);
 }
 
 .streak-tiles {
@@ -10429,11 +10455,11 @@ body::after {
 }
 
 .hero-day-arrow.is-pos {
-  color: var(--pos-text);
+  color: var(--chart-blue);
 }
 
 .hero-day-arrow.is-neg {
-  color: var(--neg-text);
+  color: var(--chart-negative);
 }
 
 .hero-day-stat > b {
@@ -10780,13 +10806,13 @@ body::after {
 }
 
 .hero-pnl.is-pos .hero-pnl-label > i {
-  background: var(--pos);
-  box-shadow: 0 0 0 4px rgb(var(--pos-rgb) / 0.1);
+  background: var(--chart-blue);
+  box-shadow: 0 0 0 4px rgb(var(--chart-blue-rgb) / 0.12);
 }
 
 .hero-pnl.is-neg .hero-pnl-label > i {
-  background: var(--neg);
-  box-shadow: 0 0 0 4px rgb(var(--neg-rgb) / 0.1);
+  background: var(--chart-negative);
+  box-shadow: 0 0 0 4px rgb(var(--chart-negative-rgb) / 0.12);
 }
 
 .hero-pnl-value {
@@ -10836,11 +10862,11 @@ body::after {
 }
 
 .hero-pnl-delta.is-pos {
-  color: var(--pos-text);
+  color: var(--chart-blue);
 }
 
 .hero-pnl-delta.is-neg {
-  color: var(--neg-text);
+  color: var(--chart-negative);
 }
 
 /* Bottom stats sit on the same surface as the upper half. */
@@ -11919,7 +11945,8 @@ button.calendar-day:hover {
   border-color: rgb(var(--chart-blue-rgb) / 0.28);
 }
 
-.rules-card .badge-neg {
+.rules-card .badge-neg,
+.rules-card .badge-warn {
   color: var(--chart-negative);
   background: rgb(var(--chart-negative-rgb) / 0.12);
   border-color: rgb(var(--chart-negative-rgb) / 0.28);
@@ -11961,12 +11988,12 @@ button.calendar-day:hover {
 }
 
 .rule-row.is-warn .rule-track i {
-  background: linear-gradient(90deg, var(--warn), var(--chart-negative));
-  box-shadow: 0 0 12px rgb(var(--warn-rgb) / 0.36);
+  background: linear-gradient(90deg, rgb(var(--chart-negative-rgb) / 0.75), var(--chart-negative));
+  box-shadow: 0 0 12px rgb(var(--chart-negative-rgb) / 0.36);
 }
 
 .rule-row.is-warn .rule-figure b {
-  color: var(--warn-text);
+  color: var(--chart-negative);
 }
 
 .rule-row.is-danger .rule-track i {

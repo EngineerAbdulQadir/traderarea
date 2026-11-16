@@ -6,6 +6,7 @@ import { useProfile } from '@/hooks/useProfile'
 import { useApp } from '@/store/AppStore'
 import {
   downloadCertificateCard,
+  preloadCertificateAssets,
   renderCertificateBlob,
   type CertificateOptions,
 } from '@/lib/certificateCard'
@@ -84,6 +85,7 @@ export function ShareCardModal({
 
   useEffect(() => {
     if (open) {
+      preloadCertificateAssets()
       setTraderName((prev) => prev || profile.name)
       setSelectedTier(evaluation.highestUnlocked ?? 3)
     }
@@ -173,7 +175,9 @@ export function ShareCardModal({
           <h2 id={titleId} className="modal-title">
             Performance certificates
           </h2>
-          <p className="modal-sub">Verified monthly consistency milestones</p>
+          <p className="modal-sub">
+            Verified monthly consistency milestones{accountName ? ` · ${accountName}` : ''}
+          </p>
         </div>
         <ModalClose onClick={onClose} />
       </div>

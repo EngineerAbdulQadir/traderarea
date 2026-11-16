@@ -24,6 +24,7 @@ interface TierDesign {
   level: 1 | 2 | 3 | 4
   candleUrl: string
   candleDrawW: number
+  candleTiltDeg?: number
   headerTag: string
   kickerText: string
   titleText: string
@@ -62,6 +63,7 @@ const TIER_DESIGNS: Record<ConsistencyTier, TierDesign> = {
     level: 1,
     candleUrl: candleTier3Url,
     candleDrawW: 488,
+    candleTiltDeg: 17,
     headerTag: 'LEVEL I  ·  03 MONTHS',
     kickerText: '03 CONSECUTIVE PROFITABLE MONTHS',
     titleText: 'Consistency Certificate',
@@ -234,20 +236,61 @@ async function ensureFonts(): Promise<void> {
   }
 }
 
-function loadImage(src: string): Promise<HTMLImageElement | null> {
+const imageCache = new Map<string, Promise<HTMLImageElement | null>>()
+
+function loadImageAttempt(src: string, timeoutMs: number): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     const img = new Image()
+    img.decoding = 'async'
     let done = false
     const finish = (v: HTMLImageElement | null) => {
       if (!done) {
         done = true
+        clearTimeout(timer)
         resolve(v)
       }
     }
-    img.onload = () => finish(img)
+    const timer = window.setTimeout(() => finish(null), timeoutMs)
+    img.onload = () => {
+      const decodePromise = typeof img.decode === 'function' ? img.decode() : Promise.resolve()
+      decodePromise
+        .catch(() => undefined)
+        .finally(() => {
+          finish(img.naturalWidth > 0 ? img : null)
+        })
+    }
     img.onerror = () => finish(null)
-    setTimeout(() => finish(null), 2000)
     img.src = src
+    if (img.complete && img.naturalWidth > 0) {
+      finish(img)
+    }
+  })
+}
+
+function loadImage(src: string): Promise<HTMLImageElement | null> {
+  if (!src) return Promise.resolve(null)
+  const cached = imageCache.get(src)
+  if (cached) return cached
+
+  const promise = (async () => {
+    const first = await loadImageAttempt(src, 12000)
+    if (first) return first
+    const retry = await loadImageAttempt(src, 12000)
+    if (!retry) {
+      imageCache.delete(src)
+    }
+    return retry
+  })()
+
+  imageCache.set(src, promise)
+  return promise
+}
+
+export function preloadCertificateAssets(): void {
+  if (typeof window === 'undefined') return
+  void loadImage(logoDarkUrl)
+  Object.values(TIER_DESIGNS).forEach((design) => {
+    void loadImage(design.candleUrl)
   })
 }
 
@@ -480,15 +523,42 @@ function prepareCrispCandleCanvas(
   img: HTMLImageElement,
   drawW: number,
   drawH: number,
+  tiltDeg = 0,
 ): HTMLCanvasElement {
   const off = document.createElement('canvas')
   off.width = drawW
   off.height = drawH
   const octx = off.getContext('2d')!
 
-  octx.filter = 'contrast(1.08) brightness(1.04) saturate(1.08)'
-  octx.drawImage(img, 0, 0, drawW, drawH)
-  octx.filter = 'none'
+  if (tiltDeg !== 0) {
+    const srcCanvas = document.createElement('canvas')
+    srcCanvas.width = drawW
+    srcCanvas.height = drawH
+    const sctx = srcCanvas.getContext('2d')!
+    sctx.filter = 'contrast(1.08) brightness(1.04) saturate(1.08)'
+    sctx.drawImage(img, 0, 0, drawW, drawH)
+    sctx.filter = 'none'
+
+    let bg = '#020305'
+    try {
+      const px = sctx.getImageData(4, 4, 1, 1).data
+      bg = `rgb(${px[0]}, ${px[1]}, ${px[2]})`
+    } catch {
+      /* ignore */
+    }
+
+    octx.fillStyle = bg
+    octx.fillRect(0, 0, drawW, drawH)
+    octx.save()
+    octx.translate(drawW / 2, drawH / 2)
+    octx.rotate((tiltDeg * Math.PI) / 180)
+    octx.drawImage(srcCanvas, -drawW / 2, -drawH / 2, drawW, drawH)
+    octx.restore()
+  } else {
+    octx.filter = 'contrast(1.08) brightness(1.04) saturate(1.08)'
+    octx.drawImage(img, 0, 0, drawW, drawH)
+    octx.filter = 'none'
+  }
 
   const feather = 22
   octx.save()
@@ -591,7 +661,7 @@ function drawCandleShowcaseWing(
   if (candleImg && candleImg.naturalWidth > 0) {
     const drawW = Math.min(design.candleDrawW, stageW - 28)
     const drawH = Math.round((candleImg.naturalHeight / candleImg.naturalWidth) * drawW)
-    const prepared = prepareCrispCandleCanvas(candleImg, drawW, drawH)
+    const prepared = prepareCrispCandleCanvas(candleImg, drawW, drawH, design.candleTiltDeg ?? 0)
 
     ctx.drawImage(
       prepared,
@@ -806,6 +876,9 @@ export async function renderCertificateCard(
   const ctx = canvas.getContext('2d')!
 
   const traderName = (opts.traderName || 'Trader').trim() || 'Trader'
+  const accountName = (opts.accountName || '').trim()
+  const firmName = (opts.firmName || '').trim()
+  const accountLabel = accountName || firmName || 'Trading Account'
   const rangeText = formatRangeText(opts.rangeLabel)
 
   const issueText =
@@ -817,7 +890,7 @@ export async function renderCertificateCard(
     })
 
   const certCode = makeCertId(
-    `${traderName}|${tierMonths}M|${rangeText || 'streak'}|${stats.count}`,
+    `${traderName}|${accountLabel}|${tierMonths}M|${rangeText || 'streak'}|${stats.count}`,
   )
 
   // 1. Canvas Backdrop & Layered Plate
@@ -1024,18 +1097,17 @@ export async function renderCertificateCard(
     TEXT_COLORS.text,
   )
 
-  // Minimalist 3-Column Milestone Metadata Strip (No stats card, no P&L/winrate/trades)
+  // Minimalist 2-Column Milestone Metadata Strip (No stats card, no P&L/winrate/trades)
   const stripY = 668
   const stripH = 84
   ctx.fillStyle = design.ruleColor
   ctx.fillRect(innerX, stripY, leftW, 1)
   ctx.fillRect(innerX, stripY + stripH, leftW, 1)
 
-  const colW = leftW / 3
   const milestones = [
     {
-      label: 'CONSISTENCY STREAK',
-      value: `${tierMonths} Months`,
+      label: 'ACCOUNT',
+      value: accountLabel,
       color: TEXT_COLORS.text,
     },
     {
@@ -1043,12 +1115,8 @@ export async function renderCertificateCard(
       value: rangeText || `${tierMonths}-Month Run`,
       color: TEXT_COLORS.text,
     },
-    {
-      label: 'VERIFICATION STATUS',
-      value: 'Profitable Streak',
-      color: design.level === 4 ? design.accentPrimary : TEXT_COLORS.pos,
-    },
   ]
+  const colW = leftW / milestones.length
 
   milestones.forEach((item, idx) => {
     const cx = innerX + idx * colW + (idx === 0 ? 0 : 24)
@@ -1062,10 +1130,18 @@ export async function renderCertificateCard(
     ctx.fillText(item.label, cx, stripY + 31)
     ctx.letterSpacing = '0px'
 
-    const valSize = fitFontSize(ctx, item.value, colW - 32, 20, 14, 600, DISPLAY_FONT)
+    const maxTextW = colW - 32
+    const valSize = fitFontSize(ctx, item.value, maxTextW, 20, 12, 600, DISPLAY_FONT)
     ctx.fillStyle = item.color
     ctx.font = `600 ${valSize}px ${DISPLAY_FONT}`
-    ctx.fillText(item.value, cx, stripY + 60)
+    let displayValue = item.value
+    if (ctx.measureText(displayValue).width > maxTextW) {
+      while (displayValue.length > 1 && ctx.measureText(`${displayValue}…`).width > maxTextW) {
+        displayValue = displayValue.slice(0, -1)
+      }
+      displayValue = `${displayValue.trimEnd()}…`
+    }
+    ctx.fillText(displayValue, cx, stripY + 60)
   })
 
   // 3. Institutional Verification Footer

@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/Button'
 import { ShareCardModal } from '@/components/modals/ShareCardModal'
+import { preloadCertificateAssets } from '@/lib/certificateCard'
 import type { Trade } from '@/lib/types'
 
 export function CertificateIcon({ size = 15 }: { size?: number }) {
@@ -80,7 +81,12 @@ export function ShareButton({
         size="sm"
         className={className}
         iconLeft={icon ?? <CertificateIcon size={15} />}
-        onClick={() => setOpen(true)}
+        onMouseEnter={preloadCertificateAssets}
+        onFocus={preloadCertificateAssets}
+        onClick={() => {
+          preloadCertificateAssets()
+          setOpen(true)
+        }}
       >
         {label}
       </Button>

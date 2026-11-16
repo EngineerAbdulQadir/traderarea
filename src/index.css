@@ -6424,6 +6424,42 @@ button.calendar-day:hover:not(:disabled) {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.metrics-curves-grid {
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+.metrics-chart-card .card-head {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+
+.metrics-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+  margin-left: auto;
+}
+
+.card-kicker .dot.is-neg {
+  background: var(--neg);
+}
+
+.metrics-chart-wrap {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.metrics-chart-canvas {
+  position: relative;
+  width: 100%;
+  touch-action: pan-y;
+  cursor: crosshair;
+}
+
 .stats-card {
   padding: 17px 18px 15px;
 }
@@ -10907,6 +10943,21 @@ body::after {
   grid-column: 1 / -1;
 }
 
+.dash-curves-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.dash-curves-grid .metrics-chart-card {
+  padding: 18px 20px 16px;
+}
+
+.dash-curves-grid .metrics-chart-card .card-head {
+  margin-bottom: 14px;
+}
+
 /* ---------- P&L heatmap ---------- */
 .pnl-heat-card {
   margin-top: 14px;
@@ -12158,6 +12209,7 @@ button.calendar-day:hover {
 }
 
 @media (max-width: 1020px) {
+  .dash-curves-grid,
   .stats-grid.two,
   .report-grid.two {
     grid-template-columns: minmax(0, 1fr);

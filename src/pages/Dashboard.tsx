@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowDownRight,
@@ -16,12 +16,18 @@ import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ShareButton } from '@/components/ui/ShareButton'
 import { DateRangePicker } from '@/components/ui/DateRangePicker'
+import { Segmented } from '@/components/ui/Segmented'
 import { PnlHeatmap } from '@/components/charts/PnlHeatmap'
 import { Donut } from '@/components/charts/Donut'
 import { ProfitFactorGauge } from '@/components/charts/ProfitFactorGauge'
 import { DayStrip } from '@/components/charts/DayStrip'
 import { AvgWinLossChart } from '@/components/charts/AvgWinLossChart'
 import { RadarChart } from '@/components/charts/RadarChart'
+import {
+  MetricsBalanceChart,
+  MetricsDrawdownChart,
+  type EquityCurvePoint,
+} from '@/components/charts/MetricsEquityCharts'
 import { usePersistentState } from '@/hooks/usePersistentState'
 import { consumeDashboardRangeReset, STORAGE_KEYS } from '@/lib/persistence'
 import { accountMetaCompact, titleFor } from '@/lib/accounts'
@@ -40,6 +46,7 @@ import {
   todayISO,
 } from '@/lib/dates'
 import {
+  formatMoney,
   formatUsd2,
   plainPercent,
   signedMoney,
@@ -95,6 +102,10 @@ export function DashboardPage() {
     return value === 'b' || value === 'c' ? value : 'a'
   })()
 
+  const [curveMode, setCurveMode] = useState<'balance' | 'equity'>('balance')
+  const [ddUnit, setDdUnit] = useState<'pct' | 'usd'>('pct')
+  const [chartHoverIndex, setChartHoverIndex] = useState<number | null>(null)
+
   const starting = getStartingBalance(activeAccount)
   const certificateTrades = useMemo(
     () => (activeAccount ? getAllTradesForAccount(activeAccount) : []),
@@ -106,6 +117,78 @@ export function DashboardPage() {
   )
   const stats = useMemo(() => computeStats(rangeTrades, starting), [rangeTrades, starting])
   const allStats = useMemo(() => computeStats(activeTrades, starting), [activeTrades, starting])
+  const equityData = useMemo(() => {
+    const priorNet = rangeFrom
+      ? activeTrades.reduce(
+          (sum, trade) => (trade.date && trade.date < rangeFrom ? sum + trade.pnl : sum),
+          0,
+        )
+      : 0
+    const windowStartBalance = starting + priorNet
+
+    if (!stats.dayRows.length) {
+      return {
+        series: [] as EquityCurvePoint[],
+        windowStartBalance,
+        endingBalance: windowStartBalance,
+        changePct: 0,
+        maxDd: 0,
+        maxDdPct: 0,
+      }
+    }
+
+    const series: EquityCurvePoint[] = [
+      {
+        date: stats.dayRows[0].date,
+        baseline: true,
+        dayPnl: 0,
+        net: 0,
+        balance: windowStartBalance,
+        peakBalance: windowStartBalance,
+        peakNet: 0,
+        drawdown: 0,
+        drawdownPct: 0,
+      },
+    ]
+
+    let net = 0
+    let peakNet = 0
+    let maxDd = 0
+    let maxDdPct = 0
+
+    stats.dayRows.forEach((day) => {
+      net += day.pnl
+      const balance = windowStartBalance + net
+      peakNet = Math.max(peakNet, net)
+      const peakBalance = windowStartBalance + peakNet
+      const drawdown = net - peakNet
+      const drawdownPct = peakBalance > 0 ? (drawdown / peakBalance) * 100 : 0
+      maxDd = Math.max(maxDd, -drawdown)
+      maxDdPct = Math.max(maxDdPct, -drawdownPct)
+      series.push({
+        date: day.date,
+        dayPnl: day.pnl,
+        net,
+        balance,
+        peakBalance,
+        peakNet,
+        drawdown,
+        drawdownPct,
+      })
+    })
+
+    const endingBalance = windowStartBalance + net
+    const changePct = windowStartBalance > 0 ? (net / windowStartBalance) * 100 : 0
+
+    return {
+      series,
+      windowStartBalance,
+      endingBalance,
+      changePct,
+      maxDd,
+      maxDdPct,
+    }
+  }, [activeTrades, rangeFrom, starting, stats.dayRows])
   const rules = useMemo(
     () => (activeAccount ? buildRules(activeAccount, allStats) : null),
     [activeAccount, allStats],
@@ -374,6 +457,90 @@ export function DashboardPage() {
           />
         </Card>
       </section>
+
+      <div className="dash-curves-grid">
+        <Card className="chart-card metrics-chart-card">
+          <div className="card-head">
+            <div className="card-head-copy">
+              <span className="card-kicker"><i className="dot" /> Account trajectory</span>
+              <h3 className="card-title">{curveMode === 'balance' ? 'Balance curve' : 'Equity P&L curve'}</h3>
+              <p className="card-sub">
+                {curveMode === 'balance'
+                  ? `From ${formatMoney(equityData.windowStartBalance)} · ${signedPercent(equityData.changePct)} in range`
+                  : `Cumulative closed P&L across ${stats.dayRows.length} sessions`}
+              </p>
+            </div>
+            <div className="metrics-card-actions">
+              <div className="card-head-value">
+                <b className={cn('num', stats.net > 0 && 'is-pos', stats.net < 0 && 'is-neg')}>
+                  {curveMode === 'balance' ? formatUsd2(equityData.endingBalance) : signedMoney(stats.net)}
+                </b>
+                <span>
+                  {curveMode === 'balance'
+                    ? `Net ${signedMoney(stats.net)}`
+                    : `${signedPercent(equityData.changePct)} return`}
+                </span>
+              </div>
+              <Segmented
+                label="Curve mode"
+                size="sm"
+                value={curveMode}
+                onChange={setCurveMode}
+                options={[
+                  { value: 'balance', label: 'Balance' },
+                  { value: 'equity', label: 'Equity' },
+                ]}
+              />
+            </div>
+          </div>
+          <MetricsBalanceChart
+            series={equityData.series}
+            mode={curveMode}
+            hoverIndex={chartHoverIndex}
+            onHoverChange={setChartHoverIndex}
+          />
+        </Card>
+
+        <Card className="chart-card metrics-chart-card">
+          <div className="card-head">
+            <div className="card-head-copy">
+              <span className="card-kicker"><i className="dot is-neg" /> Risk underwater</span>
+              <h3 className="card-title">Drawdown curve</h3>
+              <p className="card-sub">Retracement from equity high-water mark</p>
+            </div>
+            <div className="metrics-card-actions">
+              <div className="card-head-value">
+                <b className={cn('num', equityData.maxDd > 0 && 'is-neg')}>
+                  {ddUnit === 'pct'
+                    ? (equityData.maxDdPct > 0 ? `−${equityData.maxDdPct.toFixed(2)}%` : '0.00%')
+                    : (equityData.maxDd > 0 ? `−${formatUsd2(equityData.maxDd)}` : '$0.00')}
+                </b>
+                <span>
+                  {ddUnit === 'pct'
+                    ? (equityData.maxDd > 0 ? `Max −${formatMoney(equityData.maxDd)}` : 'At equity peak')
+                    : (equityData.maxDdPct > 0 ? `Max −${equityData.maxDdPct.toFixed(2)}%` : 'At equity peak')}
+                </span>
+              </div>
+              <Segmented
+                label="Drawdown unit"
+                size="sm"
+                value={ddUnit}
+                onChange={setDdUnit}
+                options={[
+                  { value: 'pct', label: '%' },
+                  { value: 'usd', label: '$' },
+                ]}
+              />
+            </div>
+          </div>
+          <MetricsDrawdownChart
+            series={equityData.series}
+            unit={ddUnit}
+            hoverIndex={chartHoverIndex}
+            onHoverChange={setChartHoverIndex}
+          />
+        </Card>
+      </div>
 
       <Card className="chart-card pnl-heat-card">
         <PnlHeatmap days={allStats.dayRows} to={rangeTo} onOpenDay={openDayReview} />

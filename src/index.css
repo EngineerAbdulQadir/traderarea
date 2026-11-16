@@ -5557,12 +5557,14 @@ button.calendar-day:hover:not(:disabled) {
   font-weight: 620;
 }
 
+.accounts-page .is-pos,
 .acct-delta.is-pos {
-  color: var(--pos-text);
+  color: var(--chart-blue) !important;
 }
 
+.accounts-page .is-neg,
 .acct-delta.is-neg {
-  color: var(--neg-text);
+  color: var(--chart-negative) !important;
 }
 
 .acct-submetrics-sep {
@@ -5650,9 +5652,9 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .acct-step.state-done .acct-step-node {
-  border-color: var(--pos);
-  background: var(--pos-soft);
-  color: var(--pos-text);
+  border-color: var(--chart-blue);
+  background: rgb(var(--chart-blue-rgb) / 0.14);
+  color: var(--chart-blue);
 }
 
 .acct-step.state-current .acct-step-node {
@@ -5673,15 +5675,15 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .acct-step.state-current.is-passed .acct-step-node {
-  border-color: var(--pos);
-  background: var(--pos-soft);
-  color: var(--pos-text);
+  border-color: var(--chart-blue);
+  background: rgb(var(--chart-blue-rgb) / 0.14);
+  color: var(--chart-blue);
 }
 
 .acct-step.state-current.is-breached .acct-step-node {
-  border-color: var(--neg);
-  background: var(--neg-soft);
-  color: var(--neg-text);
+  border-color: var(--chart-negative);
+  background: rgb(var(--chart-negative-rgb) / 0.14);
+  color: var(--chart-negative);
 }
 
 .acct-step-copy {
@@ -5721,7 +5723,7 @@ button.calendar-day:hover:not(:disabled) {
 
 .acct-step.state-done .acct-step-state,
 .acct-step.state-current.is-passed .acct-step-state {
-  color: var(--pos-text);
+  color: var(--chart-blue);
 }
 
 .acct-step.state-current .acct-step-state {
@@ -5733,7 +5735,7 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .acct-step.state-current.is-breached .acct-step-state {
-  color: var(--neg-text);
+  color: var(--chart-negative);
 }
 
 .acct-step-rail {
@@ -5758,7 +5760,7 @@ button.calendar-day:hover:not(:disabled) {
 
 .acct-step-rail.is-done > i {
   width: 100%;
-  background: var(--pos);
+  background: var(--chart-blue);
 }
 
 .acct-step-rail.is-active > i {
@@ -5928,12 +5930,20 @@ button.calendar-day:hover:not(:disabled) {
   transform: translateY(-1px);
 }
 
+.demo-choice-card.is-pos {
+  color: var(--chart-blue) !important;
+}
+
+.demo-choice-card.is-neg {
+  color: var(--chart-negative) !important;
+}
+
 .demo-choice-card.is-pos:hover {
-  border-color: var(--pos-border);
+  border-color: rgb(var(--chart-blue-rgb) / 0.35);
 }
 
 .demo-choice-card.is-neg:hover {
-  border-color: var(--neg-border);
+  border-color: rgb(var(--chart-negative-rgb) / 0.35);
 }
 
 .demo-choice-icon {
@@ -5947,15 +5957,15 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .demo-choice-card.is-pos .demo-choice-icon {
-  background: var(--pos-soft);
-  border-color: var(--pos-border);
-  color: var(--pos-text);
+  background: rgb(var(--chart-blue-rgb) / 0.12);
+  border-color: rgb(var(--chart-blue-rgb) / 0.28);
+  color: var(--chart-blue);
 }
 
 .demo-choice-card.is-neg .demo-choice-icon {
-  background: var(--neg-soft);
-  border-color: var(--neg-border);
-  color: var(--neg-text);
+  background: rgb(var(--chart-negative-rgb) / 0.12);
+  border-color: rgb(var(--chart-negative-rgb) / 0.28);
+  color: var(--chart-negative);
 }
 
 .demo-choice-copy {
@@ -5985,11 +5995,11 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .demo-choice-card.is-pos .demo-choice-metric {
-  color: var(--pos-text);
+  color: var(--chart-blue);
 }
 
 .demo-choice-card.is-neg .demo-choice-metric {
-  color: var(--neg-text);
+  color: var(--chart-negative);
 }
 
 /* ---------- Theme-Matched Iconic Candle Stage Wing ---------- */
@@ -6027,8 +6037,8 @@ button.calendar-day:hover:not(:disabled) {
   --wing-accent: var(--accent);
 }
 
-.acct-wing.is-active.tone-emerald {
-  --wing-accent: var(--pos-text);
+.acct-wing.is-active.tone-azure {
+  --wing-accent: var(--chart-blue);
 }
 
 .acct-wing.is-active.tone-sovereign {
@@ -6036,7 +6046,7 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .acct-wing.is-active.tone-crimson {
-  --wing-accent: var(--neg-text);
+  --wing-accent: var(--chart-negative);
 }
 
 .acct-wing-stage {
@@ -6134,7 +6144,7 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .acct-wing.is-dormant.is-breached .acct-tag-rest {
-  color: var(--neg-text);
+  color: var(--chart-negative);
 }
 
 .acct-dormant-svg {
@@ -6186,9 +6196,9 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .account-remove:hover {
-  color: var(--neg-text);
-  background: var(--neg-soft);
-  border-color: rgb(var(--neg-rgb) / 0.15);
+  color: var(--chart-negative);
+  background: rgb(var(--chart-negative-rgb) / 0.12);
+  border-color: rgb(var(--chart-negative-rgb) / 0.22);
 }
 
 .account-add {
@@ -10929,6 +10939,14 @@ body::after {
   font-size: 9px;
 }
 
+.metric-foot-be {
+  color: var(--chart-neutral);
+}
+
+.metric-foot-closed {
+  color: var(--text-2);
+}
+
 .metric-split > span {
   background: var(--panel-3);
 }
@@ -11736,8 +11754,16 @@ body::after {
   --wing-accent: #0746a2;
 }
 
+:root[data-theme="light"] .acct-wing.is-active.tone-azure {
+  --wing-accent: var(--chart-blue);
+}
+
 :root[data-theme="light"] .acct-wing.is-active.tone-sovereign {
   --wing-accent: #9a6b16;
+}
+
+:root[data-theme="light"] .acct-wing.is-active.tone-crimson {
+  --wing-accent: var(--chart-negative);
 }
 
 :root[data-theme="light"] .acct-wing-aura {
@@ -13318,12 +13344,16 @@ button.calendar-day:hover {
   }
 
   .dashboard-page .is-pos,
-  .stats-page .is-pos {
+  .stats-page .is-pos,
+  .accounts-page .is-pos,
+  .phase-history-modal .is-pos {
     color: #2563eb !important;
   }
 
   .dashboard-page .is-neg,
-  .stats-page .is-neg {
+  .stats-page .is-neg,
+  .accounts-page .is-neg,
+  .phase-history-modal .is-neg {
     color: #d93829 !important;
   }
 
@@ -15010,12 +15040,26 @@ button.calendar-day:hover {
   font-weight: 500;
 }
 
+.phase-history-modal .is-pos,
 .phase-kpi b.is-pos {
-  color: var(--pos-text);
+  color: var(--chart-blue) !important;
 }
 
+.phase-history-modal .is-neg,
 .phase-kpi b.is-neg {
-  color: var(--neg-text);
+  color: var(--chart-negative) !important;
+}
+
+.phase-history-modal .badge-pos {
+  color: var(--chart-blue);
+  background: rgb(var(--chart-blue-rgb) / 0.12);
+  border-color: rgb(var(--chart-blue-rgb) / 0.28);
+}
+
+.phase-history-modal .badge-neg {
+  color: var(--chart-negative);
+  background: rgb(var(--chart-negative-rgb) / 0.12);
+  border-color: rgb(var(--chart-negative-rgb) / 0.28);
 }
 
 .phase-rules {
@@ -15129,11 +15173,11 @@ button.calendar-day:hover {
 }
 
 .phase-trade-row > b.is-pos {
-  color: var(--pos-text);
+  color: var(--chart-blue) !important;
 }
 
 .phase-trade-row > b.is-neg {
-  color: var(--neg-text);
+  color: var(--chart-negative) !important;
 }
 
 .phase-trades-empty {

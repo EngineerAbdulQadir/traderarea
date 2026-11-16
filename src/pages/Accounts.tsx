@@ -30,7 +30,7 @@ import { formatMoney, formatSize, plainPercent, signedMoney, signedPercent } fro
 import { cn } from '@/lib/cn'
 import type { Account, Rules, Stats } from '@/lib/types'
 
-type CandleTone = 'sapphire' | 'emerald' | 'sovereign' | 'crimson'
+type CandleTone = 'sapphire' | 'azure' | 'sovereign' | 'crimson'
 
 const CANDLE_PALETTES: Record<
   CandleTone,
@@ -63,19 +63,19 @@ const CANDLE_PALETTES: Record<
     cageEdge: '#ffffff',
     aura: 'rgba(37, 99, 235, 0.12)',
   },
-  emerald: {
+  azure: {
     label: 'PASSED',
-    coreDeep: '#02231b',
-    coreMid: '#047857',
-    coreBright: '#10b981',
-    leftLit: '#6ee7b7',
-    rightShadow: '#011711',
-    refractLight: '#d1fae5',
-    cageLight: '#e2e8f0',
-    cageMid: '#64748b',
-    cageDark: '#1e293b',
-    cageEdge: '#f8fafc',
-    aura: 'rgba(16, 185, 129, 0.12)',
+    coreDeep: '#041a3d',
+    coreMid: '#1d4ed8',
+    coreBright: '#4c8bf5',
+    leftLit: '#7dd3fc',
+    rightShadow: '#020e26',
+    refractLight: '#e0f2fe',
+    cageLight: '#f1f5f9',
+    cageMid: '#94a3b8',
+    cageDark: '#334155',
+    cageEdge: '#ffffff',
+    aura: 'rgba(76, 139, 245, 0.15)',
   },
   sovereign: {
     label: 'FUNDED',
@@ -113,7 +113,7 @@ function selectCandleTone(
   breached: boolean,
 ): CandleTone {
   if (breached) return 'crimson'
-  if (passed) return 'emerald'
+  if (passed) return 'azure'
   if (account.stage === 'Funded') return 'sovereign'
   return 'sapphire'
 }

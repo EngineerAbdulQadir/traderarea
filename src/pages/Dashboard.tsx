@@ -362,9 +362,19 @@ export function DashboardPage() {
                 : 'No closed trades'}
             </span>
             <span className="metric-foot">
-              <span>{stats.wins}W · {stats.losses}L{stats.be ? ` · ${stats.be}BE` : ''}</span>
+              <span>
+                <span className="is-pos">{stats.wins}W</span>
+                {' · '}
+                <span className="is-neg">{stats.losses}L</span>
+                {stats.be ? (
+                  <>
+                    {' · '}
+                    <span className="metric-foot-be">{stats.be}BE</span>
+                  </>
+                ) : null}
+              </span>
               <i aria-hidden="true" />
-              <span>{stats.count} closed</span>
+              <span className="metric-foot-closed">{stats.count} closed</span>
             </span>
           </div>
           <Donut

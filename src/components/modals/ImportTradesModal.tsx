@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react'
 import {
   ArrowRight,
+  CalendarDays,
   CircleAlert,
   FileText,
+  History,
   Loader2,
   RefreshCw,
   Upload,
@@ -13,7 +15,7 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { useApp } from '@/store/AppStore'
 import { titleFor } from '@/lib/accounts'
-import { formatNumericDate } from '@/lib/dates'
+import { formatNumericDate, todayISO } from '@/lib/dates'
 import { signedMoney } from '@/lib/format'
 import {
   parseMetaTraderHistory,
@@ -25,6 +27,8 @@ import { readXlsxRows } from '@/lib/xlsx'
 import { isSameTradeData } from '@/lib/trades'
 import type { Trade } from '@/lib/types'
 import { cn } from '@/lib/cn'
+
+type ImportScope = 'today' | 'all'
 
 interface ImportTradesModalProps {
   open: boolean
@@ -105,15 +109,19 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
 
   const inputRef = useRef<HTMLInputElement>(null)
   const [accountId, setAccountId] = useState(activeAccount?.id ?? accounts[0]?.id ?? '')
+  const [scope, setScope] = useState<ImportScope>('today')
   const [fileName, setFileName] = useState('')
   const [result, setResult] = useState<HistoryImportResult | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [dragging, setDragging] = useState(false)
 
+  const today = useMemo(() => todayISO(), [open])
+
   useEffect(() => {
     if (!open) return
     setAccountId(activeAccount?.id ?? accounts[0]?.id ?? '')
+    setScope('today')
     setFileName('')
     setResult(null)
     setBusy(false)
@@ -203,13 +211,35 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
     inputRef.current?.click()
   }
 
+  const todayCount = useMemo(
+    () => (result ? result.trades.filter((trade) => trade.date === today).length : 0),
+    [result, today],
+  )
+
+  const scopedEntries = useMemo(() => {
+    if (!result) return [] as Array<{ item: ImportedTrade; index: number }>
+    return result.trades
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => (scope === 'today' ? item.date === today : true))
+  }, [result, scope, today])
+
+  const scopedTrades = useMemo(
+    () => scopedEntries.map((entry) => entry.item),
+    [scopedEntries],
+  )
+
+  const scopedPnl = useMemo(
+    () => round2(scopedTrades.reduce((total, trade) => total + trade.pnl, 0)),
+    [scopedTrades],
+  )
+
   const importPreview = useMemo(() => {
     if (!result || !accountId) return { trades: [] as Trade[], duplicates: 0 }
     const existing = workspaceTrades.filter((trade) => trade.accountId === accountId)
     const prepared: Trade[] = []
     let duplicates = 0
 
-    result.trades.forEach((item, index) => {
+    scopedEntries.forEach(({ item, index }) => {
       const trade = tradeFromImport(item, index, accountId, result.platform)
       const existingMatch = existing.find((tradeRow) => tradeRow.id === trade.id)
       if (existingMatch) {
@@ -236,20 +266,28 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
     })
 
     return { trades: prepared, duplicates }
-  }, [result, accountId, workspaceTrades])
+  }, [result, accountId, workspaceTrades, scopedEntries])
 
   const handleImport = () => {
     if (!result || !accountId) return
     const account = accounts.find((item) => item.id === accountId)
     const trades = importPreview.trades
+    const scopedDates = scopedTrades.map((trade) => trade.date).filter(Boolean).sort()
+    const scopedResult: HistoryImportResult = {
+      ...result,
+      trades: scopedTrades,
+      totalPnl: scopedPnl,
+      from: scopedDates[0] ?? result.from,
+      to: scopedDates[scopedDates.length - 1] ?? result.to,
+    }
 
     if (!trades.length) {
       showToast(
-        'History already imported',
-        `All ${result.trades.length} trades already exist in ${account ? titleFor(account) : 'this account'}. Nothing was duplicated.`,
+        scope === 'today' ? "Today's trades already imported" : 'History already imported',
+        `All ${scopedTrades.length} trade${scopedTrades.length === 1 ? '' : 's'} ${scope === 'today' ? 'from today ' : ''}already exist in ${account ? titleFor(account) : 'this account'}. Nothing was duplicated.`,
         'info',
       )
-      onImported?.(result)
+      onImported?.(scopedResult)
       onClose()
       return
     }
@@ -261,18 +299,19 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
       ? ` ${importPreview.duplicates} duplicate${importPreview.duplicates === 1 ? '' : 's'} skipped.`
       : ''
     showToast(
-      'Trade history imported',
-      `${trades.length} trade${trades.length === 1 ? '' : 's'} loaded into ${account ? titleFor(account) : 'your journal'}${statement}.${duplicateNote}`,
+      scope === 'today' ? "Today's trades imported" : 'Trade history imported',
+      `${trades.length} trade${trades.length === 1 ? '' : 's'} ${scope === 'today' ? 'for today ' : ''}loaded into ${account ? titleFor(account) : 'your journal'}${statement}.${duplicateNote}`,
     )
-    onImported?.(result)
+    onImported?.(scopedResult)
     onClose()
   }
 
-  const previewTrades = result?.trades.slice(0, 6) ?? []
-  const remaining = (result?.trades.length ?? 0) - previewTrades.length
-  const wins = result?.trades.filter((trade) => trade.pnl > 0).length ?? 0
-  const losses = result?.trades.filter((trade) => trade.pnl < 0).length ?? 0
-  const breakEven = (result?.trades.length ?? 0) - wins - losses
+  const previewTrades = scopedTrades.slice(0, 6)
+  const remaining = scopedTrades.length - previewTrades.length
+  const wins = scopedTrades.filter((trade) => trade.pnl > 0).length
+  const losses = scopedTrades.filter((trade) => trade.pnl < 0).length
+  const breakEven = scopedTrades.length - wins - losses
+  const ignoredOlderCount = result ? result.trades.length - scopedTrades.length : 0
 
   const targetAccount = accounts.find((item) => item.id === accountId)
   const reportName = result?.meta.accountName ?? ''
@@ -288,6 +327,12 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
     !firmWords.some((word) => reportName.toLowerCase().includes(word))
   const sourceLabel = [reportName, result?.meta.accountNumber].filter(Boolean).join(' · ')
 
+  const footerNote = !result
+    ? 'No statement selected'
+    : scope === 'today' && scopedTrades.length === 0
+      ? `No trades closed today (${formatNumericDate(today)})`
+      : `${importPreview.trades.length} new trade${importPreview.trades.length === 1 ? '' : 's'} ready${importPreview.duplicates ? ` · ${importPreview.duplicates} duplicate${importPreview.duplicates === 1 ? '' : 's'} skipped` : ''}`
+
   return (
     <Modal
       open={open}
@@ -302,7 +347,7 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
             Import MetaTrader history
           </h2>
           <p className="modal-sub">
-            Load closed trades from an MT4 or MT5 HTML or XLSX statement. Trades already in the journal are skipped, so re-importing never duplicates them.
+            Choose whether to import only today’s closed trades or the whole statement history. Previous days stay untouched when importing today only.
           </p>
         </div>
         <ModalClose onClick={onClose} />
@@ -325,6 +370,53 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="field">
+          <span className="field-label" id="import-scope-label">
+            What would you like to import?
+          </span>
+          <div className="import-scope-grid" role="radiogroup" aria-labelledby="import-scope-label">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={scope === 'today'}
+              className={cn('import-scope-card', scope === 'today' && 'is-active')}
+              onClick={() => setScope('today')}
+            >
+              <div className="import-scope-top">
+                <span className="import-scope-icon">
+                  <CalendarDays size={15} />
+                </span>
+                <span className="import-scope-meta">
+                  {result ? `${todayCount} trade${todayCount === 1 ? '' : 's'}` : formatNumericDate(today)}
+                </span>
+              </div>
+              <b>Current day only</b>
+              <small>Import only trades closed today so previous days are not merged or changed.</small>
+            </button>
+
+            <button
+              type="button"
+              role="radio"
+              aria-checked={scope === 'all'}
+              className={cn('import-scope-card', scope === 'all' && 'is-active')}
+              onClick={() => setScope('all')}
+            >
+              <div className="import-scope-top">
+                <span className="import-scope-icon">
+                  <History size={15} />
+                </span>
+                <span className="import-scope-meta">
+                  {result
+                    ? `${result.trades.length} trade${result.trades.length === 1 ? '' : 's'}`
+                    : 'All dates'}
+                </span>
+              </div>
+              <b>Whole history</b>
+              <small>Import every closed trade in the Excel or HTML file, skipping duplicates.</small>
+            </button>
+          </div>
         </div>
 
         <input
@@ -384,7 +476,9 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
                 </span>
               </div>
               <Badge tone="accent">
-                {result.trades.length} trade{result.trades.length === 1 ? '' : 's'}
+                {scope === 'today' && scopedTrades.length !== result.trades.length
+                  ? `${scopedTrades.length} of ${result.trades.length} today`
+                  : `${scopedTrades.length} trade${scopedTrades.length === 1 ? '' : 's'}`}
               </Badge>
               <div className="import-file-actions">
                 <button type="button" className="import-icon-btn" onClick={replaceFile} aria-label="Replace file">
@@ -418,56 +512,84 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
 
             <div className="import-stats">
               <div className="import-stat">
-                <span>Trades</span>
-                <b>{result.trades.length}</b>
+                <span>{scope === 'today' ? "Today's trades" : 'Trades'}</span>
+                <b>{scopedTrades.length}</b>
                 <small>
                   {wins}W · {losses}L{breakEven ? ` · ${breakEven}BE` : ''}
                 </small>
               </div>
               <div className="import-stat">
                 <span>Net P&amp;L</span>
-                <b className={result.totalPnl >= 0 ? 'is-pos' : 'is-neg'}>{signedMoney(result.totalPnl)}</b>
-                <small>Across the statement</small>
+                <b className={scopedPnl >= 0 ? 'is-pos' : 'is-neg'}>{signedMoney(scopedPnl)}</b>
+                <small>{scope === 'today' ? 'For today only' : 'Across the statement'}</small>
               </div>
               <div className="import-stat">
                 <span>Period</span>
                 <b className="import-period">
-                  {result.from && result.to
-                    ? `${formatNumericDate(result.from)} – ${formatNumericDate(result.to)}`
-                    : '—'}
+                  {scope === 'today'
+                    ? formatNumericDate(today)
+                    : result.from && result.to
+                      ? `${formatNumericDate(result.from)} – ${formatNumericDate(result.to)}`
+                      : '—'}
                 </b>
-                <small>{result.skipped ? `${result.skipped} skipped` : 'All rows read'}</small>
+                <small>
+                  {scope === 'today'
+                    ? ignoredOlderCount > 0
+                      ? `${ignoredOlderCount} earlier trade${ignoredOlderCount === 1 ? '' : 's'} ignored`
+                      : 'Current day only'
+                    : result.skipped
+                      ? `${result.skipped} skipped`
+                      : 'All rows read'}
+                </small>
               </div>
             </div>
 
-            <div className="import-preview">
-              <div className="import-preview-head">
-                <span>Date</span>
-                <span>Symbol</span>
-                <span>Side</span>
-                <span>Size</span>
-                <span>P&amp;L</span>
-              </div>
-              {previewTrades.map((trade) => (
-                <div
-                  className="import-preview-row"
-                  key={`${trade.ticket}-${trade.date}-${trade.symbol}-${trade.pnl}`}
-                >
-                  <span className="import-preview-date">{formatNumericDate(trade.date)}</span>
-                  <span className="import-preview-symbol">{trade.symbol}</span>
-                  <Badge tone={trade.side === 'LONG' ? 'pos' : 'neg'}>
-                    {trade.side === 'LONG' ? 'Long' : 'Short'}
-                  </Badge>
-                  <span className="import-preview-volume">{trade.volume || '—'}</span>
-                  <b className={trade.pnl >= 0 ? 'is-pos' : 'is-neg'}>{signedMoney(trade.pnl)}</b>
+            {scopedTrades.length === 0 ? (
+              <div className="import-empty-scope">
+                <div className="import-empty-scope-copy">
+                  <b>No closed trades found for {formatNumericDate(today)}</b>
+                  <span>
+                    This file contains {result.trades.length} trade{result.trades.length === 1 ? '' : 's'} from{' '}
+                    {result.from && result.to
+                      ? `${formatNumericDate(result.from)} – ${formatNumericDate(result.to)}`
+                      : 'earlier dates'}
+                    .
+                  </span>
                 </div>
-              ))}
-              {remaining > 0 && (
-                <p className="import-preview-more">
-                  + {remaining} more trade{remaining === 1 ? '' : 's'} in this statement
-                </p>
-              )}
-            </div>
+                <Button variant="secondary" size="sm" type="button" onClick={() => setScope('all')}>
+                  Switch to Whole history
+                </Button>
+              </div>
+            ) : (
+              <div className="import-preview">
+                <div className="import-preview-head">
+                  <span>Date</span>
+                  <span>Symbol</span>
+                  <span>Side</span>
+                  <span>Size</span>
+                  <span>P&amp;L</span>
+                </div>
+                {previewTrades.map((trade, idx) => (
+                  <div
+                    className="import-preview-row"
+                    key={`${trade.ticket}-${trade.date}-${trade.closeTime}-${trade.symbol}-${trade.pnl}-${idx}`}
+                  >
+                    <span className="import-preview-date">{formatNumericDate(trade.date)}</span>
+                    <span className="import-preview-symbol">{trade.symbol}</span>
+                    <Badge tone={trade.side === 'LONG' ? 'pos' : 'neg'}>
+                      {trade.side === 'LONG' ? 'Long' : 'Short'}
+                    </Badge>
+                    <span className="import-preview-volume">{trade.volume || '—'}</span>
+                    <b className={trade.pnl >= 0 ? 'is-pos' : 'is-neg'}>{signedMoney(trade.pnl)}</b>
+                  </div>
+                ))}
+                {remaining > 0 && (
+                  <p className="import-preview-more">
+                    + {remaining} more trade{remaining === 1 ? '' : 's'} in this selection
+                  </p>
+                )}
+              </div>
+            )}
 
             {result.skipped > 0 && (
               <p className="import-skipped">
@@ -486,17 +608,13 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
 
         <p className="import-note">
           Export from MetaTrader: open <b>Account History</b>, right-click, then choose{' '}
-          <b>Save as Report</b> (HTML or XLSX). Only the closed positions in the statement are
-          imported, and trades already in the journal are skipped.
+          <b>Save as Report</b> (HTML or XLSX). Choose <b>Current day only</b> to import just today’s
+          trades, or <b>Whole history</b> to import the entire statement.
         </p>
       </div>
 
       <footer className="modal-foot import-foot">
-        <span className="modal-foot-note">
-          {result
-            ? `${importPreview.trades.length} new trade${importPreview.trades.length === 1 ? '' : 's'} ready${importPreview.duplicates ? ` · ${importPreview.duplicates} duplicate${importPreview.duplicates === 1 ? '' : 's'} skipped` : ''}`
-            : 'No statement selected'}
-        </span>
+        <span className="modal-foot-note">{footerNote}</span>
         <Button variant="ghost" type="button" onClick={onClose}>
           Cancel
         </Button>
@@ -515,3 +633,4 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
     </Modal>
   )
 }
+

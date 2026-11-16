@@ -122,11 +122,11 @@
 
   /* Charts */
   --chart-1: #6b99e2;
-  --chart-2: #4ebe7d;
+  --chart-2: #4c8bf5;
   --chart-3: #eeb154;
   --chart-4: #b98cea;
   --chart-5: #f27166;
-  --chart-positive: #4ebe7d;
+  --chart-positive: #4c8bf5;
   --chart-negative: #ef6358;
   --chart-negative-rgb: 239 99 88;
   --chart-warn: #eeb154;
@@ -141,7 +141,7 @@
   --chart-tooltip-bg: #1e1e21;
   --chart-tooltip-border: rgba(251, 252, 255, 0.14);
   --chart-line: #4c8bf5;
-  --chart-line-2: #4ebe7d;
+  --chart-line-2: #4c8bf5;
   --chart-area: rgba(76, 139, 245, 0.18);
 
   /* Depth */
@@ -255,11 +255,11 @@
 
   /* Charts */
   --chart-1: #6b99e2;
-  --chart-2: #168a55;
+  --chart-2: #2563eb;
   --chart-3: #b57400;
   --chart-4: #7d4bc0;
   --chart-5: #cf4436;
-  --chart-positive: #168a55;
+  --chart-positive: #2563eb;
   --chart-negative: #d93829;
   --chart-negative-rgb: 217 56 41;
   --chart-warn: #9a650f;
@@ -274,7 +274,7 @@
   --chart-tooltip-bg: #ffffff;
   --chart-tooltip-border: rgba(8, 9, 10, 0.12);
   --chart-line: #2563eb;
-  --chart-line-2: #168a55;
+  --chart-line-2: #2563eb;
   --chart-area: rgba(37, 99, 235, 0.15);
 
   /* Depth */
@@ -3188,11 +3188,11 @@ ol {
 }
 
 .avg-wl-val.is-pos {
-  color: var(--chart-blue);
+  color: var(--chart-blue) !important;
 }
 
 .avg-wl-val.is-neg {
-  color: var(--chart-negative);
+  color: var(--chart-negative) !important;
 }
 
 .avg-wl-track {
@@ -4305,15 +4305,15 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .hero-delta.is-pos {
-  color: var(--pos-text);
-  background: rgb(var(--pos-rgb) / 0.075);
-  border: 1px solid rgb(var(--pos-rgb) / 0.13);
+  color: var(--chart-blue);
+  background: rgb(var(--chart-blue-rgb) / 0.075);
+  border: 1px solid rgb(var(--chart-blue-rgb) / 0.13);
 }
 
 .hero-delta.is-neg {
-  color: var(--neg-text);
-  background: rgb(var(--neg-rgb) / 0.07);
-  border: 1px solid rgb(var(--neg-rgb) / 0.13);
+  color: var(--chart-negative);
+  background: rgb(var(--chart-negative-rgb) / 0.07);
+  border: 1px solid rgb(var(--chart-negative-rgb) / 0.13);
 }
 
 .hero-caption {
@@ -4329,12 +4329,12 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .hero-caption .is-pos {
-  color: var(--pos-text);
+  color: var(--chart-blue) !important;
   font-weight: 560;
 }
 
 .hero-caption .is-neg {
-  color: var(--neg-text);
+  color: var(--chart-negative) !important;
   font-weight: 560;
 }
 
@@ -4565,11 +4565,11 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .metric-split i.pos {
-  background: var(--pos);
+  background: var(--chart-blue);
 }
 
 .metric-split i.neg {
-  background: var(--neg);
+  background: var(--chart-negative);
 }
 
 .metric-wl {
@@ -4784,8 +4784,8 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .edge-component u.pos {
-  background: var(--pos);
-  box-shadow: 0 0 8px rgb(var(--pos-rgb) / 0.35);
+  background: var(--chart-blue);
+  box-shadow: 0 0 8px rgb(var(--chart-blue-rgb) / 0.35);
 }
 
 .edge-component u.mid {
@@ -4793,7 +4793,7 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .edge-component u.neg {
-  background: var(--neg);
+  background: var(--chart-negative);
 }
 
 .edge-foot {
@@ -6455,12 +6455,12 @@ button.calendar-day:hover:not(:disabled) {
 
 .stats-page .is-pos,
 .dashboard-page .is-pos {
-  color: var(--chart-blue);
+  color: var(--chart-blue) !important;
 }
 
 .stats-page .is-neg,
 .dashboard-page .is-neg {
-  color: var(--chart-negative);
+  color: var(--chart-negative) !important;
 }
 
 .stats-page .badge-accent,
@@ -10266,8 +10266,8 @@ body::after {
   height: 9px;
   border-radius: 50%;
   border: 2px solid var(--panel);
-  background: var(--pos);
-  box-shadow: 0 0 8px rgb(var(--pos-rgb) / 0.45);
+  background: var(--chart-blue);
+  box-shadow: 0 0 8px rgb(var(--chart-blue-rgb) / 0.45);
 }
 
 .hero-account-copy {
@@ -10372,13 +10372,13 @@ body::after {
 }
 
 .hero-value.is-pos {
-  color: var(--pos-text) !important;
-  text-shadow: 0 0 44px rgb(var(--pos-rgb) / 0.14);
+  color: var(--chart-blue) !important;
+  text-shadow: 0 0 44px rgb(var(--chart-blue-rgb) / 0.14);
 }
 
 .hero-value.is-neg {
-  color: var(--neg-text) !important;
-  text-shadow: 0 0 44px rgb(var(--neg-rgb) / 0.14);
+  color: var(--chart-negative) !important;
+  text-shadow: 0 0 44px rgb(var(--chart-negative-rgb) / 0.14);
 }
 
 .hero-delta {
@@ -10393,13 +10393,13 @@ body::after {
 }
 
 .hero-delta.is-pos {
-  color: var(--pos-text) !important;
+  color: var(--chart-blue) !important;
   background: none;
   border: 0;
 }
 
 .hero-delta.is-neg {
-  color: var(--neg-text) !important;
+  color: var(--chart-negative) !important;
   background: none;
   border: 0;
 }
@@ -10461,11 +10461,11 @@ body::after {
 }
 
 .hero-day-arrow.is-pos {
-  color: var(--chart-blue);
+  color: var(--chart-blue) !important;
 }
 
 .hero-day-arrow.is-neg {
-  color: var(--chart-negative);
+  color: var(--chart-negative) !important;
 }
 
 .hero-day-stat > b {
@@ -10894,11 +10894,11 @@ body::after {
 }
 
 .hero-pnl-delta.is-pos {
-  color: var(--chart-blue);
+  color: var(--chart-blue) !important;
 }
 
 .hero-pnl-delta.is-neg {
-  color: var(--chart-negative);
+  color: var(--chart-negative) !important;
 }
 
 /* Bottom stats sit on the same surface as the upper half. */
@@ -11864,12 +11864,12 @@ button.calendar-day:hover {
 
 .calendar .is-pos,
 .day-modal .is-pos {
-  color: var(--chart-blue);
+  color: var(--chart-blue) !important;
 }
 
 .calendar .is-neg,
 .day-modal .is-neg {
-  color: var(--chart-negative);
+  color: var(--chart-negative) !important;
 }
 
 .calendar-count {
@@ -13315,6 +13315,16 @@ button.calendar-day:hover {
 
   .is-neg {
     color: #c43f55 !important;
+  }
+
+  .dashboard-page .is-pos,
+  .stats-page .is-pos {
+    color: #2563eb !important;
+  }
+
+  .dashboard-page .is-neg,
+  .stats-page .is-neg {
+    color: #d93829 !important;
   }
 
   .rp-row,

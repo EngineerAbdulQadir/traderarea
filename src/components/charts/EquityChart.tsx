@@ -409,7 +409,7 @@ export function EquityChart({
             </button>
             <button
               onClick={() => setShowMarkers(!showMarkers)}
-              className={cn('px-2 py-1 rounded border transition-all flex items-center gap-1', showMarkers ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'border-slate-800 text-slate-500 hover:text-slate-300')}
+              className={cn('px-2 py-1 rounded border transition-all flex items-center gap-1', showMarkers ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' : 'border-slate-800 text-slate-500 hover:text-slate-300')}
             >
               Key Events
             </button>
@@ -601,7 +601,7 @@ export function EquityChart({
                     cx={pt.x}
                     cy={pt.y}
                     r={6}
-                    fill={isPeak ? '#f59e0b' : isBest ? '#10b981' : '#ef4444'}
+                    fill={isPeak ? '#f59e0b' : isBest ? '#3b82f6' : '#ef4444'}
                     opacity={0.25}
                     className="animate-ping"
                     style={{ animationDuration: '3s' }}
@@ -610,7 +610,7 @@ export function EquityChart({
                     cx={pt.x}
                     cy={pt.y}
                     r={4}
-                    fill={isPeak ? '#f59e0b' : isBest ? '#10b981' : '#ef4444'}
+                    fill={isPeak ? '#f59e0b' : isBest ? '#3b82f6' : '#ef4444'}
                     stroke="#090d16"
                     strokeWidth={2}
                   />
@@ -731,7 +731,7 @@ export function EquityChart({
               {/* Primary Value */}
               <div className="flex items-baseline justify-between gap-2">
                 <span className="text-slate-400 font-medium">Net P&amp;L</span>
-                <b className={cn('font-mono font-bold text-sm', hoverNet >= 0 ? 'text-emerald-400' : 'text-rose-400')}>
+                <b className={cn('font-mono font-bold text-sm', hoverNet >= 0 ? 'text-blue-400' : 'text-rose-400')}>
                   {signedMoney(hoverNet)}
                 </b>
               </div>
@@ -744,7 +744,7 @@ export function EquityChart({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Total Return</span>
-                  <span className={hoverReturnPct >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                  <span className={hoverReturnPct >= 0 ? 'text-blue-400' : 'text-rose-400'}>
                     {signedPercent(hoverReturnPct)}
                   </span>
                 </div>
@@ -754,7 +754,7 @@ export function EquityChart({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">DD Safety Buffer</span>
-                  <span className="text-emerald-400">{formatMoney(hoverNet - maxDdVal)}</span>
+                  <span className="text-blue-400">{formatMoney(hoverNet - maxDdVal)}</span>
                 </div>
                 {hoverDdDollars < 0 && (
                   <div className="flex justify-between pt-1 border-t border-slate-800/80">

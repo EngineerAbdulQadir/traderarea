@@ -1,4 +1,3 @@
-import { useId } from 'react'
 import { motion } from 'motion/react'
 import type { ScoreComponent } from '@/lib/types'
 import { cn } from '@/lib/cn'
@@ -11,7 +10,6 @@ interface RadarChartProps {
 }
 
 export function RadarChart({ components, hasData, size = 268, className }: RadarChartProps) {
-  const gradientId = useId().replace(/:/g, '')
   const cx = size / 2
   const cy = size / 2 + 2
   const radius = size * 0.3
@@ -25,25 +23,19 @@ export function RadarChart({ components, hasData, size = 268, className }: Radar
     components
       .map((_, index) => point(index, radius * fraction).map((value) => value.toFixed(1)).join(','))
       .join(' ')
-  const shape = components
-    .map((component, index) => point(index, radius * Math.max(0.04, component.score / 100)).map((value) => value.toFixed(1)).join(','))
-    .join(' ')
+
+  const vertices = components.map((component, index) =>
+    point(index, radius * Math.max(0.06, component.score / 100)),
+  )
+
+  const mid = (a: [number, number], b: [number, number]): [number, number] => [
+    (a[0] + b[0]) / 2,
+    (a[1] + b[1]) / 2,
+  ]
 
   return (
     <div className={cn('radar-wrap', className)} style={{ width: size, height: size }}>
       <svg viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Edge score radar">
-        <defs>
-          <linearGradient id={`radar-fill-${gradientId}`} x1="0" y1="1" x2="1" y2="0">
-            <stop offset="0%" stopColor="var(--chart-negative)" stopOpacity="0.28" />
-            <stop offset="52%" stopColor="var(--chart-blue-soft)" stopOpacity="0.22" />
-            <stop offset="100%" stopColor="var(--chart-blue)" stopOpacity="0.34" />
-          </linearGradient>
-          <linearGradient id={`radar-stroke-${gradientId}`} x1="0" y1="1" x2="1" y2="0">
-            <stop offset="0%" stopColor="var(--chart-negative)" />
-            <stop offset="55%" stopColor="var(--chart-blue-soft)" />
-            <stop offset="100%" stopColor="var(--chart-blue)" />
-          </linearGradient>
-        </defs>
         {[0.25, 0.5, 0.75, 1].map((fraction) => (
           <polygon
             key={fraction}
@@ -68,34 +60,55 @@ export function RadarChart({ components, hasData, size = 268, className }: Radar
             />
           )
         })}
-        {hasData && (
-          <>
-            <motion.polygon
-              points={shape}
-              fill={`url(#radar-fill-${gradientId})`}
-              stroke={`url(#radar-stroke-${gradientId})`}
-              strokeWidth={1.7}
-              strokeLinejoin="round"
-              initial={{ opacity: 0, scale: 0.7 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
-              style={{ transformOrigin: `${cx}px ${cy}px` }}
-            />
+        {hasData && count > 0 && (
+          <motion.g
+            initial={{ opacity: 0, scale: 0.7 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
+            style={{ transformOrigin: `${cx}px ${cy}px` }}
+          >
             {components.map((component, index) => {
-              const [x, y] = point(index, radius * Math.max(0.04, component.score / 100))
+              const prev = vertices[(index - 1 + count) % count]
+              const curr = vertices[index]
+              const next = vertices[(index + 1) % count]
+              const mPrev = mid(prev, curr)
+              const mNext = mid(curr, next)
+              const isPositive = component.score >= 50
+              const fill = isPositive
+                ? 'rgb(var(--chart-blue-rgb) / 0.22)'
+                : 'rgb(var(--chart-negative-rgb) / 0.22)'
+              const stroke = isPositive ? 'var(--chart-blue)' : 'var(--chart-negative)'
+              const sectorPath = `M ${cx.toFixed(1)} ${cy.toFixed(1)} L ${mPrev[0].toFixed(1)} ${mPrev[1].toFixed(1)} L ${curr[0].toFixed(1)} ${curr[1].toFixed(1)} L ${mNext[0].toFixed(1)} ${mNext[1].toFixed(1)} Z`
+              const edgePath = `M ${mPrev[0].toFixed(1)} ${mPrev[1].toFixed(1)} L ${curr[0].toFixed(1)} ${curr[1].toFixed(1)} L ${mNext[0].toFixed(1)} ${mNext[1].toFixed(1)}`
+              return (
+                <g key={component.label}>
+                  <path d={sectorPath} fill={fill} />
+                  <path
+                    d={edgePath}
+                    fill="none"
+                    stroke={stroke}
+                    strokeWidth={1.75}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </g>
+              )
+            })}
+            {components.map((component, index) => {
+              const [x, y] = vertices[index]
               return (
                 <circle
                   key={component.label}
                   cx={x}
                   cy={y}
-                  r={3}
+                  r={3.2}
                   fill={component.score >= 50 ? 'var(--chart-blue)' : 'var(--chart-negative)'}
                   stroke="var(--panel)"
                   strokeWidth={1.4}
                 />
               )
             })}
-          </>
+          </motion.g>
         )}
         {components.map((component, index) => {
           const [x, y] = point(index, radius + 24)

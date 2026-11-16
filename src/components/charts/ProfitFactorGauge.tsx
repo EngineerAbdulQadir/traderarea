@@ -14,13 +14,9 @@ export function ProfitFactorGauge({ value, hasProfit, hasLoss, className }: Prof
   const color =
     !hasProfit && !hasLoss
       ? 'var(--chart-neutral)'
-      : value >= 2
+      : !hasLoss || value >= 1
         ? 'var(--chart-blue)'
-        : value >= 1.5
-          ? 'var(--chart-blue-soft)'
-          : value >= 1
-            ? 'var(--chart-blue-muted)'
-            : 'var(--chart-negative)'
+        : 'var(--chart-negative)'
 
   return (
     <div className={cn('pf-gauge', className)}>

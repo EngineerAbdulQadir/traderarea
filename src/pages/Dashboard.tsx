@@ -329,7 +329,17 @@ export function DashboardPage() {
               </b>
             </div>
             <div className="hero-edge-score-track">
-              <i style={{ width: `${edge?.hasData ? Math.max(0, Math.min(100, edge.total)) : 0}%` }} />
+              {(() => {
+                const scoreVal = edge?.hasData ? Math.max(0, Math.min(100, edge.total)) : 0
+                const scoreTone = !edge?.hasData
+                  ? ''
+                  : scoreVal < 50
+                    ? 'is-neg'
+                    : scoreVal > 50
+                      ? 'is-pos'
+                      : 'is-split'
+                return <i className={scoreTone} style={{ width: `${scoreVal}%` }} />
+              })()}
             </div>
           </div>
         </div>

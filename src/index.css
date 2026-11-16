@@ -127,22 +127,22 @@
   --chart-4: #b98cea;
   --chart-5: #f27166;
   --chart-positive: #4ebe7d;
-  --chart-negative: #f27166;
-  --chart-negative-rgb: 242 113 102;
+  --chart-negative: #ef6358;
+  --chart-negative-rgb: 239 99 88;
   --chart-warn: #eeb154;
   --chart-neutral: #b0b0b5;
-  --chart-blue: #6b99e2;
-  --chart-blue-rgb: 107 153 226;
-  --heat-blue-rgb: 107 153 226;
-  --chart-blue-soft: #4f7fce;
-  --chart-blue-muted: #8fb2ea;
+  --chart-blue: #4c8bf5;
+  --chart-blue-rgb: 76 139 245;
+  --heat-blue-rgb: 76 139 245;
+  --chart-blue-soft: #3b7be8;
+  --chart-blue-muted: #4c8bf5;
   --chart-grid: rgba(176, 176, 181, 0.18);
   --chart-axis: #9aa1ad;
   --chart-tooltip-bg: #1e1e21;
   --chart-tooltip-border: rgba(251, 252, 255, 0.14);
-  --chart-line: #6b99e2;
+  --chart-line: #4c8bf5;
   --chart-line-2: #4ebe7d;
-  --chart-area: rgba(107, 153, 226, 0.18);
+  --chart-area: rgba(76, 139, 245, 0.18);
 
   /* Depth */
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.22);
@@ -260,22 +260,22 @@
   --chart-4: #7d4bc0;
   --chart-5: #cf4436;
   --chart-positive: #168a55;
-  --chart-negative: #cf4436;
-  --chart-negative-rgb: 207 68 54;
+  --chart-negative: #d93829;
+  --chart-negative-rgb: 217 56 41;
   --chart-warn: #9a650f;
   --chart-neutral: #7d848e;
-  --chart-blue: #0d3f8f;
-  --chart-blue-rgb: 13 63 143;
+  --chart-blue: #2563eb;
+  --chart-blue-rgb: 37 99 235;
   --heat-blue-rgb: 37 99 235;
-  --chart-blue-soft: #245fbc;
-  --chart-blue-muted: #5b86c9;
+  --chart-blue-soft: #1d4ed8;
+  --chart-blue-muted: #2563eb;
   --chart-grid: rgba(8, 9, 10, 0.09);
   --chart-axis: #626a76;
   --chart-tooltip-bg: #ffffff;
   --chart-tooltip-border: rgba(8, 9, 10, 0.12);
-  --chart-line: #2d6ecf;
+  --chart-line: #2563eb;
   --chart-line-2: #168a55;
-  --chart-area: rgba(45, 110, 207, 0.16);
+  --chart-area: rgba(37, 99, 235, 0.15);
 
   /* Depth */
   --shadow-card: 0 1px 2px rgba(8, 9, 10, 0.05);
@@ -3210,11 +3210,11 @@ ol {
 }
 
 .avg-wl-fill.is-pos {
-  background: linear-gradient(90deg, var(--chart-blue-soft), var(--chart-blue));
+  background: linear-gradient(90deg, rgb(var(--chart-blue-rgb) / 0.78), var(--chart-blue));
 }
 
 .avg-wl-fill.is-neg {
-  background: linear-gradient(90deg, rgb(var(--chart-negative-rgb) / 0.42), var(--chart-negative));
+  background: linear-gradient(90deg, rgb(var(--chart-negative-rgb) / 0.76), var(--chart-negative));
 }
 
 .avg-wl-foot {
@@ -3253,11 +3253,11 @@ ol {
 }
 
 .day-strip i.pos {
-  background: linear-gradient(180deg, var(--chart-blue), rgb(var(--chart-blue-rgb) / 0.35));
+  background: linear-gradient(180deg, var(--chart-blue), rgb(var(--chart-blue-rgb) / 0.65));
 }
 
 .day-strip i.neg {
-  background: linear-gradient(180deg, rgb(var(--chart-negative-rgb) / 0.45), var(--chart-negative));
+  background: linear-gradient(180deg, rgb(var(--chart-negative-rgb) / 0.65), var(--chart-negative));
 }
 
 .day-strip i.flat {
@@ -3354,11 +3354,11 @@ ol {
 }
 
 .bar-row-track .bar.pos {
-  background: linear-gradient(90deg, rgb(var(--chart-blue-rgb) / 0.35), var(--chart-blue));
+  background: linear-gradient(90deg, rgb(var(--chart-blue-rgb) / 0.68), var(--chart-blue));
 }
 
 .bar-row-track .bar.neg {
-  background: linear-gradient(90deg, var(--chart-negative), rgb(var(--chart-negative-rgb) / 0.35));
+  background: linear-gradient(90deg, var(--chart-negative), rgb(var(--chart-negative-rgb) / 0.68));
 }
 
 .bar-row-track .bar.neutral {
@@ -3441,12 +3441,12 @@ ol {
 }
 
 .column-col-plot i.pos {
-  background: linear-gradient(180deg, var(--chart-blue), rgb(var(--chart-blue-rgb) / 0.32));
-  box-shadow: 0 -4px 14px -6px rgb(var(--chart-blue-rgb) / 0.45);
+  background: linear-gradient(180deg, var(--chart-blue), rgb(var(--chart-blue-rgb) / 0.65));
+  box-shadow: 0 -4px 14px -6px rgb(var(--chart-blue-rgb) / 0.38);
 }
 
 .column-col-plot i.neg {
-  background: linear-gradient(0deg, var(--chart-negative), rgb(var(--chart-negative-rgb) / 0.32));
+  background: linear-gradient(0deg, var(--chart-negative), rgb(var(--chart-negative-rgb) / 0.65));
 }
 
 .column-col-label {
@@ -3513,11 +3513,11 @@ ol {
 }
 
 .r-histogram-track i.pos {
-  background: linear-gradient(180deg, var(--chart-blue), rgb(var(--chart-blue-rgb) / 0.28));
+  background: linear-gradient(180deg, var(--chart-blue), rgb(var(--chart-blue-rgb) / 0.62));
 }
 
 .r-histogram-track i.neg {
-  background: linear-gradient(180deg, rgb(var(--chart-negative-rgb) / 0.38), var(--chart-negative));
+  background: linear-gradient(180deg, rgb(var(--chart-negative-rgb) / 0.62), var(--chart-negative));
 }
 
 .r-histogram-label {
@@ -6463,13 +6463,19 @@ button.calendar-day:hover:not(:disabled) {
   color: var(--chart-negative);
 }
 
-.stats-page .badge-accent {
+.stats-page .badge-accent,
+.stats-page .badge-pos,
+.dashboard-page .badge-accent,
+.dashboard-page .badge-pos {
   color: var(--chart-blue);
   background: rgb(var(--chart-blue-rgb) / 0.12);
   border-color: rgb(var(--chart-blue-rgb) / 0.28);
 }
 
-.stats-page .badge-neg {
+.stats-page .badge-neg,
+.stats-page .badge-warn,
+.dashboard-page .badge-neg,
+.dashboard-page .badge-warn {
   color: var(--chart-negative);
   background: rgb(var(--chart-negative-rgb) / 0.12);
   border-color: rgb(var(--chart-negative-rgb) / 0.28);
@@ -6582,11 +6588,11 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .side-split .long {
-  background: linear-gradient(90deg, var(--chart-blue-soft), var(--chart-blue));
+  background: linear-gradient(90deg, rgb(var(--chart-blue-rgb) / 0.8), var(--chart-blue));
 }
 
 .side-split .short {
-  background: linear-gradient(90deg, rgb(var(--chart-negative-rgb) / 0.72), var(--chart-negative));
+  background: linear-gradient(90deg, rgb(var(--chart-negative-rgb) / 0.8), var(--chart-negative));
 }
 
 .side-split-caption {
@@ -6636,19 +6642,19 @@ button.calendar-day:hover:not(:disabled) {
 .grade-pill.good {
   color: var(--chart-blue);
   background: rgb(var(--chart-blue-rgb) / 0.12);
-  border-color: rgb(var(--chart-blue-rgb) / 0.2);
+  border-color: rgb(var(--chart-blue-rgb) / 0.22);
 }
 
 .grade-pill.ok {
-  color: var(--chart-blue-muted);
-  background: rgb(var(--chart-blue-rgb) / 0.07);
-  border-color: rgb(var(--chart-blue-rgb) / 0.13);
+  color: var(--muted);
+  background: rgb(var(--overlay-rgb) / 0.05);
+  border-color: var(--line);
 }
 
 .grade-pill.bad {
   color: var(--chart-negative);
   background: rgb(var(--chart-negative-rgb) / 0.12);
-  border-color: rgb(var(--chart-negative-rgb) / 0.2);
+  border-color: rgb(var(--chart-negative-rgb) / 0.22);
 }
 
 .grade-track {
@@ -6656,7 +6662,7 @@ button.calendar-day:hover:not(:disabled) {
   margin-top: 6px;
   overflow: hidden;
   border-radius: 99px;
-  background: rgb(var(--overlay-rgb) / 0.04);
+  background: rgb(var(--overlay-rgb) / 0.05);
 }
 
 .grade-track i {
@@ -6670,7 +6676,7 @@ button.calendar-day:hover:not(:disabled) {
 }
 
 .grade-track i.ok {
-  background: var(--chart-blue-muted);
+  background: var(--faint);
 }
 
 .grade-track i.bad {
@@ -10547,7 +10553,7 @@ body::after {
   position: absolute;
   inset: 18px auto 18px 0;
   width: 1px;
-  background: linear-gradient(180deg, transparent, rgb(var(--chart-blue-rgb) / 0.32), rgb(var(--chart-negative-rgb) / 0.24), transparent);
+  background: linear-gradient(180deg, transparent, var(--line-strong), transparent);
   pointer-events: none;
 }
 
@@ -10609,11 +10615,37 @@ body::after {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--chart-negative) 0%, var(--chart-blue-soft) 52%, var(--chart-blue) 100%);
+  background: var(--chart-blue);
+  transition: width 0.4s ease, background 0.25s ease;
+}
+
+.hero-edge-score-track > i.is-pos {
+  background: var(--chart-blue);
+  box-shadow: 0 0 10px rgb(var(--chart-blue-rgb) / 0.28);
+}
+
+.hero-edge-score-track > i.is-neg {
+  background: var(--chart-negative);
+  box-shadow: 0 0 10px rgb(var(--chart-negative-rgb) / 0.28);
+}
+
+.hero-edge-score-track > i.is-split {
+  background: linear-gradient(
+    90deg,
+    var(--chart-negative) 0%,
+    var(--chart-negative) 47%,
+    var(--chart-blue) 53%,
+    var(--chart-blue) 100%
+  );
   box-shadow:
-    0 0 12px rgb(var(--chart-blue-rgb) / 0.32),
-    0 0 8px rgb(var(--chart-negative-rgb) / 0.22);
-  transition: width 0.4s ease;
+    0 0 10px rgb(var(--chart-blue-rgb) / 0.22),
+    0 0 10px rgb(var(--chart-negative-rgb) / 0.22);
+}
+
+:root[data-theme="light"] .hero-edge-score-track > i.is-pos,
+:root[data-theme="light"] .hero-edge-score-track > i.is-neg,
+:root[data-theme="light"] .hero-edge-score-track > i.is-split {
+  box-shadow: none;
 }
 
 /* Dark theme: deeper surface, glow is owned by the chosen variant. */
@@ -10941,11 +10973,11 @@ body::after {
 }
 
 .dash-kpis .metric-wl-track > i.pos {
-  background: linear-gradient(180deg, var(--chart-blue), var(--chart-blue-soft));
+  background: linear-gradient(180deg, var(--chart-blue), rgb(var(--chart-blue-rgb) / 0.72));
 }
 
 .dash-kpis .metric-wl-track > i.neg {
-  background: linear-gradient(180deg, rgb(var(--chart-negative-rgb) / 0.4), var(--chart-negative));
+  background: linear-gradient(180deg, rgb(var(--chart-negative-rgb) / 0.72), var(--chart-negative));
 }
 
 .dash-kpis .metric-wl-col > em {
@@ -10958,11 +10990,11 @@ body::after {
 }
 
 .dash-kpis .day-strip i.pos {
-  background: linear-gradient(180deg, var(--chart-blue), var(--chart-blue-soft) 58%, rgb(var(--chart-blue-rgb) / 0.28));
+  background: linear-gradient(180deg, var(--chart-blue), rgb(var(--chart-blue-rgb) / 0.65));
 }
 
 .dash-kpis .day-strip i.neg {
-  background: linear-gradient(180deg, rgb(var(--chart-negative-rgb) / 0.42), var(--chart-negative));
+  background: linear-gradient(180deg, rgb(var(--chart-negative-rgb) / 0.65), var(--chart-negative));
 }
 
 .dash-kpis,
@@ -11965,7 +11997,7 @@ button.calendar-day:hover {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--chart-blue-soft), var(--chart-blue));
+  background: linear-gradient(90deg, rgb(var(--chart-blue-rgb) / 0.78), var(--chart-blue));
   box-shadow: 0 0 10px rgb(var(--chart-blue-rgb) / 0.3);
   opacity: 1;
   transition: width 0.7s var(--ease-out);
@@ -11973,7 +12005,7 @@ button.calendar-day:hover {
 
 .rule-row.is-info .rule-track i,
 .rule-row.is-done .rule-track i {
-  background: linear-gradient(90deg, var(--chart-blue-soft), var(--chart-blue));
+  background: linear-gradient(90deg, rgb(var(--chart-blue-rgb) / 0.78), var(--chart-blue));
   box-shadow: 0 0 12px rgb(var(--chart-blue-rgb) / 0.36);
 }
 
@@ -11983,12 +12015,12 @@ button.calendar-day:hover {
 }
 
 .rule-row.is-ok .rule-track i {
-  background: linear-gradient(90deg, rgb(var(--chart-negative-rgb) / 0.72), var(--chart-negative));
+  background: linear-gradient(90deg, rgb(var(--chart-negative-rgb) / 0.78), var(--chart-negative));
   box-shadow: 0 0 10px rgb(var(--chart-negative-rgb) / 0.3);
 }
 
 .rule-row.is-warn .rule-track i {
-  background: linear-gradient(90deg, rgb(var(--chart-negative-rgb) / 0.75), var(--chart-negative));
+  background: linear-gradient(90deg, rgb(var(--chart-negative-rgb) / 0.8), var(--chart-negative));
   box-shadow: 0 0 12px rgb(var(--chart-negative-rgb) / 0.36);
 }
 
@@ -11997,13 +12029,17 @@ button.calendar-day:hover {
 }
 
 .rule-row.is-danger .rule-track i {
-  background: linear-gradient(90deg, rgb(var(--chart-negative-rgb) / 0.8), var(--chart-negative));
+  background: linear-gradient(90deg, rgb(var(--chart-negative-rgb) / 0.85), var(--chart-negative));
   box-shadow: 0 0 14px rgb(var(--chart-negative-rgb) / 0.42);
 }
 
 .rule-row.is-danger .rule-figure b,
 .rule-row.is-danger .rule-note {
   color: var(--chart-negative);
+}
+
+:root[data-theme="light"] .rule-row .rule-track i {
+  box-shadow: none;
 }
 
 .rule-note {
@@ -15009,7 +15045,7 @@ button.calendar-day:hover {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--chart-blue-soft), var(--chart-blue));
+  background: linear-gradient(90deg, rgb(var(--chart-blue-rgb) / 0.78), var(--chart-blue));
 }
 
 .phase-rule.is-done .phase-rule-track i {

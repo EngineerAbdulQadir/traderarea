@@ -533,7 +533,6 @@ export async function submitCloudPartnerVerification(input: {
   userEmail: string
   ezeEmail: string
   orderId: string
-  challengeSize: number
 }): Promise<PartnerVerificationRequest> {
   const id = `pv_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
   const payload: Omit<PartnerVerificationRequest, 'id'> = {
@@ -541,7 +540,6 @@ export async function submitCloudPartnerVerification(input: {
     userEmail: input.userEmail.trim().toLowerCase(),
     ezeEmail: input.ezeEmail.trim().toLowerCase(),
     orderId: input.orderId.trim(),
-    challengeSize: input.challengeSize,
     status: 'pending',
     createdAt: new Date().toISOString(),
   }

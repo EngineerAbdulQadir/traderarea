@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { Layers, BarChart3, NotebookPen, LogOut, Plus, ChevronsUpDown, Settings, ShieldCheck } from 'lucide-react'
+import {
+  Layers,
+  BarChart3,
+  NotebookPen,
+  LogOut,
+  Plus,
+  ChevronsUpDown,
+  Settings,
+  ShieldCheck,
+} from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useApp } from '@/store/AppStore'
 import { useAuth } from '@/store/AuthProvider'

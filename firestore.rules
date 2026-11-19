@@ -38,14 +38,14 @@ service cloud.firestore {
     }
 
     function isValidPartnerVerificationCreate(data) {
-      return data.keys().hasAll(['uid', 'userEmail', 'ezeEmail', 'orderId', 'challengeSize', 'status', 'createdAt']) &&
+      return data.keys().hasAll(['uid', 'userEmail', 'ezeEmail', 'orderId', 'status', 'createdAt']) &&
         data.keys().hasOnly(['uid', 'userEmail', 'ezeEmail', 'orderId', 'challengeSize', 'status', 'createdAt']) &&
         data.uid is string && data.uid == request.auth.uid &&
         data.userEmail is string && data.userEmail.size() <= 254 &&
         data.ezeEmail is string && data.ezeEmail.size() >= 5 && data.ezeEmail.size() <= 254 &&
         data.ezeEmail.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$') &&
         data.orderId is string && data.orderId.size() >= 2 && data.orderId.size() <= 120 &&
-        data.challengeSize is number && data.challengeSize > 0 && data.challengeSize <= 1000000 &&
+        (!('challengeSize' in data) || (data.challengeSize is number && data.challengeSize > 0 && data.challengeSize <= 1000000)) &&
         data.status == 'pending' &&
         data.createdAt is string && data.createdAt.size() <= 64;
     }

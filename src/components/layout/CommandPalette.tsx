@@ -12,12 +12,15 @@ import {
   Search,
   Settings,
   ShieldCheck,
+  SlidersHorizontal,
   Sparkles,
   Sun,
   Wallet,
 } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { useApp } from '@/store/AppStore'
+import { useAuth } from '@/store/AuthProvider'
+import { hasDevOwnerSession, isAuthorizedOwner } from '@/lib/access'
 import { useTheme } from '@/hooks/useTheme'
 import { titleFor } from '@/lib/accounts'
 import { cn } from '@/lib/cn'
@@ -33,6 +36,8 @@ interface CommandItem {
 
 export function CommandPalette() {
   const { commandOpen, setCommandOpen, accounts, setActiveAccount, openChallenge, openTradeEditor, openSettings, openPlans } = useApp()
+  const { user } = useAuth()
+  const isOwner = isAuthorizedOwner(user) || hasDevOwnerSession()
   const { isDark, toggleTheme } = useTheme()
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
@@ -63,12 +68,24 @@ export function CommandPalette() {
       { id: 'page-entries', label: 'Entries', hint: 'Every trade in the journal', group: 'Navigate', icon: <ListOrdered size={15} />, run: closeAnd(() => navigate('/entries')) },
       { id: 'page-notes', label: 'Notes', hint: 'Daily session reflections', group: 'Navigate', icon: <BookOpenText size={15} />, run: closeAnd(() => navigate('/notes')) },
       { id: 'page-reports', label: 'Reports', hint: 'Where your edge lives', group: 'Navigate', icon: <FileBarChart size={15} />, run: closeAnd(() => navigate('/reports')) },
+      ...(isOwner
+        ? [
+            {
+              id: 'page-admin',
+              label: 'Admin Dashboard',
+              hint: 'Verifications, waitlist & workspace controls',
+              group: 'Navigate',
+              icon: <SlidersHorizontal size={15} />,
+              run: closeAnd(() => navigate('/admin')),
+            },
+          ]
+        : []),
       { id: 'action-settings', label: 'Open settings', hint: 'Profile, appearance and data', group: 'Actions', icon: <Settings size={15} />, run: closeAnd(openSettings) },
     ]
 
     const actions: CommandItem[] = [
       { id: 'action-challenge', label: 'Start a new challenge', hint: 'Open the challenge builder', group: 'Actions', icon: <Plus size={15} />, run: closeAnd(openChallenge) },
-      { id: 'action-plans', label: 'Plans & partner access', hint: '1 free account · unlock more via Eze Funded', group: 'Actions', icon: <ShieldCheck size={15} />, run: closeAnd(() => openPlans('browse')) },
+      { id: 'action-plans', label: 'Plans & access', hint: '1 free account · unlock more via Eze Funded', group: 'Actions', icon: <ShieldCheck size={15} />, run: closeAnd(() => openPlans('browse')) },
       { id: 'action-trade', label: 'Log a trade', hint: 'Add a closed trade to the journal', group: 'Actions', icon: <Sparkles size={15} />, run: closeAnd(() => openTradeEditor()) },
       {
         id: 'action-theme',
@@ -92,7 +109,7 @@ export function CommandPalette() {
     const all = [...pages, ...actions, ...accountItems]
     if (!q) return all
     return all.filter((item) => `${item.label} ${item.hint ?? ''} ${item.group}`.toLowerCase().includes(q))
-  }, [accounts, navigate, openChallenge, openPlans, openTradeEditor, openSettings, query, setActiveAccount, setCommandOpen, isDark, toggleTheme])
+  }, [accounts, isOwner, navigate, openChallenge, openPlans, openTradeEditor, openSettings, query, setActiveAccount, setCommandOpen, isDark, toggleTheme])
 
   useEffect(() => {
     setActiveIndex(0)

@@ -13,7 +13,7 @@ export interface PartnerVerificationRequest {
   userEmail: string
   ezeEmail: string
   orderId: string
-  challengeSize: number
+  challengeSize?: number
   status: PartnerVerificationStatus
   createdAt: string
   reviewedAt?: string

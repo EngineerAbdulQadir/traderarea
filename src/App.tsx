@@ -22,6 +22,7 @@ import { EntriesPage } from '@/pages/Entries'
 import { NotesPage } from '@/pages/Notes'
 import { ReportsPage } from '@/pages/Reports'
 import { WaitlistPage } from '@/pages/Waitlist'
+import { AdminDashboardPage } from '@/pages/AdminDashboard'
 import { StatsPage } from '@/pages/Stats'
 import { ownerLoginSlug } from '@/lib/access'
 
@@ -80,6 +81,8 @@ export default function App() {
         />
         <Route path="waitlist" element={<WaitlistPage />} />
         <Route element={<RequireAuth />}>
+          <Route path="admin" element={<AdminDashboardPage />} />
+          <Route path="owner" element={<Navigate to="/admin" replace />} />
           <Route element={<AppShell />}>
             <Route path="metrics" element={<DashboardPage />} />
             <Route path="journal" element={<JournalPage />} />

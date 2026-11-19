@@ -151,7 +151,6 @@ interface AppContextValue {
   submitPartnerVerification: (input: {
     ezeEmail: string
     orderId: string
-    challengeSize: number
   }) => Promise<PartnerVerificationRequest>
   reviewPartnerVerification: (id: string, status: 'approved' | 'rejected') => Promise<void>
   toasts: ToastItem[]
@@ -923,7 +922,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const closePlans = useCallback(() => setPlansOpen(false), [])
 
   const submitPartnerVerification = useCallback(
-    async (input: { ezeEmail: string; orderId: string; challengeSize: number }) => {
+    async (input: { ezeEmail: string; orderId: string }) => {
       const normalizedEzeEmail = input.ezeEmail.trim().toLowerCase()
       const cleanOrderId = input.orderId.trim()
 
@@ -933,7 +932,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           userEmail: user?.email ?? normalizedEzeEmail,
           ezeEmail: normalizedEzeEmail,
           orderId: cleanOrderId,
-          challengeSize: input.challengeSize,
         })
         return created
       }
@@ -944,7 +942,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         userEmail: user?.email ?? normalizedEzeEmail,
         ezeEmail: normalizedEzeEmail,
         orderId: cleanOrderId,
-        challengeSize: input.challengeSize,
         status: 'pending',
         createdAt: new Date().toISOString(),
       }

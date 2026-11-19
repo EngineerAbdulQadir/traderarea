@@ -1,5 +1,5 @@
-export type AccountType = 'step1' | 'step2' | 'step2prime'
-export type Stage = 'Phase 1' | 'Phase 2' | 'Funded'
+export type AccountType = 'step1' | 'step1pro' | 'step2' | 'step2prime' | 'step2pro' | 'step3' | 'instant' | 'exclusive'
+export type Stage = 'Phase 1' | 'Phase 2' | 'Phase 3' | 'Funded'
 export type Platform = 'MT5' | 'cTrader' | 'TradeLocker'
 export type Side = 'LONG' | 'SHORT'
 

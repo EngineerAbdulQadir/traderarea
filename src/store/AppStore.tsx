@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { Account, Note, NotesByAccount, Platform, Rules, Trade } from '@/lib/types'
+import type { Account, AccountType, Note, NotesByAccount, Platform, Rules, Stage, Trade } from '@/lib/types'
 import {
   effectivePhaseHistory,
   latestTradeKey,
@@ -18,7 +18,7 @@ import {
   tradesForPhase,
   createDemoAccount,
 } from '@/lib/accounts'
-import { fundedAccountSize, rulesFor } from '@/data/firms'
+import { fundedAccountSize, getFirm, rulesFor } from '@/data/firms'
 import { getDemoTrades } from '@/lib/demo'
 import { getStartingBalance } from '@/lib/stats'
 import { mergeImportedTrades } from '@/lib/trades'
@@ -91,6 +91,16 @@ interface DayReviewState {
   editNote?: boolean
 }
 
+export interface AccountUpdatePatch {
+  name?: string
+  firmId?: string
+  type?: AccountType
+  stage?: Stage
+  platform?: Platform
+  challengeSize?: number
+  rules?: Rules
+}
+
 interface AppContextValue {
   accounts: Account[]
   activeAccount: Account | null
@@ -104,7 +114,7 @@ interface AppContextValue {
   storedTradeCount: number
   setActiveAccount: (id: string) => void
   addAccount: (account: Account) => void
-  updateAccount: (id: string, patch: { name?: string; platform?: Platform; rules?: Rules }) => void
+  updateAccount: (id: string, patch: AccountUpdatePatch) => void
   advanceAccount: (id: string) => void
   removeAccount: (id: string) => void
   addDemoAccount: (tone?: 'profitable' | 'loss') => void
@@ -117,7 +127,9 @@ interface AppContextValue {
   saveNote: (accountId: string, date: string, text: string, images?: string[]) => void
   journalRevision: number
   challengeOpen: boolean
+  editingAccount: Account | null
   openChallenge: () => void
+  openEditChallenge: (account: Account) => void
   closeChallenge: () => void
   tradeEditor: TradeEditorState | null
   openTradeEditor: (options?: { trade?: Trade | null; accountId?: string }) => void
@@ -175,6 +187,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const bootstrapDone = useRef(false)
   const lastCloudUid = useRef<string | null>(null)
   const [challengeOpen, setChallengeOpen] = useState(false)
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null)
   const [tradeEditor, setTradeEditor] = useState<TradeEditorState | null>(null)
   const [dayReview, setDayReview] = useState<DayReviewState | null>(null)
   const [commandOpen, setCommandOpen] = useState(false)
@@ -692,7 +705,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   )
 
   const updateAccount = useCallback(
-    (id: string, patch: { name?: string; platform?: Platform; rules?: Rules }) => {
+    (id: string, patch: AccountUpdatePatch) => {
       setAccounts((previous) =>
         previous.map((item) => {
           if (item.id !== id) return item
@@ -702,8 +715,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
             if (trimmed) next.name = trimmed
             else delete next.name
           }
+          if (patch.firmId !== undefined) {
+            const firm = getFirm(patch.firmId)
+            next.firm = firm.name
+            next.firmBadge = firm.badge
+            next.firmGradient = firm.gradient
+          }
+          const nextType = patch.type ?? item.type
+          const nextStage = patch.stage ?? item.stage
+          const nextChallengeSize = patch.challengeSize ?? item.challengeSize ?? item.size
+          if (patch.type !== undefined) next.type = patch.type
+          if (patch.stage !== undefined) next.stage = patch.stage
           if (patch.platform !== undefined) next.platform = patch.platform
           if (patch.rules !== undefined) next.rules = patch.rules
+          if (
+            patch.challengeSize !== undefined ||
+            patch.stage !== undefined ||
+            patch.type !== undefined
+          ) {
+            const nextBalance =
+              nextStage === 'Funded'
+                ? fundedAccountSize(nextChallengeSize, nextType)
+                : nextChallengeSize
+            next.challengeSize = nextChallengeSize
+            next.size = nextBalance
+            next.startingBalance = nextBalance
+          }
           return next
         }),
       )
@@ -723,7 +760,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const cutoff = latestTradeKey(phaseTrades)
       const funded = nextStage === 'Funded'
       const nextBalance = funded
-        ? fundedAccountSize(account.challengeSize || account.size)
+        ? fundedAccountSize(account.challengeSize || account.size, account.type)
         : account.challengeSize || account.size
       const completedPhase = {
         stage: account.stage,
@@ -954,6 +991,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const openChallenge = useCallback(() => {
     setCommandOpen(false)
+    setEditingAccount(null)
     if (!partnerSummary.canAddAccount) {
       setPlansReason('limit-reached')
       setPlansOpen(true)
@@ -962,7 +1000,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setChallengeOpen(true)
   }, [partnerSummary.canAddAccount])
 
-  const closeChallenge = useCallback(() => setChallengeOpen(false), [])
+  const openEditChallenge = useCallback((account: Account) => {
+    setCommandOpen(false)
+    setEditingAccount(account)
+    setChallengeOpen(true)
+  }, [])
+
+  const closeChallenge = useCallback(() => {
+    setChallengeOpen(false)
+    setEditingAccount(null)
+  }, [])
 
   const openSettings = useCallback(() => {
     setCommandOpen(false)
@@ -1017,7 +1064,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       saveNote,
       journalRevision,
       challengeOpen,
+      editingAccount,
       openChallenge,
+      openEditChallenge,
       closeChallenge,
       tradeEditor,
       openTradeEditor,
@@ -1073,7 +1122,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       saveNote,
       journalRevision,
       challengeOpen,
+      editingAccount,
       openChallenge,
+      openEditChallenge,
       closeChallenge,
       tradeEditor,
       openTradeEditor,

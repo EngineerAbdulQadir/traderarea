@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState, type MouseEvent } from 'react'
+import { useId, useMemo, useState, type MouseEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import {
@@ -17,7 +17,6 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { Modal, ModalClose } from '@/components/ui/Modal'
 import { PhaseHistoryModal } from '@/components/modals/PhaseHistoryModal'
 import { ACCOUNT_PHASES } from '@/data/firms'
 import {
@@ -28,7 +27,7 @@ import {
 import { computeStats, evaluateAccount, getStartingBalance, type AccountEvaluation } from '@/lib/stats'
 import { formatMoney, formatSize, plainPercent, signedMoney, signedPercent } from '@/lib/format'
 import { cn } from '@/lib/cn'
-import type { Account, Rules, Stats } from '@/lib/types'
+import type { Account, Stats } from '@/lib/types'
 
 type CandleTone = 'sapphire' | 'azure' | 'sovereign' | 'crimson'
 
@@ -122,9 +121,14 @@ function accountCardSubtitle(account: Account): string {
   if (account.name?.trim()) {
     return `${account.firm} · ${formatSize(account.challengeSize || account.size)}`
   }
+  if (account.type === 'instant') return 'Direct Funded'
   if (account.stage === 'Funded') return 'Funded Account'
   if (account.type === 'step1') return '1-Step Evaluation'
+  if (account.type === 'step1pro') return '1-Step Pro Evaluation'
   if (account.type === 'step2prime') return '2-Step Prime'
+  if (account.type === 'step2pro') return '2-Step Pro Evaluation'
+  if (account.type === 'step3') return '3-Step Evaluation'
+  if (account.type === 'exclusive') return 'Eze Exclusive'
   return '2-Step Evaluation'
 }
 
@@ -537,167 +541,16 @@ function PhasePipeline({
   )
 }
 
-function EditAccountModal({
-  account,
-  onClose,
-  onSave,
-}: {
-  account: Account | null
-  onClose: () => void
-  onSave: (id: string, patch: { name?: string; rules?: Rules }) => void
-}) {
-  const [name, setName] = useState('')
-  const [rules, setRules] = useState<Rules>({ target: 10, daily: 5, max: 10, days: 5 })
-
-  useEffect(() => {
-    if (!account) return
-    setName(account.name ?? '')
-    setRules({ ...account.rules })
-  }, [account])
-
-  if (!account) {
-    return (
-      <Modal open={false} onClose={onClose} size="md" labelledBy="edit-account-title">
-        <div />
-      </Modal>
-    )
-  }
-
-  const funded = account.stage === 'Funded'
-  const defaultTitle = `${account.firm} ${formatSize(account.challengeSize || account.size)}`
-
-  const updateRule = (key: keyof Rules, raw: string) => {
-    const value = raw === '' ? 0 : Math.max(0, Number(raw) || 0)
-    setRules((previous) => ({ ...previous, [key]: value }))
-  }
-
-  const submit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    onSave(account.id, { name, rules })
-    onClose()
-  }
-
-  return (
-    <Modal
-      open={!!account}
-      onClose={onClose}
-      size="md"
-      className="edit-account-modal"
-      labelledBy="edit-account-title"
-      initialFocus="[data-autofocus]"
-    >
-      <form className="challenge-form" onSubmit={submit} noValidate>
-        <header className="modal-head">
-          <div className="modal-head-copy">
-            <h2 className="modal-title" id="edit-account-title">
-              Edit account
-            </h2>
-            <p className="modal-sub">
-              Update the label or {account.stage} rules for this account.
-            </p>
-          </div>
-          <ModalClose onClick={onClose} />
-        </header>
-
-        <div className="modal-body challenge-body">
-          <section className="challenge-section">
-            <div className="challenge-section-head">
-              <label className="field-label" htmlFor="edit-account-name">
-                Account name
-              </label>
-              <span className="challenge-count">Optional · defaults to {defaultTitle}</span>
-            </div>
-            <input
-              id="edit-account-name"
-              className="input challenge-name-input"
-              type="text"
-              maxLength={48}
-              data-autofocus
-              placeholder={defaultTitle}
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-            />
-          </section>
-
-          <section className="challenge-section">
-            <span className="field-label">{account.stage} rules</span>
-            <div className="rule-grid">
-              {!funded && (
-                <label className="field">
-                  <span className="field-label">Profit target (%)</span>
-                  <input
-                    className="input num"
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    value={rules.target}
-                    onChange={(event) => updateRule('target', event.target.value)}
-                  />
-                </label>
-              )}
-              <label className="field">
-                <span className="field-label">Daily loss (%)</span>
-                <input
-                  className="input num"
-                  type="number"
-                  min="0"
-                  step="0.5"
-                  value={rules.daily}
-                  onChange={(event) => updateRule('daily', event.target.value)}
-                />
-              </label>
-              <label className="field">
-                <span className="field-label">Max total loss (%)</span>
-                <input
-                  className="input num"
-                  type="number"
-                  min="0"
-                  step="0.5"
-                  value={rules.max}
-                  onChange={(event) => updateRule('max', event.target.value)}
-                />
-              </label>
-              {!funded && (
-                <label className="field">
-                  <span className="field-label">Min trading days</span>
-                  <input
-                    className="input num"
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={rules.days}
-                    onChange={(event) => updateRule('days', event.target.value)}
-                  />
-                </label>
-              )}
-            </div>
-          </section>
-        </div>
-
-        <footer className="modal-foot">
-          <span className="spacer" />
-          <Button variant="ghost" type="button" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button variant="primary" type="submit">
-            Save changes
-          </Button>
-        </footer>
-      </form>
-    </Modal>
-  )
-}
-
 export function AccountsPage() {
   const {
     accounts,
     activeAccount,
     setActiveAccount,
-    updateAccount,
     advanceAccount,
     removeAccount,
     getTradesForAccount,
     openChallenge,
+    openEditChallenge,
     openPlans,
     partnerSummary,
     showToast,
@@ -706,7 +559,6 @@ export function AccountsPage() {
   } = useApp()
   const navigate = useNavigate()
   const [pendingRemove, setPendingRemove] = useState<Account | null>(null)
-  const [editingAccount, setEditingAccount] = useState<Account | null>(null)
   const [historyAccount, setHistoryAccount] = useState<Account | null>(null)
 
   const evaluations = useMemo(() => {
@@ -737,14 +589,6 @@ export function AccountsPage() {
     removeAccount(pendingRemove.id)
     showToast('Account removed', `${title} and its trades were removed from this device.`, 'info')
     setPendingRemove(null)
-  }
-
-  const handleSaveEdit = (
-    id: string,
-    patch: { name?: string; rules?: Rules },
-  ) => {
-    updateAccount(id, patch)
-    showToast('Account updated', 'Your account settings have been saved.')
   }
 
   const handleCardPointerMove = (e: MouseEvent<HTMLElement>) => {
@@ -857,7 +701,7 @@ export function AccountsPage() {
                       <button
                         className="account-remove acct-head-btn acct-edit-btn"
                         type="button"
-                        onClick={() => setEditingAccount(account)}
+                        onClick={() => openEditChallenge(account)}
                         aria-label={`Edit ${titleFor(account)}`}
                         title="Edit account"
                       >
@@ -957,12 +801,6 @@ export function AccountsPage() {
           })}
         </div>
       )}
-
-      <EditAccountModal
-        account={editingAccount}
-        onClose={() => setEditingAccount(null)}
-        onSave={handleSaveEdit}
-      />
 
       <ConfirmDialog
         open={!!pendingRemove}

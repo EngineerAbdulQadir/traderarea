@@ -1,5 +1,5 @@
 import type { Account, AccountType, PhaseRecord, Platform, Rules, Stage, Trade } from '@/lib/types'
-import { ACCOUNT_PHASES, STAGES_BY_TYPE, getFirm, rulesFor, TYPE_LABELS } from '@/data/firms'
+import { ACCOUNT_PHASES, STAGES_BY_TYPE, fundedAccountSize, getFirm, rulesFor, TYPE_LABELS } from '@/data/firms'
 import { formatSize } from '@/lib/format'
 import { todayISO } from '@/lib/dates'
 
@@ -37,7 +37,9 @@ export function accountStageIndex(account: Account): number {
 }
 
 export function phaseState(account: Account, index: number): 'done' | 'current' | 'upcoming' | 'skipped' {
-  if (account.type === 'step1' && index === 1) return 'skipped'
+  const stage = ACCOUNT_PHASES[index]
+  const stages = STAGES_BY_TYPE[account.type] ?? ACCOUNT_PHASES
+  if (stage && !stages.includes(stage)) return 'skipped'
   const stageIndex = accountStageIndex(account)
   if (index < stageIndex) return 'done'
   if (index === stageIndex) return 'current'
@@ -110,7 +112,7 @@ export interface AccountDraft {
 export function createAccountFromDraft(draft: AccountDraft): Account {
   const firm = getFirm(draft.firmId)
   const funded = draft.stage === 'Funded'
-  const balance = funded ? draft.size / 10 : draft.size
+  const balance = funded ? fundedAccountSize(draft.size, draft.type) : draft.size
   const customName = draft.name?.trim()
   return {
     id: newAccountId(),

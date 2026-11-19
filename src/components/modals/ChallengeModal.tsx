@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Check, RotateCcw, ShieldCheck, Wallet } from 'lucide-react'
 import { Modal, ModalClose } from '@/components/ui/Modal'
@@ -104,7 +104,9 @@ export function ChallengeModal() {
   const [stage, setStage] = useState<Stage>('Phase 1')
   const [size, setSize] = useState(DEFAULT_SIZE)
   const [rules, setRules] = useState<Rules>(() => presetFor('step1', 'Phase 1'))
+  const [nameError, setNameError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const nameInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!challengeOpen) return
@@ -124,6 +126,7 @@ export function ChallengeModal() {
       setStage(nextStage)
       setSize(editingAccount.challengeSize || editingAccount.size || sizesForType(nextType)[0])
       setRules({ ...editingAccount.rules })
+      setNameError('')
       setSubmitting(false)
       return
     }
@@ -133,6 +136,7 @@ export function ChallengeModal() {
     setStage('Phase 1')
     setSize(DEFAULT_SIZE)
     setRules(presetFor('step1', 'Phase 1'))
+    setNameError('')
     setSubmitting(false)
   }, [challengeOpen, editingAccount])
 
@@ -202,6 +206,14 @@ export function ChallengeModal() {
     event.preventDefault()
     if (submitting || !firm || !(size > 0)) return
 
+    const trimmedName = name.trim()
+    if (!trimmedName) {
+      setNameError('Enter an account name.')
+      nameInputRef.current?.focus()
+      return
+    }
+    setNameError('')
+
     const normalizedRules: Rules = funded
       ? { target: 0, daily: dailyPct, max: maxPct, days: 0 }
       : { target: targetPct, daily: dailyPct, max: maxPct, days: minDays }
@@ -209,16 +221,15 @@ export function ChallengeModal() {
     if (editingAccount) {
       setSubmitting(true)
       updateAccount(editingAccount.id, {
-        name,
+        name: trimmedName,
         firmId: firm.id,
         type,
         stage,
         challengeSize: size,
         rules: normalizedRules,
       })
-      const displayName = name.trim() || `${firm.name} ${formatSize(size)}`
       closeChallenge()
-      showToast('Account updated', `${displayName} settings have been saved.`)
+      showToast('Account updated', `${trimmedName} settings have been saved.`)
       return
     }
 
@@ -230,7 +241,7 @@ export function ChallengeModal() {
 
     setSubmitting(true)
     const account = createAccountFromDraft({
-      name: name.trim() || undefined,
+      name: trimmedName,
       firmId: firm.id,
       type,
       stage,
@@ -288,20 +299,34 @@ export function ChallengeModal() {
               <section className="challenge-block">
                 <div className="challenge-section-head">
                   <label className="field-label" htmlFor="challenge-account-name">
-                    Account label
+                    Account name
                   </label>
-                  <span className="challenge-meta-note">Optional</span>
+                  <span className="challenge-meta-note">Required</span>
                 </div>
                 <input
+                  ref={nameInputRef}
                   id="challenge-account-name"
-                  className="input challenge-name-input"
+                  className={cn('input challenge-name-input', nameError && 'is-error')}
                   type="text"
                   maxLength={48}
                   data-autofocus
-                  placeholder={defaultLabel}
+                  placeholder="e.g. Main 10K Challenge"
                   value={name}
-                  onChange={(event) => setName(event.target.value)}
+                  required
+                  aria-invalid={!!nameError}
+                  aria-describedby={nameError ? 'challenge-account-name-error' : undefined}
+                  onChange={(event) => {
+                    setName(event.target.value)
+                    if (nameError && event.target.value.trim()) {
+                      setNameError('')
+                    }
+                  }}
                 />
+                {nameError && (
+                  <p id="challenge-account-name-error" className="challenge-field-error" role="alert">
+                    {nameError}
+                  </p>
+                )}
               </section>
 
               <section className="challenge-block">

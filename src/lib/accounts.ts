@@ -21,14 +21,12 @@ export function accountMeta(account: Account): string {
   const parts: string[] = []
   if (account.type && TYPE_LABELS[account.type]) parts.push(TYPE_LABELS[account.type])
   parts.push(formatSize(account.challengeSize || account.size))
-  if (account.platform) parts.push(account.platform)
   return parts.join(' · ')
 }
 
 export function accountMetaCompact(account: Account): string {
   const parts: string[] = []
   if (account.type && TYPE_LABELS[account.type]) parts.push(TYPE_LABELS[account.type])
-  if (account.platform) parts.push(account.platform)
   return parts.join(' · ')
 }
 

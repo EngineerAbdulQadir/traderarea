@@ -18,14 +18,14 @@ import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PhaseHistoryModal } from '@/components/modals/PhaseHistoryModal'
-import { ACCOUNT_PHASES } from '@/data/firms'
+import { ACCOUNT_PHASES, TYPE_LABELS } from '@/data/firms'
 import {
   nextStageFor,
   phaseState,
   titleFor,
 } from '@/lib/accounts'
 import { computeStats, evaluateAccount, getStartingBalance, type AccountEvaluation } from '@/lib/stats'
-import { formatMoney, formatSize, plainPercent, signedMoney, signedPercent } from '@/lib/format'
+import { formatMoney, plainPercent, signedMoney, signedPercent } from '@/lib/format'
 import { cn } from '@/lib/cn'
 import type { Account, Stats } from '@/lib/types'
 
@@ -118,18 +118,7 @@ function selectCandleTone(
 }
 
 function accountCardSubtitle(account: Account): string {
-  if (account.name?.trim()) {
-    return `${account.firm} · ${formatSize(account.challengeSize || account.size)}`
-  }
-  if (account.type === 'instant') return 'Direct Funded'
-  if (account.stage === 'Funded') return 'Funded Account'
-  if (account.type === 'step1') return '1-Step Evaluation'
-  if (account.type === 'step1pro') return '1-Step Pro Evaluation'
-  if (account.type === 'step2prime') return '2-Step Prime'
-  if (account.type === 'step2pro') return '2-Step Pro Evaluation'
-  if (account.type === 'step3') return '3-Step Evaluation'
-  if (account.type === 'exclusive') return 'Eze Exclusive'
-  return '2-Step Evaluation'
+  return TYPE_LABELS[account.type] ?? '2 Step'
 }
 
 /**

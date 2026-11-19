@@ -22,6 +22,7 @@ import { useApp } from '@/store/AppStore'
 import { useAuth } from '@/store/AuthProvider'
 import { hasDevOwnerSession, isAuthorizedOwner } from '@/lib/access'
 import { useTheme } from '@/hooks/useTheme'
+import { TYPE_LABELS } from '@/data/firms'
 import { titleFor } from '@/lib/accounts'
 import { cn } from '@/lib/cn'
 
@@ -100,7 +101,7 @@ export function CommandPalette() {
     const accountItems: CommandItem[] = accounts.map((account) => ({
       id: `account-${account.id}`,
       label: titleFor(account),
-      hint: `${account.stage} · ${account.platform} · ${account.firm}`,
+      hint: `${TYPE_LABELS[account.type]} · ${account.stage} · ${account.firm}`,
       group: 'Switch account',
       run: closeAnd(() => setActiveAccount(account.id)),
     }))

@@ -8061,6 +8061,16 @@ button.calendar-day:hover:not(:disabled) {
   font-size: 12.5px;
 }
 
+.challenge-name-input.is-error {
+  border-color: var(--neg-border);
+}
+
+.challenge-field-error {
+  margin: 0;
+  font-size: 11px;
+  color: var(--neg-text);
+}
+
 .challenge-modal .input {
   border-color: var(--line);
   background: var(--input-bg);

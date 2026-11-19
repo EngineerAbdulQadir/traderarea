@@ -67,6 +67,7 @@ export interface Trade {
   tags: string[]
   note: string
   manual: boolean
+  ticket?: string
 }
 
 export interface Note {

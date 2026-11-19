@@ -80,7 +80,7 @@ interface DateParts {
 const BUY_TYPES = /^(buy|long)\b/i
 const SELL_TYPES = /^(sell|short)\b/i
 const SECTION_BREAK =
-  /^(positions?|open positions?|orders?|pending orders?|working orders?|deals?|results?|balance|closed (transactions?|trades?))$/i
+  /^(positions?|open\s+positions?|open\s+trades?|orders?|pending\s+orders?|working\s+orders?|deals?|results?|summary|balance|closed\s+(transactions?|trades?))\s*:?$/i
 
 function round(value: number, digits = 2): number {
   const factor = 10 ** digits
@@ -134,15 +134,30 @@ function buildHeaderMap(cells: string[]): HeaderMap | null {
   let singleTime: number | null = null
 
   const normalized = cells.map(normalizeHeader)
-  map.hasPosition = normalized.some((h) => h === 'position')
+  map.hasPosition = normalized.some((h) => h === 'position' || h === 'positionid')
   map.hasDirection = normalized.some((h) => h === 'direction')
-  map.hasDeal = normalized.some((h) => h === 'deal')
+  map.hasDeal = normalized.some((h) => h === 'deal' || h === 'dealid')
 
   cells.forEach((cell, index) => {
     const h = normalizeHeader(cell)
-    if (!h) return
+    if (!h) {
+      if (map.ticket === undefined && cellText(cell) === '#') map.ticket = index
+      return
+    }
 
-    if (map.ticket === undefined && (h.includes('ticket') || h === 'position' || h === 'deal' || h === 'order' || h === 'id')) {
+    if (
+      map.ticket === undefined &&
+      (h.includes('ticket') ||
+        h === 'position' ||
+        h === 'positionid' ||
+        h === 'posid' ||
+        h === 'deal' ||
+        h === 'dealid' ||
+        h === 'order' ||
+        h === 'orderid' ||
+        h === 'tradeid' ||
+        h === 'id')
+    ) {
       map.ticket = index
       return
     }
@@ -302,7 +317,7 @@ function tradeFromRow(cells: string[], map: HeaderMap): ImportedTrade | null {
   const takeProfit = map.takeProfit === undefined ? Number.NaN : parseNumber(value(map.takeProfit))
 
   return {
-    ticket: value(map.ticket).replace(/\s+/g, ''),
+    ticket: value(map.ticket).replace(/^#|\s+/g, ''),
     symbol,
     side,
     volume: map.volume === undefined ? 0 : Math.abs(parseNumber(value(map.volume)) || 0),
@@ -330,6 +345,12 @@ function parseRows(rows: string[][], headerIndex: number, map: HeaderMap): Parse
     // section heading so "Orders"/"Deals" rows are not read as closed trades.
     const filled = cells.filter((cell) => cellText(cell))
     if (filled.length === 1 && SECTION_BREAK.test(cellText(filled[0]))) break
+    if (buildHeaderMap(cells)) break
+
+    if (map.hasDirection) {
+      const dirIndex = rows[headerIndex]?.findIndex((cell) => normalizeHeader(cell) === 'direction') ?? -1
+      if (dirIndex >= 0 && /^in$/i.test(cellText(cells[dirIndex]))) continue
+    }
 
     const type = map.type === undefined ? '' : cellText(cells[map.type])
     if (!parseSide(type)) {

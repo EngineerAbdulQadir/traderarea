@@ -21,6 +21,7 @@ import {
 import { fundedAccountSize, rulesFor } from '@/data/firms'
 import { getDemoTrades } from '@/lib/demo'
 import { getStartingBalance } from '@/lib/stats'
+import { mergeImportedTrades } from '@/lib/trades'
 import { seedDemoNotes } from '@/lib/notes'
 import {
   isDemoAccount,
@@ -844,12 +845,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const importTrades = useCallback((incoming: Trade[]) => {
     if (!incoming.length) return
-    const importedIds = new Set(incoming.map((trade) => trade.id))
     setTrades((previous) => {
-      const kept = previous.filter((trade) => !importedIds.has(trade.id))
-      return [...kept, ...incoming].sort((a, b) =>
-        (a.date + a.openTime).localeCompare(b.date + b.openTime),
-      )
+      const { next, added } = mergeImportedTrades(previous, incoming)
+      return added.length ? next : previous
     })
     setJournalRevision((value) => value + 1)
     requestDashboardRangeReset()

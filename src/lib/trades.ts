@@ -32,7 +32,7 @@ export function normalizeTrade(
     id: raw.id || `${accountId}-trade-${index}`,
     accountId: raw.accountId || accountId,
     date,
-    openTime: raw.openTime || raw.time || (raw.manual ? '' : '09:30:00'),
+    openTime: raw.openTime ?? raw.time ?? '',
     closeTime: raw.closeTime || '',
     ticker: raw.ticker || raw.symbol || '—',
     instrument: raw.instrument || raw.symbol || '—',
@@ -53,6 +53,7 @@ export function normalizeTrade(
     tags,
     note: raw.note || '',
     manual: !!raw.manual,
+    ...(raw.ticket ? { ticket: String(raw.ticket).trim() } : {}),
   }
 }
 
@@ -60,14 +61,63 @@ function tradeSymbol(trade: Trade): string {
   return (trade.instrument || trade.ticker || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
 }
 
-function timeKey(value: string): string {
-  const match = value.match(/(\d{1,2}):(\d{2})/)
-  return match ? `${match[1].padStart(2, '0')}:${match[2]}` : value
+function timeParts(value: string): { hm: string; hms: string | null } {
+  const match = value.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/)
+  if (!match) return { hm: value, hms: null }
+  const hm = `${match[1].padStart(2, '0')}:${match[2]}`
+  const hms = match[3] !== undefined ? `${hm}:${match[3].padStart(2, '0')}` : null
+  return { hm, hms }
+}
+
+function isSameTime(a: string, b: string): boolean {
+  if (!a || !b) return true
+  const left = timeParts(a)
+  const right = timeParts(b)
+  if (left.hms && right.hms) return left.hms === right.hms
+  return left.hm === right.hm
+}
+
+export function tradeTicket(trade: Pick<Trade, 'id' | 'ticket'>): string {
+  if (trade.ticket && trade.ticket.trim()) return trade.ticket.trim()
+  if (trade.id.startsWith('mt:')) {
+    const parts = trade.id.split(':')
+    // Standard ticket-based IDs follow `mt:<accountId>:<ticket>`.
+    if (parts.length === 3 && parts[2]) return parts[2]
+  }
+  return ''
+}
+
+export interface ImportTradeIdentityInput {
+  ticket: string
+  date: string
+  openTime: string
+  closeTime: string
+  symbol: string
+  side: Trade['side']
+  volume: number
+  entry: number
+  exit: number
+  pnl: number
+}
+
+/**
+ * Deterministic ID for an imported trade without relying on its array position
+ * in the file, so partial exports and whole-history exports yield matching IDs.
+ */
+export function buildImportedTradeBaseKey(accountId: string, item: ImportTradeIdentityInput): string {
+  const safeAccount = accountId.replace(/[/\\:\s]+/g, '-')
+  if (item.ticket) {
+    const safeTicket = item.ticket.replace(/[/\\:\s]+/g, '-')
+    return `mt:${safeAccount}:${safeTicket}`
+  }
+  const safeSymbol = item.symbol.replace(/[/\\:\s]+/g, '-')
+  return `mt:${safeAccount}:${item.date}:${item.openTime || '-'}:${item.closeTime || '-'}:${safeSymbol}:${item.side}:${item.volume}:${item.entry}:${item.exit}:${item.pnl}`
 }
 
 /**
  * Whether two journal entries describe the same executed trade. Used when
- * importing a statement again so trades logged by hand are not duplicated.
+ * importing a statement again so trades logged by hand or exported across
+ * different statement ranges are not duplicated.
  */
 export function isSameTradeData(a: Trade, b: Trade): boolean {
   if (!a.date || a.date !== b.date) return false
@@ -75,8 +125,8 @@ export function isSameTradeData(a: Trade, b: Trade): boolean {
   if (tradeSymbol(a) !== tradeSymbol(b)) return false
   if (Math.abs((a.volume || 0) - (b.volume || 0)) > 0.001) return false
 
-  if (a.openTime && b.openTime && timeKey(a.openTime) !== timeKey(b.openTime)) return false
-  if (a.closeTime && b.closeTime && timeKey(a.closeTime) !== timeKey(b.closeTime)) return false
+  if (!isSameTime(a.openTime, b.openTime)) return false
+  if (!isSameTime(a.closeTime, b.closeTime)) return false
 
   const aEntry = Number(a.entry) || 0
   const bEntry = Number(b.entry) || 0
@@ -89,6 +139,50 @@ export function isSameTradeData(a: Trade, b: Trade): boolean {
   if (aEntry && bEntry && aExit && bExit) return true
 
   return Math.abs((a.pnl || 0) - (b.pnl || 0)) <= 0.02
+}
+
+export function isDuplicateTrade(existing: Trade, candidate: Trade): boolean {
+  if (existing.accountId !== candidate.accountId) return false
+  if (existing.id === candidate.id) return true
+
+  const existingTicket = tradeTicket(existing)
+  const candidateTicket = tradeTicket(candidate)
+  if (existingTicket && candidateTicket) {
+    return existingTicket === candidateTicket
+  }
+
+  return isSameTradeData(existing, candidate)
+}
+
+export function mergeImportedTrades(
+  existing: Trade[],
+  incoming: Trade[],
+): { next: Trade[]; added: Trade[]; skipped: number } {
+  const added: Trade[] = []
+  let skipped = 0
+
+  incoming.forEach((candidate) => {
+    const alreadyExists = existing.some((row) => isDuplicateTrade(row, candidate))
+    if (alreadyExists) {
+      skipped += 1
+      return
+    }
+    const alreadyAdded = added.some((row) => isDuplicateTrade(row, candidate))
+    if (alreadyAdded) {
+      skipped += 1
+      return
+    }
+    added.push(candidate)
+  })
+
+  if (!added.length) {
+    return { next: existing, added: [], skipped }
+  }
+
+  const next = [...existing, ...added].sort((a, b) =>
+    (a.date + a.openTime).localeCompare(b.date + b.openTime),
+  )
+  return { next, added, skipped }
 }
 
 export function tradeHoldMinutes(trade: Trade): number | null {

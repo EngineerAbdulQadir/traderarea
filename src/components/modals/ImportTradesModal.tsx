@@ -24,7 +24,7 @@ import {
   type ImportedTrade,
 } from '@/lib/mtImport'
 import { readXlsxRows } from '@/lib/xlsx'
-import { isSameTradeData } from '@/lib/trades'
+import { buildImportedTradeBaseKey, isDuplicateTrade } from '@/lib/trades'
 import type { Trade } from '@/lib/types'
 import { cn } from '@/lib/cn'
 
@@ -42,13 +42,10 @@ function round2(value: number): number {
 
 function tradeFromImport(
   item: ImportedTrade,
-  index: number,
+  id: string,
   accountId: string,
   platform: HistoryImportResult['platform'],
 ): Trade {
-  const id = item.ticket
-    ? `mt:${accountId}:${item.ticket}`
-    : `mt:${accountId}:${item.date}:${item.closeTime}:${item.symbol}:${item.volume}:${item.pnl}:${index}`
   return {
     id,
     accountId,
@@ -76,6 +73,7 @@ function tradeFromImport(
       ? `Imported from ${platform === 'Unknown' ? 'MetaTrader' : platform} · ticket ${item.ticket}`
       : '',
     manual: false,
+    ...(item.ticket ? { ticket: item.ticket } : {}),
   }
 }
 
@@ -104,10 +102,12 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
     setActiveAccount,
     importTrades,
     showToast,
-    workspaceTrades,
+    getAllTradesForAccount,
+    isDemo,
   } = useApp()
 
   const inputRef = useRef<HTMLInputElement>(null)
+  const wasOpenRef = useRef(false)
   const [accountId, setAccountId] = useState(activeAccount?.id ?? accounts[0]?.id ?? '')
   const [scope, setScope] = useState<ImportScope>('today')
   const [fileName, setFileName] = useState('')
@@ -119,7 +119,9 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
   const today = useMemo(() => todayISO(), [open])
 
   useEffect(() => {
-    if (!open) return
+    const justOpened = open && !wasOpenRef.current
+    wasOpenRef.current = open
+    if (!justOpened) return
     setAccountId(activeAccount?.id ?? accounts[0]?.id ?? '')
     setScope('today')
     setFileName('')
@@ -216,16 +218,9 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
     [result, today],
   )
 
-  const scopedEntries = useMemo(() => {
-    if (!result) return [] as Array<{ item: ImportedTrade; index: number }>
-    return result.trades
-      .map((item, index) => ({ item, index }))
-      .filter(({ item }) => (scope === 'today' ? item.date === today : true))
-  }, [result, scope, today])
-
   const scopedTrades = useMemo(
-    () => scopedEntries.map((entry) => entry.item),
-    [scopedEntries],
+    () => (result ? result.trades.filter((item) => (scope === 'today' ? item.date === today : true)) : []),
+    [result, scope, today],
   )
 
   const scopedPnl = useMemo(
@@ -233,40 +228,41 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
     [scopedTrades],
   )
 
+  const targetAccount = useMemo(
+    () => accounts.find((item) => item.id === accountId),
+    [accounts, accountId],
+  )
+
+  const existingAccountTrades = useMemo(() => {
+    if (!targetAccount || isDemo(targetAccount)) return [] as Trade[]
+    return getAllTradesForAccount(targetAccount)
+  }, [targetAccount, isDemo, getAllTradesForAccount])
+
   const importPreview = useMemo(() => {
-    if (!result || !accountId) return { trades: [] as Trade[], duplicates: 0 }
-    const existing = workspaceTrades.filter((trade) => trade.accountId === accountId)
+    if (!result || !accountId) {
+      return { trades: [] as Trade[], newItems: [] as ImportedTrade[], duplicates: 0 }
+    }
     const prepared: Trade[] = []
+    const newItems: ImportedTrade[] = []
     let duplicates = 0
 
-    scopedEntries.forEach(({ item, index }) => {
-      const trade = tradeFromImport(item, index, accountId, result.platform)
-      const existingMatch = existing.find((tradeRow) => tradeRow.id === trade.id)
-      if (existingMatch) {
-        // Identical ticket: nothing to do. Changed data refreshes the row.
-        if (isSameTradeData(existingMatch, trade)) {
-          duplicates += 1
-          return
-        }
-        prepared.push(trade)
-        return
-      }
-      // Matches a trade already in the journal (for example one logged by
-      // hand before the statement was re-imported): never add it twice.
-      if (existing.some((tradeRow) => isSameTradeData(tradeRow, trade))) {
+    scopedTrades.forEach((item) => {
+      const id = buildImportedTradeBaseKey(accountId, item)
+      const trade = tradeFromImport(item, id, accountId, result.platform)
+      if (existingAccountTrades.some((tradeRow) => isDuplicateTrade(tradeRow, trade))) {
         duplicates += 1
         return
       }
-      // The statement itself can repeat a row; only keep one of them.
-      if (prepared.some((tradeRow) => isSameTradeData(tradeRow, trade))) {
+      if (prepared.some((tradeRow) => isDuplicateTrade(tradeRow, trade))) {
         duplicates += 1
         return
       }
       prepared.push(trade)
+      newItems.push(item)
     })
 
-    return { trades: prepared, duplicates }
-  }, [result, accountId, workspaceTrades, scopedEntries])
+    return { trades: prepared, newItems, duplicates }
+  }, [result, accountId, existingAccountTrades, scopedTrades])
 
   const handleImport = () => {
     if (!result || !accountId) return
@@ -306,14 +302,14 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
     onClose()
   }
 
-  const previewTrades = scopedTrades.slice(0, 6)
-  const remaining = scopedTrades.length - previewTrades.length
+  const previewSource = importPreview.newItems.length ? importPreview.newItems : scopedTrades
+  const previewTrades = previewSource.slice(0, 6)
+  const remaining = previewSource.length - previewTrades.length
   const wins = scopedTrades.filter((trade) => trade.pnl > 0).length
   const losses = scopedTrades.filter((trade) => trade.pnl < 0).length
   const breakEven = scopedTrades.length - wins - losses
   const ignoredOlderCount = result ? result.trades.length - scopedTrades.length : 0
 
-  const targetAccount = accounts.find((item) => item.id === accountId)
   const reportName = result?.meta.accountName ?? ''
   const firmWords = targetAccount
     ? targetAccount.firm
@@ -560,6 +556,24 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
                   Switch to Whole history
                 </Button>
               </div>
+            ) : importPreview.trades.length === 0 ? (
+              <div className="import-empty-scope">
+                <div className="import-empty-scope-copy">
+                  <b>
+                    All {scopedTrades.length} trade{scopedTrades.length === 1 ? '' : 's'}{' '}
+                    {scope === 'today' ? 'from today ' : ''}already imported
+                  </b>
+                  <span>
+                    {importPreview.duplicates} duplicate{importPreview.duplicates === 1 ? '' : 's'} matched your journal
+                    for {targetAccount ? titleFor(targetAccount) : 'this account'} and will not be copied again.
+                  </span>
+                </div>
+                {scope === 'today' && ignoredOlderCount > 0 && (
+                  <Button variant="secondary" size="sm" type="button" onClick={() => setScope('all')}>
+                    Check Whole history
+                  </Button>
+                )}
+              </div>
             ) : (
               <div className="import-preview">
                 <div className="import-preview-head">
@@ -583,9 +597,13 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
                     <b className={trade.pnl >= 0 ? 'is-pos' : 'is-neg'}>{signedMoney(trade.pnl)}</b>
                   </div>
                 ))}
-                {remaining > 0 && (
+                {(remaining > 0 || importPreview.duplicates > 0) && (
                   <p className="import-preview-more">
-                    + {remaining} more trade{remaining === 1 ? '' : 's'} in this selection
+                    {remaining > 0 ? `+ ${remaining} more new trade${remaining === 1 ? '' : 's'}` : ''}
+                    {remaining > 0 && importPreview.duplicates > 0 ? ' · ' : ''}
+                    {importPreview.duplicates > 0
+                      ? `${importPreview.duplicates} duplicate${importPreview.duplicates === 1 ? '' : 's'} skipped`
+                      : ''}
                   </p>
                 )}
               </div>

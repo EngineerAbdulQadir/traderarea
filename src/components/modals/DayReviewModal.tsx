@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   ImagePlus,
   Maximize2,
   PenLine,
+  Play,
   Plus,
   Sparkles,
   Trash2,
@@ -35,6 +37,7 @@ export function DayReviewModal() {
     showToast,
   } = useApp()
   const { user } = useAuth()
+  const navigate = useNavigate()
 
   const date = dayReview?.date ?? ''
   const note = date ? activeNotes[date] : undefined
@@ -619,6 +622,7 @@ export function DayReviewModal() {
                     <th className="r">Stop loss</th>
                     <th className="r">Take profit</th>
                     <th className="r">P&amp;L</th>
+                    <th className="r"><span className="sr-only">Replay</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -645,6 +649,22 @@ export function DayReviewModal() {
                         <td className="r num is-target">{trade.takeProfit ? formatPrice(trade.takeProfit) : '0'}</td>
                         <td className={cn('r num entry-pnl', trade.pnl > 0 && 'is-pos', trade.pnl < 0 && 'is-neg')}>
                           <b>{signedMoney(trade.pnl)}</b>
+                        </td>
+                        <td className="r">
+                          <button
+                            type="button"
+                            className="day-replay-btn"
+                            title={`Replay ${trade.ticker} execution`}
+                            aria-label={`Replay ${trade.ticker} execution`}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              closeDayReview()
+                              navigate(`/replay?trade=${trade.id}`)
+                            }}
+                          >
+                            <Play size={11} />
+                            <span>Replay</span>
+                          </button>
                         </td>
                       </tr>
                     )

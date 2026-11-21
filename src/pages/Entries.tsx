@@ -9,6 +9,7 @@ import {
   Download,
   ListOrdered,
   PencilLine,
+  Play,
   Plus,
   SearchX,
   SlidersHorizontal,
@@ -388,22 +389,36 @@ export function EntriesPage() {
                         <td><span className="entry-setup">{trade.playbook}</span></td>
                         <td><span className={`exec-tag is-${grade.key}`}>{grade.label}</span></td>
                         <td className="r">
-                          {trade.manual ? (
+                          <span className="entries-row-actions">
                             <button
                               className="entry-edit"
                               type="button"
-                              title="Edit trade"
-                              aria-label={`Edit ${trade.ticker} trade`}
+                              title="Replay trade"
+                              aria-label={`Replay ${trade.ticker} trade`}
                               onClick={(event) => {
                                 event.stopPropagation()
-                                openTradeEditor({ trade })
+                                navigate(`/replay?trade=${trade.id}`)
                               }}
                             >
-                              <PencilLine size={13} />
+                              <Play size={12} />
                             </button>
-                          ) : (
-                            <span className="entry-open"><ArrowRight size={13} /></span>
-                          )}
+                            {trade.manual ? (
+                              <button
+                                className="entry-edit"
+                                type="button"
+                                title="Edit trade"
+                                aria-label={`Edit ${trade.ticker} trade`}
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  openTradeEditor({ trade })
+                                }}
+                              >
+                                <PencilLine size={13} />
+                              </button>
+                            ) : (
+                              <span className="entry-open"><ArrowRight size={13} /></span>
+                            )}
+                          </span>
                         </td>
                       </tr>
                     )

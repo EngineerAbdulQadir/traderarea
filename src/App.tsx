@@ -23,6 +23,7 @@ import { NotesPage } from '@/pages/Notes'
 import { ReportsPage } from '@/pages/Reports'
 import { WaitlistPage } from '@/pages/Waitlist'
 import { AdminDashboardPage } from '@/pages/AdminDashboard'
+import { ReplayPage } from '@/pages/Replay'
 import { StatsPage } from '@/pages/Stats'
 import { ownerLoginSlug } from '@/lib/access'
 
@@ -86,6 +87,7 @@ export default function App() {
           <Route element={<AppShell />}>
             <Route path="metrics" element={<DashboardPage />} />
             <Route path="journal" element={<JournalPage />} />
+            <Route path="replay" element={<ReplayPage />} />
             <Route path="accounts" element={<AccountsPage />} />
             <Route path="portfolio" element={<Navigate to="/accounts" replace />} />
             <Route path="stats" element={<StatsPage />} />

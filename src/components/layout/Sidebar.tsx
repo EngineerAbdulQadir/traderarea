@@ -3,6 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   Layers,
   BarChart3,
+  CirclePlay,
   NotebookPen,
   LogOut,
   Plus,
@@ -100,36 +101,58 @@ export function Sidebar({
             {collapsed && !isMobile && <span className="nav-tooltip">Start new challenge</span>}
           </button>
 
-          <NavLink
-            to="/metrics"
-            end
-            className={({ isActive }) => cn('nav-item', isActive && 'active')}
-            onClick={onCloseMobile}
-          >
-            <BarChart3 size={16} strokeWidth={1.7} />
-            <span className="nav-label">Metrics</span>
-            {collapsed && !isMobile && <span className="nav-tooltip">Metrics</span>}
-          </NavLink>
+          <div className="nav-group">
+            <div className="nav-section">Trading</div>
+            <div className="nav-group-inner">
+              <NavLink
+                to="/metrics"
+                end
+                className={({ isActive }) => cn('nav-item', isActive && 'active')}
+                onClick={onCloseMobile}
+              >
+                <BarChart3 size={16} strokeWidth={1.7} />
+                <span className="nav-label">Metrics</span>
+                {collapsed && !isMobile && <span className="nav-tooltip">Metrics</span>}
+              </NavLink>
 
-          <NavLink
-            to="/journal"
-            className={({ isActive }) => cn('nav-item', isActive && 'active')}
-            onClick={onCloseMobile}
-          >
-            <NotebookPen size={16} strokeWidth={1.7} />
-            <span className="nav-label">Journal</span>
-            {collapsed && !isMobile && <span className="nav-tooltip">Journal</span>}
-          </NavLink>
+              <NavLink
+                to="/journal"
+                className={({ isActive }) => cn('nav-item', isActive && 'active')}
+                onClick={onCloseMobile}
+              >
+                <NotebookPen size={16} strokeWidth={1.7} />
+                <span className="nav-label">Journal</span>
+                {collapsed && !isMobile && <span className="nav-tooltip">Journal</span>}
+              </NavLink>
 
-          <NavLink
-            to="/accounts"
-            className={({ isActive }) => cn('nav-item', isActive && 'active')}
-            onClick={onCloseMobile}
-          >
-            <Layers size={16} strokeWidth={1.7} />
-            <span className="nav-label">Accounts</span>
-            {collapsed && !isMobile && <span className="nav-tooltip">Accounts</span>}
-          </NavLink>
+              <NavLink
+                to="/replay"
+                className={({ isActive }) => cn('nav-item', isActive && 'active')}
+                onClick={onCloseMobile}
+              >
+                <CirclePlay size={16} strokeWidth={1.7} />
+                <span className="nav-label">Replay</span>
+                {collapsed && !isMobile && <span className="nav-tooltip">Replay</span>}
+              </NavLink>
+            </div>
+          </div>
+
+          <div className="nav-group-sep" role="separator" />
+
+          <div className="nav-group">
+            <div className="nav-section">Management</div>
+            <div className="nav-group-inner">
+              <NavLink
+                to="/accounts"
+                className={({ isActive }) => cn('nav-item', isActive && 'active')}
+                onClick={onCloseMobile}
+              >
+                <Layers size={16} strokeWidth={1.7} />
+                <span className="nav-label">Accounts</span>
+                {collapsed && !isMobile && <span className="nav-tooltip">Accounts</span>}
+              </NavLink>
+            </div>
+          </div>
         </div>
 
         <div className="sidebar-footer">

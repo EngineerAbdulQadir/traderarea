@@ -9,16 +9,17 @@ import {
   ChevronsUpDown,
   Settings,
   ShieldCheck,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useApp } from '@/store/AppStore'
 import { useAuth } from '@/store/AuthProvider'
-import { clearOwnerSessions, isWaitlistOnly } from '@/lib/access'
+import { clearOwnerSessions, hasDevOwnerSession, isAuthorizedOwner, isWaitlistOnly } from '@/lib/access'
 import { cn } from '@/lib/cn'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useTheme } from '@/hooks/useTheme'
 import { useProfile } from '@/hooks/useProfile'
-import { initialsFor } from '@/lib/profile'
+import { DEFAULT_PROFILE, initialsFor } from '@/lib/profile'
 
 import logoLight from '../../../assets/logolight.png'
 import logoDark from '../../../assets/logodark.png'
@@ -34,10 +35,31 @@ export function Sidebar({
   onCloseMobile: () => void
 }) {
   const { openChallenge, openSettings, openPlans, partnerSummary } = useApp()
-  const { signOut, configured } = useAuth()
+  const { user, signOut, configured } = useAuth()
   const { isDark } = useTheme()
   const profile = useProfile()
-  const initials = initialsFor(profile.name)
+  const isAdmin = isAuthorizedOwner(user) || hasDevOwnerSession()
+
+  const displayName =
+    user?.displayName?.trim() ||
+    (profile.name !== DEFAULT_PROFILE.name ? profile.name : user?.email?.split('@')[0] || profile.name)
+  const displayEmail =
+    user?.email?.trim() ||
+    (profile.email !== DEFAULT_PROFILE.email ? profile.email : profile.email)
+  const initials = initialsFor(displayName)
+
+  const planDotTone =
+    partnerSummary.accessState === 'lifetime_affiliate' ||
+    partnerSummary.accessState === 'lifetime_granted' ||
+    partnerSummary.accessState === 'admin'
+      ? 'is-pos'
+      : partnerSummary.accessState === 'trial_expired'
+        ? 'is-neg'
+        : partnerSummary.accessState === 'pending_review' ||
+            partnerSummary.accessState === 'trial_expiring'
+          ? 'is-warn'
+          : 'is-accent'
+
   const [profileOpen, setProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
   const location = useLocation()
@@ -120,11 +142,21 @@ export function Sidebar({
             }}
           >
             <ShieldCheck size={15} strokeWidth={1.7} />
-            <span className="nav-label">Plans &amp; Access</span>
+            <span className="sidebar-plan-copy nav-label">
+              <b>Plans &amp; Access</b>
+              <span className="sidebar-plan-state num">
+                <i className={cn('sidebar-plan-dot', planDotTone)} aria-hidden="true" />
+                {partnerSummary.accessLabel}
+              </span>
+            </span>
             <span className="sidebar-plan-count num">
               {partnerSummary.usedSlots}/{partnerSummary.totalSlots}
             </span>
-            {collapsed && !isMobile && <span className="nav-tooltip">Plans &amp; Access</span>}
+            {collapsed && !isMobile && (
+              <span className="nav-tooltip">
+                Plans &amp; Access · {partnerSummary.accessLabel}
+              </span>
+            )}
           </button>
 
           <div className="sidebar-profile" ref={profileRef}>
@@ -137,6 +169,27 @@ export function Sidebar({
                   exit={{ opacity: 0, y: 6, scale: 0.98 }}
                   transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
                 >
+                  {isAdmin && (
+                    <>
+                      <button
+                        className="profile-menu-item"
+                        type="button"
+                        onClick={() => {
+                          setProfileOpen(false)
+                          navigate('/admin')
+                        }}
+                      >
+                        <span className="profile-menu-icon">
+                          <SlidersHorizontal size={15} />
+                        </span>
+                        <span className="profile-menu-copy">
+                          <b>Admin Dashboard</b>
+                        </span>
+                      </button>
+                      <div className="profile-menu-sep" role="separator" />
+                    </>
+                  )}
+
                   <button
                     className="profile-menu-item"
                     type="button"
@@ -188,12 +241,12 @@ export function Sidebar({
               onClick={() => setProfileOpen((open) => !open)}
               aria-haspopup="menu"
               aria-expanded={profileOpen}
-              title={collapsed ? `${profile.name} · ${profile.email}` : undefined}
+              title={collapsed ? `${displayName} · ${displayEmail}` : undefined}
             >
               <span className="sidebar-profile-avatar">{initials}</span>
               <span className="sidebar-profile-copy">
-                <b>Admin</b>
-                <span>admin@tradersarea.ai</span>
+                <b>{displayName}</b>
+                <span>{displayEmail}</span>
               </span>
               <ChevronsUpDown size={13} className="sidebar-profile-chevron" />
             </button>

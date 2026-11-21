@@ -2,9 +2,12 @@ import { useId, useMemo, useState, type MouseEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import {
+  AlertCircle,
   ArrowRight,
   ArrowUpRight,
   Check,
+  CheckCircle2,
+  Clock3,
   History,
   Layers,
   Pencil,
@@ -119,6 +122,13 @@ function selectCandleTone(
 
 function accountCardSubtitle(account: Account): string {
   return TYPE_LABELS[account.type] ?? '2 Step'
+}
+
+function formatShortDate(iso?: string | null): string {
+  if (!iso) return '—'
+  const parsed = new Date(iso)
+  if (Number.isNaN(parsed.getTime())) return '—'
+  return parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 /**
@@ -608,6 +618,114 @@ export function AccountsPage() {
           </div>
         }
       />
+
+      {!partnerSummary.isAdmin && (() => {
+        const trialPct = partnerSummary.hasLifetimeAccess
+          ? 100
+          : partnerSummary.freeTrialDays > 0
+            ? Math.max(
+                0,
+                Math.min(
+                  100,
+                  Math.round((partnerSummary.daysRemaining / partnerSummary.freeTrialDays) * 100),
+                ),
+              )
+            : 0
+        const statusTone = partnerSummary.hasLifetimeAccess
+          ? 'is-pos'
+          : partnerSummary.latestVerification?.status === 'rejected' &&
+              partnerSummary.pendingCount === 0
+            ? 'is-neg'
+            : partnerSummary.pendingCount > 0 || partnerSummary.daysRemaining <= 5
+              ? 'is-warn'
+              : 'is-info'
+        return (
+          <div className={cn('access-status-bar', statusTone)}>
+            <div className="access-status-copy">
+              <span className="access-status-emblem" aria-hidden="true">
+                {partnerSummary.hasLifetimeAccess ? (
+                  <CheckCircle2 size={16} />
+                ) : partnerSummary.pendingCount > 0 ? (
+                  <Clock3 size={16} />
+                ) : partnerSummary.latestVerification?.status === 'rejected' ? (
+                  <AlertCircle size={16} />
+                ) : (
+                  <ShieldCheck size={16} />
+                )}
+              </span>
+              <div className="access-status-text">
+                {partnerSummary.hasLifetimeAccess ? (
+                  <>
+                    <b>Lifetime journal access active</b>
+                    <span className="num">
+                      {partnerSummary.usedSlots}/{partnerSummary.totalSlots} account slots used · Add
+                      more slots at $0 via Eze Funded.
+                    </span>
+                  </>
+                ) : partnerSummary.pendingCount > 0 ? (
+                  <>
+                    <b>
+                      Eze Funded order {partnerSummary.latestVerification?.orderId ?? ''} is pending
+                      review
+                    </b>
+                    <span className="num">
+                      Trial active ({partnerSummary.daysRemaining}d left · ends{' '}
+                      {formatShortDate(partnerSummary.trialEndsAt)}). Lifetime unlocks once
+                      confirmed.
+                    </span>
+                  </>
+                ) : partnerSummary.latestVerification?.status === 'rejected' ? (
+                  <>
+                    <b>
+                      Order {partnerSummary.latestVerification.orderId} verification was declined
+                    </b>
+                    <span>
+                      {partnerSummary.latestVerification.note ||
+                        'Review your Eze Funded order details and resubmit to unlock lifetime access.'}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <b className="num">
+                      Free trial · {partnerSummary.daysRemaining} day
+                      {partnerSummary.daysRemaining === 1 ? '' : 's'} remaining
+                    </b>
+                    <span className="num">
+                      Ends {formatShortDate(partnerSummary.trialEndsAt)} · {partnerSummary.usedSlots}/
+                      {partnerSummary.totalSlots} free slot used. Buy via Eze Funded to unlock
+                      lifetime access.
+                    </span>
+                  </>
+                )}
+                {!partnerSummary.hasLifetimeAccess && (
+                  <div className="access-status-meter" aria-hidden="true">
+                    <span className="access-status-track">
+                      <i className={statusTone} style={{ width: `${trialPct}%` }} />
+                    </span>
+                    <span className="access-status-meter-label num">
+                      {partnerSummary.daysRemaining}d / {partnerSummary.freeTrialDays}d trial
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <Button
+              variant={partnerSummary.hasLifetimeAccess ? 'secondary' : 'primary'}
+              size="sm"
+              onClick={() => openPlans(partnerSummary.canAddAccount ? 'browse' : 'limit-reached')}
+            >
+              {partnerSummary.hasLifetimeAccess
+                ? 'Manage slots'
+                : partnerSummary.pendingCount > 0
+                  ? 'View status'
+                  : partnerSummary.latestVerification?.status === 'rejected'
+                    ? 'Resubmit order'
+                    : 'Unlock lifetime'}
+            </Button>
+          </div>
+        )
+      })()}
 
       {viewingPhaseIndex !== null && (
         <div className="phase-view-banner">

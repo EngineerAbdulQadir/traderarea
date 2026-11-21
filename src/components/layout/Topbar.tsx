@@ -29,21 +29,29 @@ type NotificationTone = 'accent' | 'pos' | 'warn' | 'neg'
 
 interface NotificationItem {
   id: string
-  accountId: string
+  accountId?: string
   accountName: string
   stage: string
   tag: string
   title: string
   detail: string
   tone: NotificationTone
-  route: '/accounts' | '/metrics'
+  action: { type: 'route'; route: '/accounts' | '/metrics' } | { type: 'plans' }
   priority: number
 }
 
 export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const { accounts, getTradesForAccount, setActiveAccount, setCommandOpen } = useApp()
+  const {
+    accounts,
+    getTradesForAccount,
+    setActiveAccount,
+    setCommandOpen,
+    partnerSummary,
+    partnerVerifications,
+    openPlans,
+  } = useApp()
   const meta = PAGE_META[location.pathname] ?? { title: 'Trader Area', group: 'Workspace' }
 
   const [notifOpen, setNotifOpen] = useState(false)
@@ -55,6 +63,66 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
 
   const notifications = useMemo<NotificationItem[]>(() => {
     const items: NotificationItem[] = []
+
+    const latestOrder = partnerVerifications[0]
+    if (latestOrder?.status === 'pending') {
+      items.push({
+        id: `pv-pending-${latestOrder.id}`,
+        accountName: 'Plans & Access',
+        stage: `Order ${latestOrder.orderId}`,
+        tag: 'Reviewing',
+        title: 'Verification pending review',
+        detail: `Submitted for ${latestOrder.ezeEmail}. Lifetime access unlocks once confirmed.`,
+        tone: 'warn',
+        action: { type: 'plans' },
+        priority: 0,
+      })
+    } else if (latestOrder?.status === 'rejected') {
+      items.push({
+        id: `pv-rejected-${latestOrder.id}`,
+        accountName: 'Plans & Access',
+        stage: `Order ${latestOrder.orderId}`,
+        tag: 'Declined',
+        title: 'Order verification declined',
+        detail: latestOrder.note
+          ? `${latestOrder.note} · Open Plans & Access to resubmit.`
+          : 'Check your Eze Funded order ID and resubmit in Plans & Access.',
+        tone: 'neg',
+        action: { type: 'plans' },
+        priority: 0,
+      })
+    } else if (latestOrder?.status === 'approved') {
+      items.push({
+        id: `pv-approved-${latestOrder.id}`,
+        accountName: 'Plans & Access',
+        stage: `Order ${latestOrder.orderId}`,
+        tag: 'Lifetime',
+        title: 'Lifetime journal access active',
+        detail: `Verified Eze Funded purchase · ${partnerSummary.totalSlots} account slots unlocked.`,
+        tone: 'pos',
+        action: { type: 'plans' },
+        priority: 2,
+      })
+    }
+
+    if (
+      !partnerSummary.hasLifetimeAccess &&
+      !partnerSummary.trialExpired &&
+      partnerSummary.daysRemaining <= 5 &&
+      partnerSummary.pendingCount === 0
+    ) {
+      items.push({
+        id: `trial-expiring-${partnerSummary.daysRemaining}`,
+        accountName: 'Free Trial',
+        stage: `${partnerSummary.daysRemaining}d left`,
+        tag: 'Expiring',
+        title: `Free trial ends in ${partnerSummary.daysRemaining} ${partnerSummary.daysRemaining === 1 ? 'day' : 'days'}`,
+        detail: 'Buy an Eze Funded challenge via our affiliate link and verify to keep lifetime access.',
+        tone: 'warn',
+        action: { type: 'plans' },
+        priority: 1,
+      })
+    }
 
     accounts.forEach((account) => {
       const starting = getStartingBalance(account)
@@ -77,7 +145,7 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
             ? `${account.stage} target & min days met · ${signedMoney(evaluation.net, account.currency)}`
             : `Live performance target reached · ${signedMoney(evaluation.net, account.currency)}`,
           tone: 'accent',
-          route: '/accounts',
+          action: { type: 'route', route: '/accounts' },
           priority: 1,
         })
       } else if (evaluation.status === 'breached') {
@@ -90,7 +158,7 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
           title: `${account.stage} breached`,
           detail: evaluation.reason,
           tone: 'neg',
-          route: '/accounts',
+          action: { type: 'route', route: '/accounts' },
           priority: 2,
         })
       } else if (evaluation.targetHit && !evaluation.daysMet) {
@@ -104,7 +172,7 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
           title: 'Profit target reached',
           detail: `${remainingDays} profitable ${remainingDays === 1 ? 'day' : 'days'} remaining in ${account.stage}`,
           tone: 'accent',
-          route: '/metrics',
+          action: { type: 'route', route: '/metrics' },
           priority: 3,
         })
       } else {
@@ -121,7 +189,7 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
             title: `${caution.name} limit approaching`,
             detail: `${caution.value} ${caution.limit} (${caution.right} used)`,
             tone: 'warn',
-            route: '/metrics',
+            action: { type: 'route', route: '/metrics' },
             priority: 4,
           })
         }
@@ -131,7 +199,7 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
     return items
       .filter((item) => !dismissedIds.includes(item.id))
       .sort((a, b) => a.priority - b.priority)
-  }, [accounts, dismissedIds, getTradesForAccount])
+  }, [accounts, dismissedIds, getTradesForAccount, partnerSummary, partnerVerifications])
 
   const readSet = useMemo(() => new Set(readIds), [readIds])
   const unreadCount = useMemo(
@@ -189,9 +257,13 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
 
   const handleSelectItem = (item: NotificationItem) => {
     markRead(item.id)
-    setActiveAccount(item.accountId)
     setNotifOpen(false)
-    navigate(item.route)
+    if (item.action.type === 'plans') {
+      openPlans('browse')
+      return
+    }
+    if (item.accountId) setActiveAccount(item.accountId)
+    navigate(item.action.route)
   }
 
   return (
@@ -258,7 +330,7 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
                 {notifications.length === 0 ? (
                   <div className="notif-empty">
                     <b>All caught up</b>
-                    <span>Account milestones and rule alerts will appear here.</span>
+                    <span>Account access, verifications, and rule alerts will appear here.</span>
                   </div>
                 ) : (
                   <div className="notif-list">

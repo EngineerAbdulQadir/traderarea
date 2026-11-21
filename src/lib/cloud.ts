@@ -17,7 +17,14 @@ import {
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import type { Account, Note, NotesByAccount, Trade } from '@/lib/types'
-import type { PartnerVerificationRequest, PartnerVerificationStatus } from '@/lib/partner'
+import {
+  DEFAULT_ACCESS_POLICY,
+  normalizeAccessPolicy,
+  type AccessPolicyConfig,
+  type PartnerVerificationRequest,
+  type PartnerVerificationStatus,
+  type UserEntitlementRecord,
+} from '@/lib/partner'
 
 const BATCH_LIMIT = 400
 
@@ -62,11 +69,12 @@ export async function hasCloudWorkspace(uid: string): Promise<boolean> {
 
 export async function ensureUserProfile(
   uid: string,
-  profile: { name?: string; email?: string },
+  profile: { name?: string; email?: string; trialStartedAt?: string },
 ): Promise<void> {
   const payload: Record<string, unknown> = { updatedAt: new Date().toISOString() }
   if (profile.name) payload.name = profile.name
   if (profile.email) payload.email = profile.email
+  if (profile.trialStartedAt) payload.trialStartedAt = profile.trialStartedAt
   await setDoc(doc(requireDb(), 'users', uid), payload, { merge: true })
 }
 
@@ -82,6 +90,164 @@ export async function markUserFreeSlotConsumed(uid: string): Promise<void> {
     { freeSlotConsumed: true, updatedAt: new Date().toISOString() },
     { merge: true },
   )
+}
+
+export async function ensureUserEntitlement(
+  uid: string,
+  defaults: { email?: string; name?: string; trialStartedAt: string; accountsCount?: number },
+): Promise<UserEntitlementRecord> {
+  const ref = doc(requireDb(), 'users', uid)
+  const snapshot = await getDoc(ref)
+  const data = snapshot.exists() ? (snapshot.data() as Partial<UserEntitlementRecord>) : {}
+  const nowIso = new Date().toISOString()
+  const patch: Record<string, unknown> = {
+    updatedAt: nowIso,
+    lastActiveAt: nowIso,
+  }
+  let dirty = false
+
+  if (!data.trialStartedAt) {
+    patch.trialStartedAt = defaults.trialStartedAt
+    dirty = true
+  }
+  if (defaults.email && !data.email) {
+    patch.email = defaults.email
+    dirty = true
+  }
+  if (defaults.name && !data.name) {
+    patch.name = defaults.name
+    dirty = true
+  }
+  if (typeof defaults.accountsCount === 'number' && data.accountsCount !== defaults.accountsCount) {
+    patch.accountsCount = defaults.accountsCount
+    dirty = true
+  }
+
+  if (!snapshot.exists() || dirty) {
+    await setDoc(ref, patch, { merge: true })
+  }
+
+  return {
+    uid,
+    email: data.email ?? defaults.email,
+    name: data.name ?? defaults.name,
+    accountsCount:
+      typeof defaults.accountsCount === 'number' ? defaults.accountsCount : Number(data.accountsCount) || 0,
+    freeSlotConsumed: Boolean(data.freeSlotConsumed),
+    trialStartedAt: data.trialStartedAt ?? defaults.trialStartedAt,
+    trialBonusDays: Number(data.trialBonusDays) || 0,
+    lifetimeGranted: Boolean(data.lifetimeGranted),
+    lifetimeGrantedAt: data.lifetimeGrantedAt,
+    lifetimeGrantedBy: data.lifetimeGrantedBy,
+    lastActiveAt: nowIso,
+    updatedAt: data.updatedAt,
+  }
+}
+
+export async function syncUserAccountsCount(uid: string, accountsCount: number): Promise<void> {
+  const nowIso = new Date().toISOString()
+  await setDoc(
+    doc(requireDb(), 'users', uid),
+    { accountsCount, lastActiveAt: nowIso, updatedAt: nowIso },
+    { merge: true },
+  )
+}
+
+export function subscribeUserEntitlement(
+  uid: string,
+  next: (record: UserEntitlementRecord) => void,
+  onError?: (error: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    doc(requireDb(), 'users', uid),
+    (snapshot) => {
+      const data = snapshot.exists() ? (snapshot.data() as Partial<UserEntitlementRecord>) : {}
+      next({
+        uid,
+        email: data.email,
+        name: data.name,
+        accountsCount: Number(data.accountsCount) || 0,
+        freeSlotConsumed: Boolean(data.freeSlotConsumed),
+        trialStartedAt: data.trialStartedAt,
+        trialBonusDays: Number(data.trialBonusDays) || 0,
+        lifetimeGranted: Boolean(data.lifetimeGranted),
+        lifetimeGrantedAt: data.lifetimeGrantedAt,
+        lifetimeGrantedBy: data.lifetimeGrantedBy,
+        lastActiveAt: data.lastActiveAt,
+        updatedAt: data.updatedAt,
+      })
+    },
+    (error) => onError?.(error),
+  )
+}
+
+export async function listAllUserEntitlements(): Promise<UserEntitlementRecord[]> {
+  const snapshot = await getDocs(collection(requireDb(), 'users'))
+  return snapshot.docs
+    .map((item) => {
+      const data = item.data() as Partial<UserEntitlementRecord>
+      return {
+        uid: item.id,
+        email: data.email,
+        name: data.name,
+        accountsCount: Number(data.accountsCount) || 0,
+        freeSlotConsumed: Boolean(data.freeSlotConsumed),
+        trialStartedAt: data.trialStartedAt,
+        trialBonusDays: Number(data.trialBonusDays) || 0,
+        lifetimeGranted: Boolean(data.lifetimeGranted),
+        lifetimeGrantedAt: data.lifetimeGrantedAt,
+        lifetimeGrantedBy: data.lifetimeGrantedBy,
+        lastActiveAt: data.lastActiveAt,
+        updatedAt: data.updatedAt,
+      }
+    })
+    .sort((a, b) => (b.trialStartedAt || b.updatedAt || '').localeCompare(a.trialStartedAt || a.updatedAt || ''))
+}
+
+export async function updateCloudUserEntitlement(
+  uid: string,
+  patch: Partial<
+    Pick<
+      UserEntitlementRecord,
+      'lifetimeGranted' | 'lifetimeGrantedAt' | 'lifetimeGrantedBy' | 'trialBonusDays' | 'trialStartedAt'
+    >
+  >,
+): Promise<void> {
+  await setDoc(
+    doc(requireDb(), 'users', uid),
+    { ...patch, updatedAt: new Date().toISOString() },
+    { merge: true },
+  )
+}
+
+export function subscribeAccessPolicy(
+  next: (policy: AccessPolicyConfig) => void,
+  onError?: (error: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    doc(requireDb(), 'config', 'access'),
+    (snapshot) => {
+      if (!snapshot.exists()) {
+        next(DEFAULT_ACCESS_POLICY)
+        return
+      }
+      next(normalizeAccessPolicy(snapshot.data() as Partial<AccessPolicyConfig>))
+    },
+    (error) => onError?.(error),
+  )
+}
+
+export async function saveCloudAccessPolicy(
+  policy: AccessPolicyConfig,
+  updatedBy: string,
+): Promise<AccessPolicyConfig> {
+  const normalized = normalizeAccessPolicy({
+    ...policy,
+    updatedAt: new Date().toISOString(),
+    updatedBy: updatedBy.trim().toLowerCase(),
+  })
+  await setDoc(doc(requireDb(), 'config', 'access'), normalized, { merge: true })
+  return normalized
 }
 
 /* ------------------------------------------------------------------ */
@@ -558,12 +724,16 @@ export async function reviewCloudPartnerVerification(
   id: string,
   status: Extract<PartnerVerificationStatus, 'approved' | 'rejected'>,
   reviewedBy: string,
+  note?: string,
 ): Promise<void> {
-  await updateDoc(doc(partnerVerificationsCol(), id), {
+  const cleanNote = note?.trim().slice(0, 280)
+  const payload: Record<string, string> = {
     status,
     reviewedAt: new Date().toISOString(),
     reviewedBy: reviewedBy.trim().toLowerCase(),
-  })
+  }
+  if (cleanNote) payload.note = cleanNote
+  await updateDoc(doc(partnerVerificationsCol(), id), payload)
 }
 
 

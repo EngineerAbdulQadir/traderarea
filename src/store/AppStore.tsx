@@ -42,29 +42,41 @@ import { readStorage, writeStorage } from '@/lib/storage'
 import { isFirebaseConfigured } from '@/lib/firebase'
 import {
   deleteCloudWorkspace,
+  ensureUserEntitlement,
   hasCloudWorkspace,
   markUserFreeSlotConsumed,
   notesForCache,
   pushWorkspaceToCloud,
-  readUserFreeSlotConsumed,
   reviewCloudPartnerVerification,
+  saveCloudAccessPolicy,
   submitCloudPartnerVerification,
+  subscribeAccessPolicy,
   subscribeAccounts,
   subscribeNotes,
   subscribeTrades,
+  subscribeUserEntitlement,
   subscribeUserPartnerVerifications,
   syncAccounts,
   syncNotes,
   syncTrades,
+  syncUserAccountsCount,
+  updateCloudUserEntitlement,
 } from '@/lib/cloud'
 import {
   computePartnerSlotSummary,
+  normalizeAccessPolicy,
   readFreeSlotConsumed,
+  readLocalAccessPolicy,
   readLocalVerifications,
+  readTrialStartedAt,
   writeFreeSlotConsumed,
+  writeLocalAccessPolicy,
   writeLocalVerifications,
+  writeTrialStartedAt,
+  type AccessPolicyConfig,
   type PartnerSlotSummary,
   type PartnerVerificationRequest,
+  type UserEntitlementRecord,
 } from '@/lib/partner'
 import { isAuthorizedOwner, hasDevOwnerSession } from '@/lib/access'
 import { authErrorMessage, useAuth } from '@/store/AuthProvider'
@@ -147,12 +159,27 @@ interface AppContextValue {
   openPlans: (reason?: 'browse' | 'limit-reached') => void
   closePlans: () => void
   partnerSummary: PartnerSlotSummary
+  accessPolicy: AccessPolicyConfig
+  updateAccessPolicy: (policy: AccessPolicyConfig) => Promise<AccessPolicyConfig>
+  updateUserEntitlement: (
+    uid: string,
+    patch: Partial<
+      Pick<
+        UserEntitlementRecord,
+        'lifetimeGranted' | 'lifetimeGrantedAt' | 'lifetimeGrantedBy' | 'trialBonusDays' | 'trialStartedAt'
+      >
+    >,
+  ) => Promise<void>
   partnerVerifications: PartnerVerificationRequest[]
   submitPartnerVerification: (input: {
     ezeEmail: string
     orderId: string
   }) => Promise<PartnerVerificationRequest>
-  reviewPartnerVerification: (id: string, status: 'approved' | 'rejected') => Promise<void>
+  reviewPartnerVerification: (
+    id: string,
+    status: 'approved' | 'rejected',
+    note?: string,
+  ) => Promise<void>
   toasts: ToastItem[]
   showToast: (title: string, message: string, tone?: ToastTone) => void
   dismissToast: (id: string) => void
@@ -196,6 +223,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [freeSlotConsumed, setFreeSlotConsumed] = useState<boolean>(() =>
     readFreeSlotConsumed(isFirebaseConfigured ? user?.uid ?? null : null),
   )
+  const [accessPolicy, setAccessPolicy] = useState<AccessPolicyConfig>(() => readLocalAccessPolicy())
+  const [trialStartedAt, setTrialStartedAt] = useState<string | null>(() =>
+    readTrialStartedAt(isFirebaseConfigured ? user?.uid ?? null : null),
+  )
+  const [trialBonusDays, setTrialBonusDays] = useState<number>(0)
+  const [lifetimeGranted, setLifetimeGranted] = useState<boolean>(false)
   const [partnerVerifications, setPartnerVerifications] = useState<PartnerVerificationRequest[]>(() =>
     readLocalVerifications(),
   )
@@ -489,7 +522,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [cloudUserId, shouldSubscribe, showToast])
 
-  // Sync free-slot entitlement and partner verifications from Firestore (or local storage).
+  // Sync global access policy from Firestore (or local storage).
+  useEffect(() => {
+    if (!isFirebaseConfigured) {
+      setAccessPolicy(readLocalAccessPolicy())
+      return
+    }
+    return subscribeAccessPolicy(
+      (policy) => {
+        setAccessPolicy(policy)
+        writeLocalAccessPolicy(policy)
+      },
+      () => {
+        setAccessPolicy(readLocalAccessPolicy())
+      },
+    )
+  }, [])
+
+  // Sync free-slot entitlement, 1-month trial start date, lifetime grant, and partner verifications.
   useEffect(() => {
     const localConsumed = readFreeSlotConsumed(cloudUserId)
     const hasRealLocal = accounts.some((account) => account.source !== 'demo')
@@ -500,23 +550,65 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setFreeSlotConsumed(false)
     }
 
+    const fallbackStart =
+      readTrialStartedAt(cloudUserId) ??
+      (user?.metadata?.creationTime
+        ? new Date(user.metadata.creationTime).toISOString()
+        : new Date().toISOString())
+    writeTrialStartedAt(cloudUserId, fallbackStart)
+    setTrialStartedAt(fallbackStart)
+
     if (!isFirebaseConfigured || !cloudUserId) {
+      setTrialBonusDays(0)
+      setLifetimeGranted(false)
       setPartnerVerifications(readLocalVerifications())
       return
     }
 
     let cancelled = false
-    readUserFreeSlotConsumed(cloudUserId)
-      .then((consumed) => {
+    const realAccountsCount = accounts.filter((account) => account.source !== 'demo').length
+    ensureUserEntitlement(cloudUserId, {
+      email: user?.email ?? undefined,
+      name: user?.displayName ?? undefined,
+      trialStartedAt: fallbackStart,
+      accountsCount: realAccountsCount,
+    })
+      .then((record) => {
         if (cancelled) return
-        if (consumed) {
+        if (record.freeSlotConsumed) {
           setFreeSlotConsumed(true)
           writeFreeSlotConsumed(cloudUserId, true)
         }
+        if (record.trialStartedAt) {
+          setTrialStartedAt(record.trialStartedAt)
+          writeTrialStartedAt(cloudUserId, record.trialStartedAt)
+        }
+        setTrialBonusDays(record.trialBonusDays ?? 0)
+        setLifetimeGranted(Boolean(record.lifetimeGranted))
       })
       .catch(() => {
         // Keep local entitlement state if cloud read fails transiently.
       })
+
+    const unsubscribeEntitlement = subscribeUserEntitlement(
+      cloudUserId,
+      (record) => {
+        if (cancelled) return
+        if (record.freeSlotConsumed) {
+          setFreeSlotConsumed(true)
+          writeFreeSlotConsumed(cloudUserId, true)
+        }
+        if (record.trialStartedAt) {
+          setTrialStartedAt(record.trialStartedAt)
+          writeTrialStartedAt(cloudUserId, record.trialStartedAt)
+        }
+        setTrialBonusDays(record.trialBonusDays ?? 0)
+        setLifetimeGranted(Boolean(record.lifetimeGranted))
+      },
+      () => {
+        // Ignore transient entitlement listener errors.
+      },
+    )
 
     const unsubscribeVerifications = subscribeUserPartnerVerifications(
       cloudUserId,
@@ -530,9 +622,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     return () => {
       cancelled = true
+      unsubscribeEntitlement()
       unsubscribeVerifications()
     }
-  }, [cloudUserId, accounts])
+  }, [cloudUserId, accounts, user?.displayName, user?.email, user?.metadata?.creationTime])
+
+  // Keep user account count synced on users/{uid} for admin visibility.
+  useEffect(() => {
+    if (!cloudUserId || !isFirebaseConfigured || syncStatus !== 'ready') return
+    const count = accounts.filter((account) => account.source !== 'demo').length
+    syncUserAccountsCount(cloudUserId, count).catch(() => {
+      // Ignore transient telemetry sync errors.
+    })
+  }, [cloudUserId, accounts, syncStatus])
 
   // Push only the documents that actually changed since the last snapshot.
   useEffect(() => {
@@ -908,9 +1010,82 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const isAdminUser = isAuthorizedOwner(user) || hasDevOwnerSession()
+
   const partnerSummary = useMemo(
-    () => computePartnerSlotSummary(accounts, freeSlotConsumed, partnerVerifications),
-    [accounts, freeSlotConsumed, partnerVerifications],
+    () =>
+      computePartnerSlotSummary(accounts, freeSlotConsumed, partnerVerifications, {
+        policy: accessPolicy,
+        trialStartedAt,
+        trialBonusDays,
+        lifetimeGranted,
+        isAdmin: isAdminUser,
+      }),
+    [
+      accounts,
+      freeSlotConsumed,
+      partnerVerifications,
+      accessPolicy,
+      trialStartedAt,
+      trialBonusDays,
+      lifetimeGranted,
+      isAdminUser,
+    ],
+  )
+
+  const updateAccessPolicy = useCallback(
+    async (nextPolicy: AccessPolicyConfig) => {
+      const isAdmin = isAuthorizedOwner(user) || hasDevOwnerSession()
+      if (!isAdmin) {
+        throw new Error('Only authorized admins can change workspace access controls.')
+      }
+      const actor = user?.email ?? 'admin'
+      const normalized = normalizeAccessPolicy({
+        ...nextPolicy,
+        updatedAt: new Date().toISOString(),
+        updatedBy: actor,
+      })
+
+      if (cloudUserId && isFirebaseConfigured) {
+        const saved = await saveCloudAccessPolicy(normalized, actor)
+        setAccessPolicy(saved)
+        writeLocalAccessPolicy(saved)
+        return saved
+      }
+
+      setAccessPolicy(normalized)
+      writeLocalAccessPolicy(normalized)
+      return normalized
+    },
+    [cloudUserId, user],
+  )
+
+  const updateUserEntitlement = useCallback(
+    async (
+      uid: string,
+      patch: Partial<
+        Pick<
+          UserEntitlementRecord,
+          'lifetimeGranted' | 'lifetimeGrantedAt' | 'lifetimeGrantedBy' | 'trialBonusDays' | 'trialStartedAt'
+        >
+      >,
+    ) => {
+      const isAdmin = isAuthorizedOwner(user) || hasDevOwnerSession()
+      if (!isAdmin) {
+        throw new Error('Only authorized admins can update user entitlements.')
+      }
+      if (cloudUserId && isFirebaseConfigured) {
+        await updateCloudUserEntitlement(uid, patch)
+        return
+      }
+      if (patch.trialStartedAt) {
+        setTrialStartedAt(patch.trialStartedAt)
+        writeTrialStartedAt(null, patch.trialStartedAt)
+      }
+      if (patch.trialBonusDays !== undefined) setTrialBonusDays(patch.trialBonusDays)
+      if (patch.lifetimeGranted !== undefined) setLifetimeGranted(patch.lifetimeGranted)
+    },
+    [cloudUserId, user],
   )
 
   const openPlans = useCallback((reason: 'browse' | 'limit-reached' = 'browse') => {
@@ -956,15 +1131,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   )
 
   const reviewPartnerVerification = useCallback(
-    async (id: string, status: 'approved' | 'rejected') => {
+    async (id: string, status: 'approved' | 'rejected', note?: string) => {
       const isOwner = isAuthorizedOwner(user) || hasDevOwnerSession()
       if (!isOwner) {
-        throw new Error('Only authorized owners can review verification requests.')
+        throw new Error('Only authorized admins can review verification requests.')
       }
-      const reviewer = user?.email ?? 'owner-local'
+      const reviewer = user?.email ?? 'admin-local'
+      const cleanNote = note?.trim().slice(0, 280) || undefined
 
       if (cloudUserId && isFirebaseConfigured) {
-        await reviewCloudPartnerVerification(id, status, reviewer)
+        await reviewCloudPartnerVerification(id, status, reviewer, cleanNote)
         return
       }
 
@@ -976,6 +1152,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 status,
                 reviewedAt: new Date().toISOString(),
                 reviewedBy: reviewer,
+                ...(cleanNote ? { note: cleanNote } : {}),
               }
             : item,
         )
@@ -1081,6 +1258,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       openPlans,
       closePlans,
       partnerSummary,
+      accessPolicy,
+      updateAccessPolicy,
+      updateUserEntitlement,
       partnerVerifications,
       submitPartnerVerification,
       reviewPartnerVerification,
@@ -1138,6 +1318,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       openPlans,
       closePlans,
       partnerSummary,
+      accessPolicy,
+      updateAccessPolicy,
+      updateUserEntitlement,
       partnerVerifications,
       submitPartnerVerification,
       reviewPartnerVerification,

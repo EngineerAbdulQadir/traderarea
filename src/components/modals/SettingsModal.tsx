@@ -23,7 +23,7 @@ import { useApp } from '@/store/AppStore'
 import { useAuth } from '@/store/AuthProvider'
 import { useProfile } from '@/hooks/useProfile'
 import { useTheme } from '@/hooks/useTheme'
-import { initialsFor, saveProfile } from '@/lib/profile'
+import { DEFAULT_PROFILE, initialsFor, saveProfile } from '@/lib/profile'
 import { STORAGE_KEYS } from '@/lib/persistence'
 import { clearThemePreference, type Theme } from '@/lib/theme'
 import { exportWorkspaceBackup } from '@/lib/backup'
@@ -57,6 +57,8 @@ export function SettingsModal() {
   const {
     settingsOpen,
     closeSettings,
+    openPlans,
+    partnerSummary,
     accounts,
     workspaceTrades,
     showToast,
@@ -69,14 +71,23 @@ export function SettingsModal() {
   const profile = useProfile()
   const { theme, setTheme } = useTheme()
 
+  const defaultName =
+    profile.name !== DEFAULT_PROFILE.name
+      ? profile.name
+      : user?.displayName?.trim() || profile.name
+  const defaultEmail =
+    profile.email !== DEFAULT_PROFILE.email
+      ? profile.email
+      : user?.email?.trim() || profile.email
+
   const [section, setSection] = useState<SectionId>('profile')
   const [query, setQuery] = useState('')
-  const [name, setName] = useState(profile.name)
-  const [email, setEmail] = useState(profile.email)
+  const [name, setName] = useState(defaultName)
+  const [email, setEmail] = useState(defaultEmail)
   const [resetOpen, setResetOpen] = useState(false)
 
-  const initials = initialsFor(name || profile.name)
-  const dirty = name.trim() !== profile.name || email.trim() !== profile.email
+  const initials = initialsFor(name || defaultName)
+  const dirty = name.trim() !== defaultName || email.trim() !== defaultEmail
 
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -317,6 +328,26 @@ export function SettingsModal() {
                     <span>Storage</span>
                     <b>{cloudActive ? 'Firebase' : 'Browser'}</b>
                   </div>
+                </div>
+
+                <div className="settings-field-row">
+                  <div className="settings-field-copy">
+                    <b>Journal access &amp; slots</b>
+                    <span>
+                      {partnerSummary.accessLabel} · {partnerSummary.usedSlots}/
+                      {partnerSummary.totalSlots} account slots used
+                    </span>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      closeSettings()
+                      openPlans('browse')
+                    }}
+                  >
+                    Plans &amp; Access
+                  </Button>
                 </div>
 
                 <div className="settings-field-row">

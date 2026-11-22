@@ -7,26 +7,12 @@ rules_version = '2';
 //   users/{uid}/notes/{noteId}
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isOwnerAdmin() {
-      return request.auth != null && (
-        request.auth.token.email == 'abdulqadirimran01@gmail.com' ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
-      );
-    }
-
     match /users/{uid} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
-      allow read, update: if isOwnerAdmin();
 
       match /{document=**} {
         allow read, write: if request.auth != null && request.auth.uid == uid;
       }
-    }
-
-    // Global access & 1-month trial policy configured from Admin Dashboard.
-    match /config/{docId} {
-      allow read: if true;
-      allow write: if isOwnerAdmin();
     }
 
     // Public waitlist: anyone can join once per email (updates disallowed), only signed-in users can read.
@@ -42,32 +28,6 @@ service cloud.firestore {
         request.resource.data.createdAt.size() <= 64 &&
         (!('source' in request.resource.data) || (request.resource.data.source is string && request.resource.data.source.size() <= 32));
       allow read: if request.auth != null;
-    }
-
-    function isValidPartnerVerificationCreate(data) {
-      return data.keys().hasAll(['uid', 'userEmail', 'ezeEmail', 'orderId', 'status', 'createdAt']) &&
-        data.keys().hasOnly(['uid', 'userEmail', 'ezeEmail', 'orderId', 'challengeSize', 'status', 'createdAt']) &&
-        data.uid is string && data.uid == request.auth.uid &&
-        data.userEmail is string && data.userEmail.size() <= 254 &&
-        data.ezeEmail is string && data.ezeEmail.size() >= 5 && data.ezeEmail.size() <= 254 &&
-        data.ezeEmail.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$') &&
-        data.orderId is string && data.orderId.size() >= 2 && data.orderId.size() <= 120 &&
-        (!('challengeSize' in data) || (data.challengeSize is number && data.challengeSize > 0 && data.challengeSize <= 1000000)) &&
-        data.status == 'pending' &&
-        data.createdAt is string && data.createdAt.size() <= 64;
-    }
-
-    // Eze Funded partner verification requests: users submit & read their own; owner admins review all.
-    match /partner_verifications/{requestId} {
-      allow create: if request.auth != null && isValidPartnerVerificationCreate(request.resource.data);
-      allow read: if request.auth != null && (resource.data.uid == request.auth.uid || isOwnerAdmin());
-      allow update: if isOwnerAdmin() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reviewedAt', 'reviewedBy', 'note']) &&
-        request.resource.data.status in ['approved', 'rejected'] &&
-        request.resource.data.reviewedAt is string && request.resource.data.reviewedAt.size() <= 64 &&
-        request.resource.data.reviewedBy is string && request.resource.data.reviewedBy.size() <= 254 &&
-        (!('note' in request.resource.data) || (request.resource.data.note is string && request.resource.data.note.size() <= 280));
-      allow delete: if false;
     }
   }
 }

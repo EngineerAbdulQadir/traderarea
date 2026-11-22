@@ -90,7 +90,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await ensureUserProfile(credential.user.uid, {
         name: displayName,
         email: credential.user.email ?? email.trim(),
-        trialStartedAt: new Date().toISOString(),
       })
     } catch {
       // Auth succeeded; a missing profile doc can be repaired on the next login.

@@ -37,7 +37,7 @@ interface NotificationItem {
   title: string
   detail: string
   tone: NotificationTone
-  action: { type: 'route'; route: '/accounts' | '/metrics' } | { type: 'plans' }
+  action: { type: 'route'; route: '/accounts' | '/metrics' }
   priority: number
 }
 
@@ -49,9 +49,6 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
     getTradesForAccount,
     setActiveAccount,
     setCommandOpen,
-    partnerSummary,
-    partnerVerifications,
-    openPlans,
   } = useApp()
   const meta = PAGE_META[location.pathname] ?? { title: 'Trader Area', group: 'Workspace' }
 
@@ -64,66 +61,6 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
 
   const notifications = useMemo<NotificationItem[]>(() => {
     const items: NotificationItem[] = []
-
-    const latestOrder = partnerVerifications[0]
-    if (latestOrder?.status === 'pending') {
-      items.push({
-        id: `pv-pending-${latestOrder.id}`,
-        accountName: 'Plans & Access',
-        stage: `Order ${latestOrder.orderId}`,
-        tag: 'Reviewing',
-        title: 'Verification pending review',
-        detail: `Submitted for ${latestOrder.ezeEmail}. Lifetime access unlocks once confirmed.`,
-        tone: 'warn',
-        action: { type: 'plans' },
-        priority: 0,
-      })
-    } else if (latestOrder?.status === 'rejected') {
-      items.push({
-        id: `pv-rejected-${latestOrder.id}`,
-        accountName: 'Plans & Access',
-        stage: `Order ${latestOrder.orderId}`,
-        tag: 'Declined',
-        title: 'Order verification declined',
-        detail: latestOrder.note
-          ? `${latestOrder.note} · Open Plans & Access to resubmit.`
-          : 'Check your Eze Funded order ID and resubmit in Plans & Access.',
-        tone: 'neg',
-        action: { type: 'plans' },
-        priority: 0,
-      })
-    } else if (latestOrder?.status === 'approved') {
-      items.push({
-        id: `pv-approved-${latestOrder.id}`,
-        accountName: 'Plans & Access',
-        stage: `Order ${latestOrder.orderId}`,
-        tag: 'Lifetime',
-        title: 'Lifetime journal access active',
-        detail: `Verified Eze Funded purchase · ${partnerSummary.totalSlots} account slots unlocked.`,
-        tone: 'pos',
-        action: { type: 'plans' },
-        priority: 2,
-      })
-    }
-
-    if (
-      !partnerSummary.hasLifetimeAccess &&
-      !partnerSummary.trialExpired &&
-      partnerSummary.daysRemaining <= 5 &&
-      partnerSummary.pendingCount === 0
-    ) {
-      items.push({
-        id: `trial-expiring-${partnerSummary.daysRemaining}`,
-        accountName: 'Free Trial',
-        stage: `${partnerSummary.daysRemaining}d left`,
-        tag: 'Expiring',
-        title: `Free trial ends in ${partnerSummary.daysRemaining} ${partnerSummary.daysRemaining === 1 ? 'day' : 'days'}`,
-        detail: 'Buy an Eze Funded challenge via our affiliate link and verify to keep lifetime access.',
-        tone: 'warn',
-        action: { type: 'plans' },
-        priority: 1,
-      })
-    }
 
     accounts.forEach((account) => {
       const starting = getStartingBalance(account)
@@ -200,7 +137,7 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
     return items
       .filter((item) => !dismissedIds.includes(item.id))
       .sort((a, b) => a.priority - b.priority)
-  }, [accounts, dismissedIds, getTradesForAccount, partnerSummary, partnerVerifications])
+  }, [accounts, dismissedIds, getTradesForAccount])
 
   const readSet = useMemo(() => new Set(readIds), [readIds])
   const unreadCount = useMemo(
@@ -259,10 +196,6 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
   const handleSelectItem = (item: NotificationItem) => {
     markRead(item.id)
     setNotifOpen(false)
-    if (item.action.type === 'plans') {
-      openPlans('browse')
-      return
-    }
     if (item.accountId) setActiveAccount(item.accountId)
     navigate(item.action.route)
   }
@@ -331,7 +264,7 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
                 {notifications.length === 0 ? (
                   <div className="notif-empty">
                     <b>All caught up</b>
-                    <span>Account access, verifications, and rule alerts will appear here.</span>
+                    <span>Rule and milestone alerts will appear here.</span>
                   </div>
                 ) : (
                   <div className="notif-list">

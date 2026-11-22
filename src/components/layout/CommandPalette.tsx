@@ -12,7 +12,6 @@ import {
   Plus,
   Search,
   Settings,
-  ShieldCheck,
   SlidersHorizontal,
   Sparkles,
   Sun,
@@ -37,7 +36,7 @@ interface CommandItem {
 }
 
 export function CommandPalette() {
-  const { commandOpen, setCommandOpen, accounts, setActiveAccount, openChallenge, openTradeEditor, openSettings, openPlans } = useApp()
+  const { commandOpen, setCommandOpen, accounts, setActiveAccount, openChallenge, openTradeEditor, openSettings } = useApp()
   const { user } = useAuth()
   const isOwner = isAuthorizedOwner(user) || hasDevOwnerSession()
   const { isDark, toggleTheme } = useTheme()
@@ -76,7 +75,7 @@ export function CommandPalette() {
             {
               id: 'page-admin',
               label: 'Admin Dashboard',
-              hint: 'Verifications, waitlist & workspace controls',
+              hint: 'Waitlist & exports',
               group: 'Navigate',
               icon: <SlidersHorizontal size={15} />,
               run: closeAnd(() => navigate('/admin')),
@@ -88,7 +87,6 @@ export function CommandPalette() {
 
     const actions: CommandItem[] = [
       { id: 'action-challenge', label: 'Start a new challenge', hint: 'Open the challenge builder', group: 'Actions', icon: <Plus size={15} />, run: closeAnd(openChallenge) },
-      { id: 'action-plans', label: 'Plans & access', hint: '1 free account · unlock more via Eze Funded', group: 'Actions', icon: <ShieldCheck size={15} />, run: closeAnd(() => openPlans('browse')) },
       { id: 'action-trade', label: 'Log a trade', hint: 'Add a closed trade to the journal', group: 'Actions', icon: <Sparkles size={15} />, run: closeAnd(() => openTradeEditor()) },
       {
         id: 'action-theme',
@@ -112,7 +110,7 @@ export function CommandPalette() {
     const all = [...pages, ...actions, ...accountItems]
     if (!q) return all
     return all.filter((item) => `${item.label} ${item.hint ?? ''} ${item.group}`.toLowerCase().includes(q))
-  }, [accounts, isOwner, navigate, openChallenge, openPlans, openTradeEditor, openSettings, query, setActiveAccount, setCommandOpen, isDark, toggleTheme])
+  }, [accounts, isOwner, navigate, openChallenge, openTradeEditor, openSettings, query, setActiveAccount, setCommandOpen, isDark, toggleTheme])
 
   useEffect(() => {
     setActiveIndex(0)

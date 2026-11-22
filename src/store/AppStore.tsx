@@ -42,43 +42,16 @@ import { readStorage, writeStorage } from '@/lib/storage'
 import { isFirebaseConfigured } from '@/lib/firebase'
 import {
   deleteCloudWorkspace,
-  ensureUserEntitlement,
   hasCloudWorkspace,
-  markUserFreeSlotConsumed,
   notesForCache,
   pushWorkspaceToCloud,
-  reviewCloudPartnerVerification,
-  saveCloudAccessPolicy,
-  submitCloudPartnerVerification,
-  subscribeAccessPolicy,
   subscribeAccounts,
   subscribeNotes,
   subscribeTrades,
-  subscribeUserEntitlement,
-  subscribeUserPartnerVerifications,
   syncAccounts,
   syncNotes,
   syncTrades,
-  syncUserAccountsCount,
-  updateCloudUserEntitlement,
 } from '@/lib/cloud'
-import {
-  computePartnerSlotSummary,
-  normalizeAccessPolicy,
-  readFreeSlotConsumed,
-  readLocalAccessPolicy,
-  readLocalVerifications,
-  readTrialStartedAt,
-  writeFreeSlotConsumed,
-  writeLocalAccessPolicy,
-  writeLocalVerifications,
-  writeTrialStartedAt,
-  type AccessPolicyConfig,
-  type PartnerSlotSummary,
-  type PartnerVerificationRequest,
-  type UserEntitlementRecord,
-} from '@/lib/partner'
-import { isAuthorizedOwner, hasDevOwnerSession } from '@/lib/access'
 import { authErrorMessage, useAuth } from '@/store/AuthProvider'
 
 export type SyncStatus = 'local' | 'checking' | 'migration' | 'syncing' | 'ready' | 'error'
@@ -154,32 +127,6 @@ interface AppContextValue {
   settingsOpen: boolean
   openSettings: () => void
   closeSettings: () => void
-  plansOpen: boolean
-  plansReason: 'browse' | 'limit-reached'
-  openPlans: (reason?: 'browse' | 'limit-reached') => void
-  closePlans: () => void
-  partnerSummary: PartnerSlotSummary
-  accessPolicy: AccessPolicyConfig
-  updateAccessPolicy: (policy: AccessPolicyConfig) => Promise<AccessPolicyConfig>
-  updateUserEntitlement: (
-    uid: string,
-    patch: Partial<
-      Pick<
-        UserEntitlementRecord,
-        'lifetimeGranted' | 'lifetimeGrantedAt' | 'lifetimeGrantedBy' | 'trialBonusDays' | 'trialStartedAt'
-      >
-    >,
-  ) => Promise<void>
-  partnerVerifications: PartnerVerificationRequest[]
-  submitPartnerVerification: (input: {
-    ezeEmail: string
-    orderId: string
-  }) => Promise<PartnerVerificationRequest>
-  reviewPartnerVerification: (
-    id: string,
-    status: 'approved' | 'rejected',
-    note?: string,
-  ) => Promise<void>
   toasts: ToastItem[]
   showToast: (title: string, message: string, tone?: ToastTone) => void
   dismissToast: (id: string) => void
@@ -218,20 +165,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [dayReview, setDayReview] = useState<DayReviewState | null>(null)
   const [commandOpen, setCommandOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [plansOpen, setPlansOpen] = useState(false)
-  const [plansReason, setPlansReason] = useState<'browse' | 'limit-reached'>('browse')
-  const [freeSlotConsumed, setFreeSlotConsumed] = useState<boolean>(() =>
-    readFreeSlotConsumed(isFirebaseConfigured ? user?.uid ?? null : null),
-  )
-  const [accessPolicy, setAccessPolicy] = useState<AccessPolicyConfig>(() => readLocalAccessPolicy())
-  const [trialStartedAt, setTrialStartedAt] = useState<string | null>(() =>
-    readTrialStartedAt(isFirebaseConfigured ? user?.uid ?? null : null),
-  )
-  const [trialBonusDays, setTrialBonusDays] = useState<number>(0)
-  const [lifetimeGranted, setLifetimeGranted] = useState<boolean>(false)
-  const [partnerVerifications, setPartnerVerifications] = useState<PartnerVerificationRequest[]>(() =>
-    readLocalVerifications(),
-  )
   const [viewingPhaseIndex, setViewingPhaseIndex] = useState<number | null>(null)
   const [toasts, setToasts] = useState<ToastItem[]>([])
   const [journalRevision, setJournalRevision] = useState(0)
@@ -522,120 +455,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [cloudUserId, shouldSubscribe, showToast])
 
-  // Sync global access policy from Firestore (or local storage).
-  useEffect(() => {
-    if (!isFirebaseConfigured) {
-      setAccessPolicy(readLocalAccessPolicy())
-      return
-    }
-    return subscribeAccessPolicy(
-      (policy) => {
-        setAccessPolicy(policy)
-        writeLocalAccessPolicy(policy)
-      },
-      () => {
-        setAccessPolicy(readLocalAccessPolicy())
-      },
-    )
-  }, [])
-
-  // Sync free-slot entitlement, 1-month trial start date, lifetime grant, and partner verifications.
-  useEffect(() => {
-    const localConsumed = readFreeSlotConsumed(cloudUserId)
-    const hasRealLocal = accounts.some((account) => account.source !== 'demo')
-    if (localConsumed || hasRealLocal) {
-      setFreeSlotConsumed(true)
-      writeFreeSlotConsumed(cloudUserId, true)
-    } else {
-      setFreeSlotConsumed(false)
-    }
-
-    const fallbackStart =
-      readTrialStartedAt(cloudUserId) ??
-      (user?.metadata?.creationTime
-        ? new Date(user.metadata.creationTime).toISOString()
-        : new Date().toISOString())
-    writeTrialStartedAt(cloudUserId, fallbackStart)
-    setTrialStartedAt(fallbackStart)
-
-    if (!isFirebaseConfigured || !cloudUserId) {
-      setTrialBonusDays(0)
-      setLifetimeGranted(false)
-      setPartnerVerifications(readLocalVerifications())
-      return
-    }
-
-    let cancelled = false
-    const realAccountsCount = accounts.filter((account) => account.source !== 'demo').length
-    ensureUserEntitlement(cloudUserId, {
-      email: user?.email ?? undefined,
-      name: user?.displayName ?? undefined,
-      trialStartedAt: fallbackStart,
-      accountsCount: realAccountsCount,
-    })
-      .then((record) => {
-        if (cancelled) return
-        if (record.freeSlotConsumed) {
-          setFreeSlotConsumed(true)
-          writeFreeSlotConsumed(cloudUserId, true)
-        }
-        if (record.trialStartedAt) {
-          setTrialStartedAt(record.trialStartedAt)
-          writeTrialStartedAt(cloudUserId, record.trialStartedAt)
-        }
-        setTrialBonusDays(record.trialBonusDays ?? 0)
-        setLifetimeGranted(Boolean(record.lifetimeGranted))
-      })
-      .catch(() => {
-        // Keep local entitlement state if cloud read fails transiently.
-      })
-
-    const unsubscribeEntitlement = subscribeUserEntitlement(
-      cloudUserId,
-      (record) => {
-        if (cancelled) return
-        if (record.freeSlotConsumed) {
-          setFreeSlotConsumed(true)
-          writeFreeSlotConsumed(cloudUserId, true)
-        }
-        if (record.trialStartedAt) {
-          setTrialStartedAt(record.trialStartedAt)
-          writeTrialStartedAt(cloudUserId, record.trialStartedAt)
-        }
-        setTrialBonusDays(record.trialBonusDays ?? 0)
-        setLifetimeGranted(Boolean(record.lifetimeGranted))
-      },
-      () => {
-        // Ignore transient entitlement listener errors.
-      },
-    )
-
-    const unsubscribeVerifications = subscribeUserPartnerVerifications(
-      cloudUserId,
-      (items) => {
-        if (!cancelled) setPartnerVerifications(items)
-      },
-      () => {
-        // Ignore transient verification listener errors.
-      },
-    )
-
-    return () => {
-      cancelled = true
-      unsubscribeEntitlement()
-      unsubscribeVerifications()
-    }
-  }, [cloudUserId, accounts, user?.displayName, user?.email, user?.metadata?.creationTime])
-
-  // Keep user account count synced on users/{uid} for admin visibility.
-  useEffect(() => {
-    if (!cloudUserId || !isFirebaseConfigured || syncStatus !== 'ready') return
-    const count = accounts.filter((account) => account.source !== 'demo').length
-    syncUserAccountsCount(cloudUserId, count).catch(() => {
-      // Ignore transient telemetry sync errors.
-    })
-  }, [cloudUserId, accounts, syncStatus])
-
   // Push only the documents that actually changed since the last snapshot.
   useEffect(() => {
     if (!cloudUserId || syncStatus !== 'ready') return
@@ -788,22 +607,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const setViewingPhase = useCallback((index: number | null) => setViewingPhaseIndex(index), [])
 
-  const addAccount = useCallback(
-    (account: Account) => {
-      setAccounts((previous) => [account, ...previous.filter((item) => item.id !== account.id)])
-      setActiveAccountId(account.id)
-      if (account.source !== 'demo') {
-        setFreeSlotConsumed(true)
-        writeFreeSlotConsumed(cloudUserId, true)
-        if (cloudUserId && isFirebaseConfigured) {
-          markUserFreeSlotConsumed(cloudUserId).catch(() => {
-            // Local marker already persisted; cloud will sync on next write.
-          })
-        }
-      }
-    },
-    [cloudUserId],
-  )
+  const addAccount = useCallback((account: Account) => {
+    setAccounts((previous) => [account, ...previous.filter((item) => item.id !== account.id)])
+    setActiveAccountId(account.id)
+  }, [])
 
   const updateAccount = useCallback(
     (id: string, patch: AccountUpdatePatch) => {
@@ -1010,169 +817,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  const isAdminUser = isAuthorizedOwner(user) || hasDevOwnerSession()
-
-  const partnerSummary = useMemo(
-    () =>
-      computePartnerSlotSummary(accounts, freeSlotConsumed, partnerVerifications, {
-        policy: accessPolicy,
-        trialStartedAt,
-        trialBonusDays,
-        lifetimeGranted,
-        isAdmin: isAdminUser,
-      }),
-    [
-      accounts,
-      freeSlotConsumed,
-      partnerVerifications,
-      accessPolicy,
-      trialStartedAt,
-      trialBonusDays,
-      lifetimeGranted,
-      isAdminUser,
-    ],
-  )
-
-  const updateAccessPolicy = useCallback(
-    async (nextPolicy: AccessPolicyConfig) => {
-      const isAdmin = isAuthorizedOwner(user) || hasDevOwnerSession()
-      if (!isAdmin) {
-        throw new Error('Only authorized admins can change workspace access controls.')
-      }
-      const actor = user?.email ?? 'admin'
-      const normalized = normalizeAccessPolicy({
-        ...nextPolicy,
-        updatedAt: new Date().toISOString(),
-        updatedBy: actor,
-      })
-
-      if (cloudUserId && isFirebaseConfigured) {
-        const saved = await saveCloudAccessPolicy(normalized, actor)
-        setAccessPolicy(saved)
-        writeLocalAccessPolicy(saved)
-        return saved
-      }
-
-      setAccessPolicy(normalized)
-      writeLocalAccessPolicy(normalized)
-      return normalized
-    },
-    [cloudUserId, user],
-  )
-
-  const updateUserEntitlement = useCallback(
-    async (
-      uid: string,
-      patch: Partial<
-        Pick<
-          UserEntitlementRecord,
-          'lifetimeGranted' | 'lifetimeGrantedAt' | 'lifetimeGrantedBy' | 'trialBonusDays' | 'trialStartedAt'
-        >
-      >,
-    ) => {
-      const isAdmin = isAuthorizedOwner(user) || hasDevOwnerSession()
-      if (!isAdmin) {
-        throw new Error('Only authorized admins can update user entitlements.')
-      }
-      if (cloudUserId && isFirebaseConfigured) {
-        await updateCloudUserEntitlement(uid, patch)
-        return
-      }
-      if (patch.trialStartedAt) {
-        setTrialStartedAt(patch.trialStartedAt)
-        writeTrialStartedAt(null, patch.trialStartedAt)
-      }
-      if (patch.trialBonusDays !== undefined) setTrialBonusDays(patch.trialBonusDays)
-      if (patch.lifetimeGranted !== undefined) setLifetimeGranted(patch.lifetimeGranted)
-    },
-    [cloudUserId, user],
-  )
-
-  const openPlans = useCallback((reason: 'browse' | 'limit-reached' = 'browse') => {
-    setCommandOpen(false)
-    setPlansReason(reason)
-    setPlansOpen(true)
-  }, [])
-
-  const closePlans = useCallback(() => setPlansOpen(false), [])
-
-  const submitPartnerVerification = useCallback(
-    async (input: { ezeEmail: string; orderId: string }) => {
-      const normalizedEzeEmail = input.ezeEmail.trim().toLowerCase()
-      const cleanOrderId = input.orderId.trim()
-
-      if (cloudUserId && isFirebaseConfigured) {
-        const created = await submitCloudPartnerVerification({
-          uid: cloudUserId,
-          userEmail: user?.email ?? normalizedEzeEmail,
-          ezeEmail: normalizedEzeEmail,
-          orderId: cleanOrderId,
-        })
-        return created
-      }
-
-      const created: PartnerVerificationRequest = {
-        id: `pv_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`,
-        uid: 'local',
-        userEmail: user?.email ?? normalizedEzeEmail,
-        ezeEmail: normalizedEzeEmail,
-        orderId: cleanOrderId,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-      }
-      setPartnerVerifications((previous) => {
-        const next = [created, ...previous]
-        writeLocalVerifications(next)
-        return next
-      })
-      return created
-    },
-    [cloudUserId, user?.email],
-  )
-
-  const reviewPartnerVerification = useCallback(
-    async (id: string, status: 'approved' | 'rejected', note?: string) => {
-      const isOwner = isAuthorizedOwner(user) || hasDevOwnerSession()
-      if (!isOwner) {
-        throw new Error('Only authorized admins can review verification requests.')
-      }
-      const reviewer = user?.email ?? 'admin-local'
-      const cleanNote = note?.trim().slice(0, 280) || undefined
-
-      if (cloudUserId && isFirebaseConfigured) {
-        await reviewCloudPartnerVerification(id, status, reviewer, cleanNote)
-        return
-      }
-
-      setPartnerVerifications((previous) => {
-        const next = previous.map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                status,
-                reviewedAt: new Date().toISOString(),
-                reviewedBy: reviewer,
-                ...(cleanNote ? { note: cleanNote } : {}),
-              }
-            : item,
-        )
-        writeLocalVerifications(next)
-        return next
-      })
-    },
-    [cloudUserId, user],
-  )
-
   const openChallenge = useCallback(() => {
     setCommandOpen(false)
     setEditingAccount(null)
-    if (!partnerSummary.canAddAccount) {
-      setPlansReason('limit-reached')
-      setPlansOpen(true)
-      return
-    }
     setChallengeOpen(true)
-  }, [partnerSummary.canAddAccount])
+  }, [])
 
   const openEditChallenge = useCallback((account: Account) => {
     setCommandOpen(false)
@@ -1253,17 +902,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       settingsOpen,
       openSettings,
       closeSettings,
-      plansOpen,
-      plansReason,
-      openPlans,
-      closePlans,
-      partnerSummary,
-      accessPolicy,
-      updateAccessPolicy,
-      updateUserEntitlement,
-      partnerVerifications,
-      submitPartnerVerification,
-      reviewPartnerVerification,
       toasts,
       showToast,
       dismissToast,
@@ -1313,17 +951,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       settingsOpen,
       openSettings,
       closeSettings,
-      plansOpen,
-      plansReason,
-      openPlans,
-      closePlans,
-      partnerSummary,
-      accessPolicy,
-      updateAccessPolicy,
-      updateUserEntitlement,
-      partnerVerifications,
-      submitPartnerVerification,
-      reviewPartnerVerification,
       toasts,
       showToast,
       dismissToast,

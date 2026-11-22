@@ -27,7 +27,6 @@ import { DEFAULT_PROFILE, initialsFor, saveProfile } from '@/lib/profile'
 import { STORAGE_KEYS } from '@/lib/persistence'
 import { clearThemePreference, type Theme } from '@/lib/theme'
 import { exportWorkspaceBackup } from '@/lib/backup'
-import { clearLocalFreeSlotMarkers } from '@/lib/partner'
 import { cn } from '@/lib/cn'
 
 type SectionId = 'profile' | 'appearance' | 'data'
@@ -57,8 +56,6 @@ export function SettingsModal() {
   const {
     settingsOpen,
     closeSettings,
-    openPlans,
-    partnerSummary,
     accounts,
     workspaceTrades,
     showToast,
@@ -131,7 +128,6 @@ export function SettingsModal() {
         // Storage can be unavailable in private mode.
       }
     })
-    clearLocalFreeSlotMarkers()
     setResetOpen(false)
     window.location.reload()
   }
@@ -328,26 +324,6 @@ export function SettingsModal() {
                     <span>Storage</span>
                     <b>{cloudActive ? 'Firebase' : 'Browser'}</b>
                   </div>
-                </div>
-
-                <div className="settings-field-row">
-                  <div className="settings-field-copy">
-                    <b>Journal access &amp; slots</b>
-                    <span>
-                      {partnerSummary.accessLabel} · {partnerSummary.usedSlots}/
-                      {partnerSummary.totalSlots} account slots used
-                    </span>
-                  </div>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      closeSettings()
-                      openPlans('browse')
-                    }}
-                  >
-                    Plans &amp; Access
-                  </Button>
                 </div>
 
                 <div className="settings-field-row">

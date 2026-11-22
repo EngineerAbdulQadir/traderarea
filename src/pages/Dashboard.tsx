@@ -65,8 +65,6 @@ export function DashboardPage() {
     getAllTradesForAccount,
     openChallenge,
     openDayReview,
-    openPlans,
-    partnerSummary,
     syncStatus,
     cloudUserId,
     viewingPhaseIndex,
@@ -253,25 +251,6 @@ export function DashboardPage() {
           </>
         }
       />
-
-      {!partnerSummary.isAdmin &&
-        !partnerSummary.hasLifetimeAccess &&
-        (partnerSummary.pendingCount > 0 ||
-          partnerSummary.latestVerification?.status === 'rejected' ||
-          partnerSummary.daysRemaining <= 5) && (
-          <div className="phase-view-banner">
-            <span>
-              {partnerSummary.pendingCount > 0
-                ? `Eze Funded order ${partnerSummary.latestVerification?.orderId ?? ''} is pending review — lifetime access unlocks once confirmed.`
-                : partnerSummary.latestVerification?.status === 'rejected'
-                  ? `Order ${partnerSummary.latestVerification.orderId} was declined${partnerSummary.latestVerification.note ? `: ${partnerSummary.latestVerification.note}` : ''}. Resubmit to keep lifetime access.`
-                  : `Your free trial ends in ${partnerSummary.daysRemaining} day${partnerSummary.daysRemaining === 1 ? '' : 's'}. Verify an Eze Funded affiliate order for lifetime access.`}
-            </span>
-            <Button variant="ghost" size="sm" onClick={() => openPlans('browse')}>
-              {partnerSummary.latestVerification?.status === 'rejected' ? 'Resubmit order' : 'Plans & Access'}
-            </Button>
-          </div>
-        )}
 
       {viewingPhaseIndex !== null && (
         <div className="phase-view-banner">

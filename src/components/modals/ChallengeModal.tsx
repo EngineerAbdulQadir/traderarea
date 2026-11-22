@@ -91,8 +91,6 @@ export function ChallengeModal() {
     addAccount,
     updateAccount,
     showToast,
-    partnerSummary,
-    openPlans,
   } = useApp()
   const navigate = useNavigate()
 
@@ -230,12 +228,6 @@ export function ChallengeModal() {
       })
       closeChallenge()
       showToast('Account updated', `${trimmedName} settings have been saved.`)
-      return
-    }
-
-    if (!partnerSummary.canAddAccount) {
-      closeChallenge()
-      openPlans('limit-reached')
       return
     }
 

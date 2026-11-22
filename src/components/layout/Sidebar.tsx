@@ -9,7 +9,6 @@ import {
   Plus,
   ChevronsUpDown,
   Settings,
-  ShieldCheck,
   SlidersHorizontal,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
@@ -35,7 +34,7 @@ export function Sidebar({
   mobileOpen: boolean
   onCloseMobile: () => void
 }) {
-  const { openChallenge, openSettings, openPlans, partnerSummary } = useApp()
+  const { openChallenge, openSettings } = useApp()
   const { user, signOut, configured } = useAuth()
   const { isDark } = useTheme()
   const profile = useProfile()
@@ -48,18 +47,6 @@ export function Sidebar({
     user?.email?.trim() ||
     (profile.email !== DEFAULT_PROFILE.email ? profile.email : profile.email)
   const initials = initialsFor(displayName)
-
-  const planDotTone =
-    partnerSummary.accessState === 'lifetime_affiliate' ||
-    partnerSummary.accessState === 'lifetime_granted' ||
-    partnerSummary.accessState === 'admin'
-      ? 'is-pos'
-      : partnerSummary.accessState === 'trial_expired'
-        ? 'is-neg'
-        : partnerSummary.accessState === 'pending_review' ||
-            partnerSummary.accessState === 'trial_expiring'
-          ? 'is-warn'
-          : 'is-accent'
 
   const [profileOpen, setProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
@@ -156,32 +143,6 @@ export function Sidebar({
         </div>
 
         <div className="sidebar-footer">
-          <button
-            className="sidebar-plan-btn"
-            type="button"
-            onClick={() => {
-              openPlans('browse')
-              if (isMobile) onCloseMobile()
-            }}
-          >
-            <ShieldCheck size={15} strokeWidth={1.7} />
-            <span className="sidebar-plan-copy nav-label">
-              <b>Plans &amp; Access</b>
-              <span className="sidebar-plan-state num">
-                <i className={cn('sidebar-plan-dot', planDotTone)} aria-hidden="true" />
-                {partnerSummary.accessLabel}
-              </span>
-            </span>
-            <span className="sidebar-plan-count num">
-              {partnerSummary.usedSlots}/{partnerSummary.totalSlots}
-            </span>
-            {collapsed && !isMobile && (
-              <span className="nav-tooltip">
-                Plans &amp; Access · {partnerSummary.accessLabel}
-              </span>
-            )}
-          </button>
-
           <div className="sidebar-profile" ref={profileRef}>
             <AnimatePresence>
               {profileOpen && (

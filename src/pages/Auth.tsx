@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { AlertCircle, ArrowLeft, ArrowRight, Eye, EyeOff, Loader2 } from 'lucide-react'
 
 import logoForm from '../../assets/logoform.png'
@@ -16,6 +16,7 @@ type Mode = 'login' | 'signup' | 'forgot'
 
 export function AuthPage({ mode }: { mode: Mode }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const { signIn, signUp, signOut, resetPassword, configured } = useAuth()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -25,9 +26,10 @@ export function AuthPage({ mode }: { mode: Mode }) {
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
 
-  const isSignup = mode === 'signup' && !isWaitlistOnly
+  const isSecretRoute = location.pathname.startsWith(ownerLoginPath)
+  const isSignup = mode === 'signup'
   const isForgot = mode === 'forgot'
-  const devBypassAvailable = import.meta.env.DEV && isWaitlistOnly && !configured
+  const showDevBypass = import.meta.env.DEV
 
   useEffect(() => {
     setSent(false)
@@ -36,18 +38,10 @@ export function AuthPage({ mode }: { mode: Mode }) {
   }, [mode])
 
   const switchMode = (next: Mode) => {
-    if (next === 'signup' && isWaitlistOnly) {
-      navigate('/waitlist')
-      return
-    }
-    if (isWaitlistOnly) {
-      navigate(next === 'forgot' ? `${ownerLoginPath}/forgot-password` : ownerLoginPath)
-      return
-    }
     const paths: Record<Mode, string> = {
-      login: '/auth/login',
-      signup: '/auth/signup',
-      forgot: '/auth/forgot-password',
+      login: isSecretRoute ? ownerLoginPath : '/auth/login',
+      signup: isSecretRoute ? `${ownerLoginPath}/signup` : '/auth/signup',
+      forgot: isSecretRoute ? `${ownerLoginPath}/forgot-password` : '/auth/forgot-password',
     }
     navigate(paths[next])
   }
@@ -56,7 +50,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
     e.preventDefault()
 
     if (!configured) {
-      if (devBypassAvailable) {
+      if (showDevBypass) {
         setDevOwnerSession()
         navigate('/metrics', { replace: true })
         return
@@ -76,7 +70,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
         navigate('/metrics', { replace: true })
       } else {
         await signIn(email, password)
-        if (isWaitlistOnly && auth?.currentUser && !isAuthorizedOwner(auth.currentUser)) {
+        if (isWaitlistOnly && !isSecretRoute && auth?.currentUser && !isAuthorizedOwner(auth.currentUser)) {
           await signOut()
           setError('This account is not authorized for workspace access.')
           return
@@ -138,112 +132,120 @@ export function AuthPage({ mode }: { mode: Mode }) {
                 ? 'Forgot password'
                 : isSignup
                   ? 'Create account'
-                  : isWaitlistOnly
-                    ? 'Owner access'
-                    : 'Sign in'}
+                  : 'Sign in'}
             </h1>
             <p className="auth-sub">
               {isForgot
                 ? "Enter your email and we'll send you a secure reset link."
                 : isSignup
                   ? 'Start tracking your challenges, journal and performance.'
-                  : isWaitlistOnly
-                    ? 'Sign in with your workspace credentials.'
-                    : 'Continue to your trading workspace.'}
+                  : 'Continue to your trading workspace.'}
             </p>
 
+            {showDevBypass && (
+              <div style={{ marginBottom: '1.25rem', padding: '0.85rem 1rem', background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: '0.5rem', textAlign: 'left' }}>
+                <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'inherit', marginBottom: '0.3rem' }}>AI Studio Dev Workspace</p>
+                <p style={{ fontSize: '0.78rem', opacity: 0.8, marginBottom: '0.6rem' }}>Instantly enter the app as owner/admin to feel what owner access is like.</p>
+                <button
+                  type="button"
+                  className="auth-submit"
+                  style={{ width: '100%', padding: '0.55rem 1rem', fontSize: '0.85rem' }}
+                  onClick={() => {
+                    setDevOwnerSession()
+                    navigate('/metrics', { replace: true })
+                  }}
+                >
+                  Enter Dev Workspace (Owner Access)
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+            )}
+
             <form className="auth-form" onSubmit={handleSubmit}>
-              {!configured && !devBypassAvailable && (
+              {!configured && !showDevBypass && (
                 <p className="auth-notice">
                   Firebase is not configured. Add your <code>VITE_FIREBASE_*</code> keys in Vercel
                   Environment Variables and redeploy.
                 </p>
               )}
 
-              {devBypassAvailable ? (
-                <p className="auth-notice">
-                  Local development mode detected. Click below to enter your local workspace, or add{' '}
-                  <code>.env.local</code> with Firebase keys to test cloud auth.
-                </p>
-              ) : (
-                <>
-                  {isSignup && (
-                    <label className="auth-field">
-                      <span className="auth-label">Full name</span>
-                      <span className="auth-line-input">
-                        <input
-                          type="text"
-                          name="name"
-                          placeholder="Alex Morgan"
-                          autoComplete="name"
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          required
-                        />
-                      </span>
-                    </label>
-                  )}
-
+              <>
+                {isSignup && (
                   <label className="auth-field">
-                    <span className="auth-label">Email address</span>
+                    <span className="auth-label">Full name</span>
                     <span className="auth-line-input">
                       <input
-                        type="email"
-                        name="email"
-                        placeholder="you@example.com"
-                        autoComplete="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        type="text"
+                        name="name"
+                        placeholder="Alex Morgan"
+                        autoComplete="name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
                         required
                       />
                     </span>
                   </label>
+                )}
 
-                  {!isForgot && (
-                    <label className="auth-field">
-                      <span className="auth-label">Password</span>
-                      <span className="auth-line-input">
-                        <input
-                          type={showPassword ? 'text' : 'password'}
-                          name="password"
-                          placeholder={isSignup ? 'Create a password' : 'Enter your password'}
-                          autoComplete={isSignup ? 'new-password' : 'current-password'}
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          required
-                        />
-                        <button
-                          type="button"
-                          className="auth-eye"
-                          onClick={() => setShowPassword((v) => !v)}
-                          aria-label={showPassword ? 'Hide password' : 'Show password'}
-                        >
-                          {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                        </button>
-                      </span>
-                    </label>
-                  )}
+                <label className="auth-field">
+                  <span className="auth-label">Email address</span>
+                  <span className="auth-line-input">
+                    <input
+                      type="email"
+                      name="email"
+                      placeholder="you@example.com"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </span>
+                </label>
 
-                  {isSignup && (
-                    <div className="auth-row">
-                      <label className="auth-check">
-                        <input type="checkbox" name="terms" required /> I agree to the Terms
-                      </label>
-                    </div>
-                  )}
-
-                  {!isSignup && !isForgot && (
-                    <div className="auth-row">
-                      <label className="auth-check">
-                        <input type="checkbox" name="remember" /> Remember me
-                      </label>
-                      <button type="button" className="auth-link" onClick={() => switchMode('forgot')}>
-                        Forgot password?
+                {!isForgot && (
+                  <label className="auth-field">
+                    <span className="auth-label">Password</span>
+                    <span className="auth-line-input">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        name="password"
+                        placeholder={isSignup ? 'Create a password' : 'Enter your password'}
+                        autoComplete={isSignup ? 'new-password' : 'current-password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                      />
+                      <button
+                        type="button"
+                        className="auth-eye"
+                        onClick={() => setShowPassword((v) => !v)}
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                       </button>
-                    </div>
-                  )}
-                </>
-              )}
+                    </span>
+                  </label>
+                )}
+
+                {isSignup && (
+                  <div className="auth-row">
+                    <label className="auth-check">
+                      <input type="checkbox" name="terms" required /> I agree to the Terms
+                    </label>
+                  </div>
+                )}
+
+                {!isSignup && !isForgot && (
+                  <div className="auth-row">
+                    <label className="auth-check">
+                      <input type="checkbox" name="remember" /> Remember me
+                    </label>
+                    <button type="button" className="auth-link" onClick={() => switchMode('forgot')}>
+                      Forgot password?
+                    </button>
+                  </div>
+                )}
+              </>
 
               {error && (
                 <p className="auth-error" role="alert">
@@ -253,44 +255,29 @@ export function AuthPage({ mode }: { mode: Mode }) {
               )}
 
               <button type="submit" className="auth-submit" disabled={loading}>
-                {devBypassAvailable
-                  ? 'Enter Dev Workspace'
-                  : isForgot
-                    ? 'Send reset link'
-                    : isSignup
-                      ? 'Create account'
-                      : 'Sign in'}
+                {isForgot
+                  ? 'Send reset link'
+                  : isSignup
+                    ? 'Create account'
+                    : 'Sign in'}
                 {loading ? <Loader2 className="auth-spin" size={15} /> : <ArrowRight size={15} />}
               </button>
             </form>
 
-            {isWaitlistOnly ? (
-              <p className="auth-switch">
-                Waitlist-only mode active.{' '}
-                <button
-                  type="button"
-                  className="auth-link"
-                  onClick={() => navigate('/waitlist')}
-                >
-                  Return to waitlist
-                </button>
-              </p>
-            ) : (
-              <p className="auth-switch">
-                {isSignup
-                  ? 'Already have an account?'
-                  : isForgot
-                    ? 'Remember your password?'
-                    : 'No account yet?'}{' '}
-                <button
-                  type="button"
-                  className="auth-link"
-                  onClick={() => switchMode(isSignup || isForgot ? 'login' : 'signup')}
-                >
-                  {isSignup || isForgot ? 'Sign in' : 'Create one'}
-                </button>
-              </p>
-            )}
+            <p className="auth-switch">
+              {isSignup
+                ? 'Already have an account?'
+                : isForgot
+                  ? 'Remember your password?'
+                  : 'No account yet?'}{' '}
+              <button
+                type="button"
+                className="auth-link"
+                onClick={() => switchMode(isSignup || isForgot ? 'login' : 'signup')}
+              >
+                {isSignup || isForgot ? 'Sign in' : 'Create one'}
+              </button>
+            </p>
 
             <p className="auth-legal">
               By continuing you agree to our <span>Terms of Service</span> and{' '}

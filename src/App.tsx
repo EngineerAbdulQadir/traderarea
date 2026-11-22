@@ -72,6 +72,14 @@ export default function App() {
           }
         />
         <Route
+          path={`${ownerLoginSlug}/signup`}
+          element={
+            <GuestOnly allowSecretRoute>
+              <AuthPage mode="signup" />
+            </GuestOnly>
+          }
+        />
+        <Route
           path={`${ownerLoginSlug}/forgot-password`}
           element={
             <GuestOnly allowSecretRoute>

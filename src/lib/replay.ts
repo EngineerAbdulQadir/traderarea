@@ -117,6 +117,100 @@ export function formatReplayPrice(price: number, digits: number): string {
   })
 }
 
+const CLIENT_CRYPTO_BASES = new Set([
+  'BTC',
+  'ETH',
+  'SOL',
+  'XRP',
+  'BNB',
+  'ADA',
+  'DOGE',
+  'AVAX',
+  'LTC',
+  'LINK',
+  'MATIC',
+  'DOT',
+  'SUI',
+  'PEPE',
+  'TON',
+  'NEAR',
+  'ARB',
+  'OP',
+  'ATOM',
+])
+
+function resolveDirectBinanceSymbol(rawTicker: string): string | null {
+  const cleaned = rawTicker
+    .trim()
+    .toUpperCase()
+    .replace(/^\//, '')
+    .replace(/(\.PRO|\.RAW|\.ECN|\.STD|\.M|\.I|\.C|_SB|\.CASH)$/i, '')
+    .replace(/[^A-Z0-9]/g, '')
+  for (const quote of ['USDT', 'USD', 'BUSD', 'USDC']) {
+    if (cleaned.endsWith(quote)) {
+      const base = cleaned.slice(0, -quote.length)
+      if (CLIENT_CRYPTO_BASES.has(base)) return `${base}USDT`
+    }
+  }
+  return CLIENT_CRYPTO_BASES.has(cleaned) ? `${cleaned}USDT` : null
+}
+
+async function fetchDirectBinanceFallback(
+  trade: Trade,
+  timeframe: ReplayTimeframe,
+  signal?: AbortSignal,
+): Promise<MarketFeedPayload | null> {
+  const binanceSymbol = resolveDirectBinanceSymbol(trade.ticker)
+  if (!binanceSymbol) return null
+
+  const step = (TF_MINUTES[timeframe] ?? 5) * 60
+  const openSec = parseUtcTimestamp(trade.date, trade.openTime)
+  const closeSec = Math.max(openSec + step * 3, parseUtcTimestamp(trade.date, trade.closeTime))
+  const nowSec = Math.floor(Date.now() / 1000)
+  const effectiveOpen = Math.min(openSec, nowSec - step * 12)
+  const startMs = (effectiveOpen - step * 10) * 1000
+  const endMs = Math.min(nowSec, closeSec + step * 10) * 1000
+
+  const url = `https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(
+    binanceSymbol,
+  )}&interval=${timeframe}&startTime=${startMs}&endTime=${endMs}&limit=240`
+
+  const res = await fetch(url, { signal })
+  if (!res.ok) return null
+  const raw = (await res.json()) as unknown[]
+  if (!Array.isArray(raw) || !raw.length) return null
+
+  const candles: RawMarketCandle[] = []
+  for (const row of raw) {
+    if (!Array.isArray(row) || row.length < 6) continue
+    const time = Math.floor(Number(row[0]) / 1000)
+    const open = Number(row[1])
+    const high = Number(row[2])
+    const low = Number(row[3])
+    const close = Number(row[4])
+    const volume = Number(row[5]) || 0
+    if (
+      Number.isFinite(time) &&
+      Number.isFinite(open) &&
+      Number.isFinite(high) &&
+      Number.isFinite(low) &&
+      Number.isFinite(close)
+    ) {
+      candles.push({ time, open, high, low, close, volume })
+    }
+  }
+  if (!candles.length) return null
+
+  return {
+    ok: true,
+    source: 'Binance',
+    marketSymbol: binanceSymbol,
+    resolvedInterval: timeframe,
+    exactWindow: openSec <= nowSec,
+    candles,
+  }
+}
+
 export async function fetchRealMarketCandles(
   trade: Trade,
   timeframe: ReplayTimeframe,
@@ -129,8 +223,32 @@ export async function fetchRealMarketCandles(
     openTime: trade.openTime || '',
     closeTime: trade.closeTime || '',
   })
-  const res = await fetch(`/api/market/candles?${params.toString()}`, { signal })
-  const data = (await res.json()) as MarketFeedPayload | { ok: false; error?: string }
+  const res = await fetch(`/api/market/candles?${params.toString()}`, {
+    signal,
+    headers: { Accept: 'application/json' },
+  })
+  const rawText = await res.text()
+  const trimmed = rawText.trimStart()
+
+  let data: (MarketFeedPayload | { ok: false; error?: string }) | null = null
+  if (trimmed && !trimmed.startsWith('<')) {
+    try {
+      data = JSON.parse(rawText) as MarketFeedPayload | { ok: false; error?: string }
+    } catch {
+      data = null
+    }
+  }
+
+  if (!data) {
+    const directCrypto = await fetchDirectBinanceFallback(trade, timeframe, signal).catch(
+      () => null,
+    )
+    if (directCrypto) return directCrypto
+    throw new Error(
+      `Market data endpoint returned an unexpected response for ${trade.ticker}. Please retry in a moment.`,
+    )
+  }
+
   if (!res.ok || !data.ok) {
     throw new Error(
       'error' in data && data.error

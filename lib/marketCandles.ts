@@ -13,6 +13,9 @@ export interface MarketFeedResult {
   marketSymbol: string
   resolvedInterval: string
   exactWindow: boolean
+  resolvedOpenSec: number
+  resolvedCloseSec: number
+  tzOffsetHours: number
   candles: MarketCandle[]
 }
 
@@ -22,6 +25,8 @@ export interface MarketFeedQuery {
   date?: string
   openTime?: string
   closeTime?: string
+  entry?: number
+  exit?: number
 }
 
 const CACHE_TTL_MS = 5 * 60 * 1000
@@ -136,6 +141,7 @@ const YAHOO_MAX_AGE_SEC: Record<string, number> = {
 }
 
 const YAHOO_HOSTS = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com']
+const CANDIDATE_TZ_OFFSETS = [0, 2, 3, 1, -5, -4, 4, 5, 8, 9, -6, -7, -8, -3, -2, -1, 6, 7, 10]
 
 function cleanTicker(raw: string): string {
   return raw
@@ -241,6 +247,104 @@ async function safeFetchJson(url: string, headers?: Record<string, string>): Pro
   }
 }
 
+function closestBar(candles: MarketCandle[], targetSec: number): { bar: MarketCandle; timeDist: number } | null {
+  if (!candles.length) return null
+  let best = candles[0]
+  let bestDist = Infinity
+  for (const bar of candles) {
+    const d = Math.abs(bar.time - targetSec)
+    if (d < bestDist) {
+      bestDist = d
+      best = bar
+    }
+  }
+  return { bar: best, timeDist: bestDist }
+}
+
+function priceRangeDistance(price: number, bar: MarketCandle): number {
+  if (price < bar.low) return bar.low - price
+  if (price > bar.high) return price - bar.high
+  return 0
+}
+
+function resolveBestTimezoneWindow(
+  candles: MarketCandle[],
+  openSec: number,
+  closeSec: number,
+  stepSec: number,
+  entryPrice?: number,
+  exitPrice?: number,
+): { openSec: number; closeSec: number; tzOffsetHours: number } {
+  const hasEntry = typeof entryPrice === 'number' && Number.isFinite(entryPrice) && entryPrice > 0
+  if (!hasEntry || !candles.length) {
+    return { openSec, closeSec, tzOffsetHours: 0 }
+  }
+
+  const hasExit = typeof exitPrice === 'number' && Number.isFinite(exitPrice) && exitPrice > 0
+  const maxTimeGap = stepSec >= 86400 ? 2 * 86400 : Math.max(stepSec * 4, 900)
+  const zeroBarEntry = closestBar(candles, openSec)
+  const zeroBarExit = closestBar(candles, closeSec)
+
+  const evaluateOffset = (offsetHours: number) => {
+    const candOpen = openSec - offsetHours * 3600
+    const candClose = closeSec - offsetHours * 3600
+    const eMatch = closestBar(candles, candOpen)
+    const xMatch = closestBar(candles, candClose)
+    if (!eMatch || !xMatch) return null
+    if (eMatch.timeDist > maxTimeGap || xMatch.timeDist > maxTimeGap) return null
+
+    const distE = priceRangeDistance(entryPrice, eMatch.bar)
+    const distX = hasExit ? priceRangeDistance(exitPrice, xMatch.bar) : 0
+    const deltaErr = hasExit
+      ? Math.abs((xMatch.bar.close - eMatch.bar.open) - (exitPrice - entryPrice))
+      : 0
+    const centerErr =
+      Math.abs(entryPrice - eMatch.bar.close) +
+      (hasExit ? Math.abs(exitPrice - xMatch.bar.close) : 0)
+
+    return {
+      offsetHours,
+      candOpen,
+      candClose,
+      distE,
+      distX,
+      score: distE + distX + 0.15 * deltaErr + 0.02 * centerErr,
+    }
+  }
+
+  const zeroEval = evaluateOffset(0)
+  if (zeroEval && zeroBarEntry && zeroBarExit) {
+    const barRange = Math.max(zeroBarEntry.bar.high - zeroBarEntry.bar.low, entryPrice * 0.0005)
+    if (zeroEval.distE <= barRange * 0.5 && zeroEval.distX <= barRange * 0.5) {
+      return { openSec, closeSec, tzOffsetHours: 0 }
+    }
+  }
+
+  let best = zeroEval
+  for (const offsetHours of CANDIDATE_TZ_OFFSETS) {
+    if (offsetHours === 0) continue
+    const cand = evaluateOffset(offsetHours)
+    if (!cand) continue
+    if (!best || cand.score < best.score) {
+      best = cand
+    }
+  }
+
+  if (!best) {
+    return { openSec, closeSec, tzOffsetHours: 0 }
+  }
+
+  if (zeroEval && best.offsetHours !== 0 && best.score >= zeroEval.score * 0.65) {
+    return { openSec, closeSec, tzOffsetHours: 0 }
+  }
+
+  return {
+    openSec: best.candOpen,
+    closeSec: best.candClose,
+    tzOffsetHours: best.offsetHours,
+  }
+}
+
 function sliceWindow(
   candles: MarketCandle[],
   targetOpenSec: number,
@@ -269,8 +373,8 @@ function sliceWindow(
         exitIdx = i
       }
     }
-    const start = Math.max(0, entryIdx - 5)
-    const end = Math.min(candles.length, exitIdx + 6)
+    const start = Math.max(0, entryIdx - 15)
+    const end = Math.min(candles.length, exitIdx + 9)
     return { slice: candles.slice(start, end), exactWindow: true }
   }
 
@@ -285,6 +389,8 @@ async function fetchBinanceKlines(
   interval: string,
   openSec: number,
   closeSec: number,
+  entryPrice?: number,
+  exitPrice?: number,
 ): Promise<MarketFeedResult | null> {
   const binanceInterval =
     interval === '1m' || interval === '5m' || interval === '15m' || interval === '1h' || interval === '1d'
@@ -292,13 +398,16 @@ async function fetchBinanceKlines(
       : '5m'
   const step = INTERVAL_SECONDS[binanceInterval] ?? 300
   const nowSec = Math.floor(Date.now() / 1000)
+  const hasPriceHint = typeof entryPrice === 'number' && Number.isFinite(entryPrice) && entryPrice > 0
+  const lookbackSec = hasPriceHint ? Math.max(step * 20, 10 * 3600) : step * 20
+  const lookaheadSec = hasPriceHint ? Math.max(step * 20, 6 * 3600) : step * 20
   const effectiveOpen = Math.min(openSec, nowSec - step * 12)
-  const startMs = (effectiveOpen - step * 10) * 1000
-  const endMs = Math.min(nowSec, closeSec + step * 10) * 1000
+  const startMs = (effectiveOpen - lookbackSec) * 1000
+  const endMs = Math.min(nowSec, closeSec + lookaheadSec) * 1000
 
   const url = `https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(
     symbol,
-  )}&interval=${binanceInterval}&startTime=${startMs}&endTime=${endMs}&limit=240`
+  )}&interval=${binanceInterval}&startTime=${startMs}&endTime=${endMs}&limit=1000`
 
   const raw = await safeFetchJson(url)
   if (!Array.isArray(raw) || !raw.length) return null
@@ -324,13 +433,24 @@ async function fetchBinanceKlines(
   }
 
   if (!candles.length) return null
-  const sliced = sliceWindow(candles, openSec, closeSec)
+  const resolved = resolveBestTimezoneWindow(
+    candles,
+    openSec,
+    closeSec,
+    step,
+    entryPrice,
+    exitPrice,
+  )
+  const sliced = sliceWindow(candles, resolved.openSec, resolved.closeSec)
   return {
     ok: true,
     source: 'Binance',
     marketSymbol: symbol,
     resolvedInterval: binanceInterval,
-    exactWindow: openSec <= nowSec && sliced.exactWindow,
+    exactWindow: resolved.openSec <= nowSec && sliced.exactWindow,
+    resolvedOpenSec: resolved.openSec,
+    resolvedCloseSec: resolved.closeSec,
+    tzOffsetHours: resolved.tzOffsetHours,
     candles: sliced.slice,
   }
 }
@@ -387,6 +507,8 @@ async function fetchYahooCandles(
   requestedInterval: string,
   openSec: number,
   closeSec: number,
+  entryPrice?: number,
+  exitPrice?: number,
 ): Promise<MarketFeedResult | null> {
   const nowSec = Math.floor(Date.now() / 1000)
   const ageSec = Math.max(0, nowSec - openSec)
@@ -402,13 +524,18 @@ async function fetchYahooCandles(
     Accept: 'application/json',
   }
 
+  const hasPriceHint = typeof entryPrice === 'number' && Number.isFinite(entryPrice) && entryPrice > 0
+
   for (const iv of intervalsToTry) {
     const step = INTERVAL_SECONDS[iv] ?? 300
+    const lookbackSec = hasPriceHint ? Math.max(step * 45, 11 * 3600) : Math.max(step * 45, 2 * 86400)
+    const lookaheadSec = hasPriceHint ? Math.max(step * 30, 8 * 3600) : Math.max(step * 30, 86400)
+
     const pathQuery =
       openSec <= nowSec - step
         ? (() => {
-            const p1 = Math.max(0, openSec - Math.max(step * 45, 2 * 86400))
-            const p2 = Math.min(nowSec, closeSec + Math.max(step * 30, 86400))
+            const p1 = Math.max(0, openSec - lookbackSec)
+            const p2 = Math.min(nowSec, closeSec + lookaheadSec)
             return `/v8/finance/chart/${encodeURIComponent(
               yahooSymbol,
             )}?period1=${p1}&period2=${p2}&interval=${iv}&includePrePost=true`
@@ -442,7 +569,15 @@ async function fetchYahooCandles(
       }
 
       if (!allCandles.length) continue
-      const sliced = sliceWindow(allCandles, openSec, closeSec)
+      const resolved = resolveBestTimezoneWindow(
+        allCandles,
+        openSec,
+        closeSec,
+        step,
+        entryPrice,
+        exitPrice,
+      )
+      const sliced = sliceWindow(allCandles, resolved.openSec, resolved.closeSec)
       if (!sliced.slice.length) continue
 
       return {
@@ -451,6 +586,9 @@ async function fetchYahooCandles(
         marketSymbol: yahooSymbol,
         resolvedInterval: iv,
         exactWindow: exactWindow && sliced.exactWindow,
+        resolvedOpenSec: resolved.openSec,
+        resolvedCloseSec: resolved.closeSec,
+        tzOffsetHours: resolved.tzOffsetHours,
         candles: sliced.slice,
       }
     }
@@ -467,8 +605,16 @@ export async function getMarketCandles(query: MarketFeedQuery): Promise<MarketFe
   const date = (query.date ?? '').trim()
   const openTime = (query.openTime ?? '').trim()
   const closeTime = (query.closeTime ?? '').trim()
+  const entry =
+    typeof query.entry === 'number' && Number.isFinite(query.entry) && query.entry > 0
+      ? query.entry
+      : undefined
+  const exit =
+    typeof query.exit === 'number' && Number.isFinite(query.exit) && query.exit > 0
+      ? query.exit
+      : undefined
 
-  const cacheKey = `${symbol}|${interval}|${date}|${openTime}|${closeTime}`
+  const cacheKey = `${symbol}|${interval}|${date}|${openTime}|${closeTime}|${entry ?? ''}|${exit ?? ''}`
   const cached = cache.get(cacheKey)
   if (cached && cached.expiresAt > Date.now()) {
     return cached.payload
@@ -479,12 +625,12 @@ export async function getMarketCandles(query: MarketFeedQuery): Promise<MarketFe
 
   let result: MarketFeedResult | null = null
   if (binanceSymbol) {
-    result = await fetchBinanceKlines(binanceSymbol, interval, openSec, closeSec)
+    result = await fetchBinanceKlines(binanceSymbol, interval, openSec, closeSec, entry, exit)
   }
 
   if (!result) {
     for (const ySym of yahooSymbols) {
-      result = await fetchYahooCandles(ySym, interval, openSec, closeSec)
+      result = await fetchYahooCandles(ySym, interval, openSec, closeSec, entry, exit)
       if (result) break
     }
   }

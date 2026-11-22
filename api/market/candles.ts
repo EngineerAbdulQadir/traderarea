@@ -37,6 +37,8 @@ export default async function handler(req: VercelRequestLike, res: VercelRespons
   const date = readQueryParam(req, searchParams, 'date')
   const openTime = readQueryParam(req, searchParams, 'openTime')
   const closeTime = readQueryParam(req, searchParams, 'closeTime')
+  const entryRaw = Number(readQueryParam(req, searchParams, 'entry'))
+  const exitRaw = Number(readQueryParam(req, searchParams, 'exit'))
 
   if (!symbol) {
     res.status(400).json({ ok: false, error: 'Symbol is required.' })
@@ -49,6 +51,8 @@ export default async function handler(req: VercelRequestLike, res: VercelRespons
     date,
     openTime,
     closeTime,
+    entry: Number.isFinite(entryRaw) && entryRaw > 0 ? entryRaw : undefined,
+    exit: Number.isFinite(exitRaw) && exitRaw > 0 ? exitRaw : undefined,
   })
 
   if (!result) {

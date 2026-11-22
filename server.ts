@@ -19,6 +19,8 @@ async function createApp() {
     const date = String(req.query.date ?? '').trim()
     const openTime = String(req.query.openTime ?? '').trim()
     const closeTime = String(req.query.closeTime ?? '').trim()
+    const entryRaw = Number(req.query.entry)
+    const exitRaw = Number(req.query.exit)
 
     if (!symbol) {
       res.status(400).json({ ok: false, error: 'Symbol is required.' })
@@ -31,6 +33,8 @@ async function createApp() {
       date,
       openTime,
       closeTime,
+      entry: Number.isFinite(entryRaw) && entryRaw > 0 ? entryRaw : undefined,
+      exit: Number.isFinite(exitRaw) && exitRaw > 0 ? exitRaw : undefined,
     })
 
     if (!result) {

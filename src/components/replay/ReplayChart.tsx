@@ -247,19 +247,18 @@ export function ReplayChart({
     const entryBar = sequence.candles[sequence.entryIndex]
     const exitBar = sequence.candles[sequence.exitIndex]
 
-    const isNearBar = (price: number, bar: ReplayCandle | undefined) => {
-      if (!bar || !(price > 0)) return false
-      const tol = Math.max((bar.high - bar.low) * 1.5, bar.close * 0.0025)
-      return price >= bar.low - tol && price <= bar.high + tol
+    const isSameScale = (price: number, bar: ReplayCandle | undefined) => {
+      if (!bar || !(price > 0) || !(bar.close > 0)) return false
+      return Math.abs(price - bar.close) / bar.close <= 0.1
     }
 
     const chartEntryPrice =
-      sequence.hasPrices && isNearBar(sequence.entryPrice, entryBar)
+      sequence.hasPrices && isSameScale(sequence.entryPrice, entryBar)
         ? sequence.entryPrice
         : (entryBar?.close ?? sequence.entryPrice)
 
     const chartExitPrice =
-      sequence.hasPrices && isNearBar(sequence.exitPrice, exitBar)
+      sequence.hasPrices && isSameScale(sequence.exitPrice, exitBar)
         ? sequence.exitPrice
         : (exitBar?.close ?? sequence.exitPrice)
 

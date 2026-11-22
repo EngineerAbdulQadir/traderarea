@@ -20,6 +20,9 @@ export interface MarketFeedPayload {
   marketSymbol: string
   resolvedInterval: string
   exactWindow: boolean
+  resolvedOpenSec?: number
+  resolvedCloseSec?: number
+  tzOffsetHours?: number
   candles: RawMarketCandle[]
 }
 
@@ -46,6 +49,7 @@ export interface ReplaySequence {
   source: 'Binance' | 'Yahoo Finance'
   marketSymbol: string
   exactWindow: boolean
+  tzOffsetHours: number
   basisAligned: boolean
   hasPrices: boolean
   entryPrice: number
@@ -223,6 +227,8 @@ export async function fetchRealMarketCandles(
     openTime: trade.openTime || '',
     closeTime: trade.closeTime || '',
   })
+  if (trade.entry > 0) params.set('entry', String(trade.entry))
+  if (trade.exit > 0) params.set('exit', String(trade.exit))
   const res = await fetch(`/api/market/candles?${params.toString()}`, {
     signal,
     headers: { Accept: 'application/json' },
@@ -307,6 +313,7 @@ export function buildRealMarketSequence(
       source: market.source,
       marketSymbol: market.marketSymbol,
       exactWindow: market.exactWindow,
+      tzOffsetHours: market.tzOffsetHours ?? 0,
       basisAligned: false,
       hasPrices,
       entryPrice,
@@ -325,15 +332,14 @@ export function buildRealMarketSequence(
     }
   }
 
-  // Locate entryIndex & exitIndex cleanly, keeping only ~5 bars before entry and ~5 bars after exit
-  const PRE_BARS = 5
-  const POST_BARS = 5
+  const PRE_BARS = 15
+  const POST_BARS = 8
   let entryIndex = Math.min(rawCandles.length - 2, Math.floor(rawCandles.length * 0.3))
   let exitIndex = Math.min(rawCandles.length - 1, entryIndex + Math.max(2, Math.min(12, Math.round((holdMinutes || tfMinutes * 6) / tfMinutes))))
 
   if (market.exactWindow) {
-    const targetOpenSec = parseUtcTimestamp(trade.date, trade.openTime)
-    const targetCloseSec = parseUtcTimestamp(trade.date, trade.closeTime)
+    const targetOpenSec = market.resolvedOpenSec ?? parseUtcTimestamp(trade.date, trade.openTime)
+    const targetCloseSec = market.resolvedCloseSec ?? parseUtcTimestamp(trade.date, trade.closeTime)
 
     let bestDist = Infinity
     for (let i = 0; i < rawCandles.length; i++) {
@@ -360,7 +366,6 @@ export function buildRealMarketSequence(
       exitIndex = entryIndex + 1
     }
   } else {
-    // Match closest time-of-day bar in the latest real trading session when date was out of range
     const targetMod = openMinutesRaw ?? 9 * 60 + 30
     let bestModDist = Infinity
     const maxStart = Math.max(0, rawCandles.length - 8)
@@ -383,14 +388,10 @@ export function buildRealMarketSequence(
   entryIndex -= sliceStart
   exitIndex -= sliceStart
 
-  // Keep raw real market prices untouched unless broker/demo quote differs by >3.5%
+  // Keep raw real market OHLC candles unmodified
   const refPrice = croppedCandles[entryIndex]?.close || croppedCandles[0].close
-  let basisOffset = 0
-  let basisAligned = false
-  if (hasPrices && refPrice > 0 && Math.abs(entryPrice - refPrice) / refPrice > 0.035) {
-    basisOffset = entryPrice - refPrice
-    basisAligned = true
-  }
+  const basisOffset = 0
+  const basisAligned = false
 
   const isLong = trade.side === 'LONG'
   const signedDir = isLong ? 1 : -1
@@ -496,6 +497,7 @@ export function buildRealMarketSequence(
     source: market.source,
     marketSymbol: market.marketSymbol,
     exactWindow: market.exactWindow,
+    tzOffsetHours: market.tzOffsetHours ?? 0,
     basisAligned,
     hasPrices,
     entryPrice,

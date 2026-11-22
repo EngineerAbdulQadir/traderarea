@@ -441,15 +441,7 @@ export function evaluateAccount(account: Account, stats: Stats): AccountEvaluati
   const rules = account.rules || { target: 0, daily: 0, max: 0, days: 0 }
   const net = stats.net
   const balance = starting + net
-
-  const funded = (account.stage === 'Funded') || (Number(rules.target) || 0) <= 0
-  const targetAmount = (starting * (Number(rules.target) || 0)) / 100
-  const targetHit = funded
-    ? net > 1e-9
-    : targetAmount > 0 && net + 1e-9 >= targetAmount
-
-  const requiredDays = Number(rules.days) || 0
-  const daysMet = requiredDays <= 0 || stats.profitableDays >= requiredDays
+  const isBroker = account.kind === 'broker' || Boolean(account.brokerType)
 
   const dailyLimit = (starting * (Number(rules.daily) || 0)) / 100
   let worstLossDay: DayRow | null = null
@@ -465,6 +457,50 @@ export function evaluateAccount(account: Account, stats: Stats): AccountEvaluati
 
   const maxLimit = (starting * (Number(rules.max) || 0)) / 100
   const maxBreached = maxLimit > 0 && starting - balance + 1e-9 >= maxLimit
+
+  if (isBroker) {
+    const goalAmount = (starting * (Number(rules.target) || 0)) / 100
+    const goalHit = goalAmount > 0 && net + 1e-9 >= goalAmount
+    let status: AccountStatus = 'active'
+    let reason = 'Broker account active'
+    if (dailyBreached) {
+      status = 'breached'
+      reason = worstLossDay
+        ? `Personal daily loss limit exceeded on ${formatShortDate((worstLossDay as DayRow).date)}`
+        : 'Personal daily loss limit exceeded'
+    } else if (maxBreached) {
+      status = 'breached'
+      reason = 'Personal max drawdown limit exceeded'
+    } else if (goalHit) {
+      status = 'passed'
+      reason = 'Personal profit goal reached'
+    }
+
+    return {
+      status,
+      starting,
+      net,
+      balance,
+      targetAmount: goalAmount,
+      targetHit: goalHit,
+      requiredDays: 0,
+      daysMet: true,
+      dailyLimit,
+      dailyBreached,
+      maxLimit,
+      maxBreached,
+      reason,
+    }
+  }
+
+  const funded = (account.stage === 'Funded') || (Number(rules.target) || 0) <= 0
+  const targetAmount = (starting * (Number(rules.target) || 0)) / 100
+  const targetHit = funded
+    ? net > 1e-9
+    : targetAmount > 0 && net + 1e-9 >= targetAmount
+
+  const requiredDays = Number(rules.days) || 0
+  const daysMet = requiredDays <= 0 || stats.profitableDays >= requiredDays
 
   const passed = funded ? targetHit && daysMet : targetAmount > 0 && targetHit && daysMet
 
@@ -507,6 +543,7 @@ export function buildRules(
   stats: Stats,
 ): { rows: RuleRow[]; status: string; tone: 'ok' | 'warn' | 'danger' | 'done' } {
   const starting = getStartingBalance(account)
+  const isBroker = account.kind === 'broker' || Boolean(account.brokerType)
   const evaluation = evaluateAccount(account, stats)
   const balance = starting + stats.net
   const rows: RuleRow[] = []
@@ -516,12 +553,12 @@ export function buildRules(
   if (targetAmount > 0) {
     const progress = stats.net / targetAmount
     rows.push({
-      name: 'Profit target',
+      name: isBroker ? 'Profit goal' : 'Profit target',
       tone: evaluation.targetHit ? 'is-done' : 'is-info',
       value: signedMoney(Math.max(0, stats.net)),
       limit: `/ ${formatUsd2(targetAmount)}`,
       pct: progress * 100,
-      left: evaluation.targetHit ? 'Target reached' : `${formatUsd2(Math.max(0, targetAmount - stats.net))} to go`,
+      left: evaluation.targetHit ? (isBroker ? 'Goal reached' : 'Target reached') : `${formatUsd2(Math.max(0, targetAmount - stats.net))} to go`,
       right: `${Math.max(0, progress * 100).toFixed(1)}%`,
     })
   }
@@ -552,7 +589,7 @@ export function buildRules(
     const used = Math.max(0, starting - balance) / maxLimit
     worstUsed = Math.max(worstUsed, used)
     rows.push({
-      name: 'Max total loss',
+      name: isBroker ? 'Max drawdown limit' : 'Max total loss',
       tone: ruleTone(used),
       value: formatUsd2(Math.max(0, starting - balance)),
       limit: `/ ${formatUsd2(maxLimit)}`,
@@ -578,13 +615,13 @@ export function buildRules(
     })
   }
 
-  let status = 'On track'
+  let status = isBroker ? (rows.length ? 'Within limits' : 'No guardrails') : 'On track'
   let tone: 'ok' | 'warn' | 'danger' | 'done' = 'ok'
   if (evaluation.status === 'breached') {
-    status = 'Rule breached'
+    status = isBroker ? 'Limit exceeded' : 'Rule breached'
     tone = 'danger'
   } else if (evaluation.status === 'passed') {
-    status = 'Passed'
+    status = isBroker ? 'Goal reached' : 'Passed'
     tone = 'done'
   } else if (worstUsed >= 0.7) {
     status = 'Close to limit'

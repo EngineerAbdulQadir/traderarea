@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { useApp } from '@/store/AppStore'
 import { signedMoney } from '@/lib/format'
 import { todayISO } from '@/lib/dates'
-import { titleFor } from '@/lib/accounts'
+import { accountStageLabel, titleFor } from '@/lib/accounts'
 import type { Side, Trade } from '@/lib/types'
 import { cn } from '@/lib/cn'
 
@@ -97,6 +97,8 @@ export function TradeModal() {
     tradeEditor,
     closeTradeEditor,
     accounts,
+    brokerAccounts,
+    allAccounts,
     activeAccount,
     isDemo,
     saveTrade,
@@ -105,7 +107,7 @@ export function TradeModal() {
   } = useApp()
 
   const editing = !!tradeEditor?.trade
-  const [form, setForm] = useState<FormState>(() => blankForm(activeAccount?.id ?? accounts[0]?.id ?? ''))
+  const [form, setForm] = useState<FormState>(() => blankForm(activeAccount?.id ?? allAccounts[0]?.id ?? ''))
   const [error, setError] = useState<FormError | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -114,13 +116,13 @@ export function TradeModal() {
       setConfirmDelete(false)
       return
     }
-    const fallbackId = tradeEditor.accountId || activeAccount?.id || accounts[0]?.id || ''
+    const fallbackId = tradeEditor.accountId || activeAccount?.id || allAccounts[0]?.id || ''
     setForm(tradeEditor.trade ? formFromTrade(tradeEditor.trade, fallbackId) : blankForm(fallbackId))
     setError(null)
     setConfirmDelete(false)
-  }, [tradeEditor, activeAccount?.id, accounts])
+  }, [tradeEditor, activeAccount?.id, allAccounts])
 
-  const currentAccount = accounts.find((account) => account.id === form.accountId) ?? null
+  const currentAccount = allAccounts.find((account) => account.id === form.accountId) ?? null
 
   const handleClose = useCallback(() => {
     setConfirmDelete(false)
@@ -164,7 +166,7 @@ export function TradeModal() {
     if (form.open && form.close && form.close < form.open) {
       return showError({ message: 'Close time cannot be earlier than open time.', field: 'close' })
     }
-    if (!form.accountId || !accounts.some((account) => account.id === form.accountId)) {
+    if (!form.accountId || !allAccounts.some((account) => account.id === form.accountId)) {
       return showError({ message: 'Choose the account this trade belongs to.', field: 'account' })
     }
 
@@ -278,11 +280,24 @@ export function TradeModal() {
                 disabled={editing}
                 onChange={(event) => update('accountId', event.target.value)}
               >
-                {accounts.map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {titleFor(account)} · {account.stage}
-                  </option>
-                ))}
+                {accounts.length > 0 && (
+                  <optgroup label="Firms">
+                    {accounts.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {titleFor(account)} · {accountStageLabel(account)}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {brokerAccounts.length > 0 && (
+                  <optgroup label="Brokers">
+                    {brokerAccounts.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {titleFor(account)} · {account.firm} · {accountStageLabel(account)}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             </div>
             <div className="field">

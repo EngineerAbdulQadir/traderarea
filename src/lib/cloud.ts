@@ -27,6 +27,10 @@ function accountsCol(uid: string) {
   return collection(requireDb(), 'users', uid, 'accounts')
 }
 
+function brokerAccountsCol(uid: string) {
+  return collection(requireDb(), 'users', uid, 'brokerAccounts')
+}
+
 function tradesCol(uid: string) {
   return collection(requireDb(), 'users', uid, 'trades')
 }
@@ -51,10 +55,13 @@ function tradeSortKey(trade: Trade) {
   return `${trade.date}${trade.openTime}`
 }
 
-/** True when this account already has at least one account document. */
+/** True when this account already has at least one account or broker document. */
 export async function hasCloudWorkspace(uid: string): Promise<boolean> {
-  const snapshot = await getDocs(query(accountsCol(uid), limit(1)))
-  return !snapshot.empty
+  const [acctSnap, brokerSnap] = await Promise.all([
+    getDocs(query(accountsCol(uid), limit(1))),
+    getDocs(query(brokerAccountsCol(uid), limit(1))),
+  ])
+  return !acctSnap.empty || !brokerSnap.empty
 }
 
 export async function ensureUserProfile(
@@ -78,6 +85,23 @@ export function subscribeAccounts(
 ): Unsubscribe {
   return onSnapshot(
     accountsCol(uid),
+    (snapshot) => {
+      const accounts = snapshot.docs
+        .map((item) => ({ ...(item.data() as Omit<Account, 'id'>), id: item.id }) as Account)
+        .sort(byCreatedDesc)
+      next(accounts)
+    },
+    (error) => onError?.(error),
+  )
+}
+
+export function subscribeBrokerAccounts(
+  uid: string,
+  next: (accounts: Account[]) => void,
+  onError?: (error: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    brokerAccountsCol(uid),
     (snapshot) => {
       const accounts = snapshot.docs
         .map((item) => ({ ...(item.data() as Omit<Account, 'id'>), id: item.id }) as Account)
@@ -171,6 +195,26 @@ export async function syncAccounts(uid: string, previous: Account[], next: Accou
   previous.forEach((account) => {
     if (!after.has(account.id)) {
       operations.push({ type: 'delete', ref: doc(accountsCol(uid), account.id) })
+    }
+  })
+
+  if (operations.length) await commit(operations)
+}
+
+export async function syncBrokerAccounts(uid: string, previous: Account[], next: Account[]): Promise<void> {
+  const before = new Map(previous.map((account) => [account.id, account]))
+  const after = new Map(next.map((account) => [account.id, account]))
+  const operations: WriteOperation[] = []
+
+  next.forEach((account) => {
+    const old = before.get(account.id)
+    if (!old || !sameValue(old, account)) {
+      operations.push({ type: 'set', ref: doc(brokerAccountsCol(uid), account.id), data: account })
+    }
+  })
+  previous.forEach((account) => {
+    if (!after.has(account.id)) {
+      operations.push({ type: 'delete', ref: doc(brokerAccountsCol(uid), account.id) })
     }
   })
 
@@ -386,12 +430,16 @@ export async function pushWorkspaceToCloud(
   accounts: Account[],
   trades: Trade[],
   notes: NotesByAccount,
+  brokerAccounts: Account[] = [],
 ): Promise<void> {
   await ensureUserProfile(uid, {})
 
   const operations: WriteOperation[] = []
   accounts.forEach((account) => {
     operations.push({ type: 'set', ref: doc(accountsCol(uid), account.id), data: account })
+  })
+  brokerAccounts.forEach((account) => {
+    operations.push({ type: 'set', ref: doc(brokerAccountsCol(uid), account.id), data: account })
   })
   trades.forEach((trade) => {
     operations.push({ type: 'set', ref: doc(tradesCol(uid), trade.id), data: trade })
@@ -407,7 +455,7 @@ export async function pushWorkspaceToCloud(
 }
 
 export async function deleteCloudWorkspace(uid: string): Promise<void> {
-  for (const collectionRef of [accountsCol(uid), tradesCol(uid), notesCol(uid), imagesCol(uid)]) {
+  for (const collectionRef of [accountsCol(uid), brokerAccountsCol(uid), tradesCol(uid), notesCol(uid), imagesCol(uid)]) {
     const snapshot = await getDocs(collectionRef)
     const operations = snapshot.docs.map((item) => ({
       type: 'delete' as const,

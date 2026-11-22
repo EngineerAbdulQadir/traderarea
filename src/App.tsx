@@ -9,11 +9,13 @@ import {
 import { CommandPalette } from '@/components/layout/CommandPalette'
 import { ToastStack } from '@/components/layout/ToastStack'
 import { ChallengeModal } from '@/components/modals/ChallengeModal'
+import { BrokerModal } from '@/components/modals/BrokerModal'
 import { DayReviewModal } from '@/components/modals/DayReviewModal'
 import { MigrationModal } from '@/components/modals/MigrationModal'
 import { TradeModal } from '@/components/modals/TradeModal'
 import { SettingsModal } from '@/components/modals/SettingsModal'
 import { AccountsPage } from '@/pages/Accounts'
+import { BrokersPage } from '@/pages/Brokers'
 import { AuthPage } from '@/pages/Auth'
 import { DashboardPage } from '@/pages/Dashboard'
 import { JournalPage } from '@/pages/Journal'
@@ -95,8 +97,10 @@ export default function App() {
             <Route path="metrics" element={<DashboardPage />} />
             <Route path="journal" element={<JournalPage />} />
             <Route path="replay" element={<ReplayPage />} />
-            <Route path="accounts" element={<AccountsPage />} />
-            <Route path="portfolio" element={<Navigate to="/accounts" replace />} />
+            <Route path="firms" element={<AccountsPage />} />
+            <Route path="brokers" element={<BrokersPage />} />
+            <Route path="accounts" element={<Navigate to="/firms" replace />} />
+            <Route path="portfolio" element={<Navigate to="/firms" replace />} />
             <Route path="stats" element={<StatsPage />} />
             <Route path="entries" element={<EntriesPage />} />
             <Route path="notes" element={<NotesPage />} />
@@ -107,6 +111,7 @@ export default function App() {
         <Route path="*" element={<RootRedirect />} />
       </Routes>
       <ChallengeModal />
+      <BrokerModal />
       <TradeModal />
       <DayReviewModal />
       <SettingsModal />

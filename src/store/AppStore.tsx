@@ -8,7 +8,18 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { Account, AccountType, Note, NotesByAccount, Platform, Rules, Stage, Trade } from '@/lib/types'
+import type {
+  Account,
+  AccountType,
+  BrokerAccountType,
+  BrokerMode,
+  Note,
+  NotesByAccount,
+  Platform,
+  Rules,
+  Stage,
+  Trade,
+} from '@/lib/types'
 import {
   effectivePhaseHistory,
   latestTradeKey,
@@ -19,6 +30,7 @@ import {
   createDemoAccount,
 } from '@/lib/accounts'
 import { fundedAccountSize, getFirm, rulesFor } from '@/data/firms'
+import { getBroker } from '@/data/brokers'
 import { getDemoTrades } from '@/lib/demo'
 import { getStartingBalance } from '@/lib/stats'
 import { mergeImportedTrades } from '@/lib/trades'
@@ -26,7 +38,9 @@ import { seedDemoNotes } from '@/lib/notes'
 import {
   isDemoAccount,
   readAccounts,
+  readBrokerAccounts,
   readActiveAccountId,
+  readActiveBrokerAccountId,
   readNotes,
   readTrades,
   realTradesForAccount,
@@ -34,7 +48,9 @@ import {
   resolveTrades,
   STORAGE_KEYS,
   writeAccounts,
+  writeBrokerAccounts,
   writeActiveAccountId,
+  writeActiveBrokerAccountId,
   writeNotes,
   writeTrades,
 } from '@/lib/persistence'
@@ -46,9 +62,11 @@ import {
   notesForCache,
   pushWorkspaceToCloud,
   subscribeAccounts,
+  subscribeBrokerAccounts,
   subscribeNotes,
   subscribeTrades,
   syncAccounts,
+  syncBrokerAccounts,
   syncNotes,
   syncTrades,
 } from '@/lib/cloud'
@@ -86,12 +104,30 @@ export interface AccountUpdatePatch {
   rules?: Rules
 }
 
+export interface BrokerUpdatePatch {
+  name?: string
+  brokerId?: string
+  brokerType?: BrokerAccountType
+  brokerMode?: BrokerMode
+  platform?: Platform
+  leverage?: string
+  currency?: string
+  balance?: number
+  rules?: Rules
+}
+
 interface AppContextValue {
   accounts: Account[]
+  allAccounts: Account[]
   activeAccount: Account | null
   activeAccountId: string
   viewingPhaseIndex: number | null
   setViewingPhase: (index: number | null) => void
+  brokerAccounts: Account[]
+  activeBrokerAccount: Account | null
+  activeBrokerAccountId: string
+  viewingBrokerPhaseIndex: number | null
+  setViewingBrokerPhase: (index: number | null) => void
   activeTrades: Trade[]
   activeIsDemo: boolean
   activeNotes: Record<string, Note>
@@ -102,6 +138,11 @@ interface AppContextValue {
   updateAccount: (id: string, patch: AccountUpdatePatch) => void
   advanceAccount: (id: string) => void
   removeAccount: (id: string) => void
+  setActiveBrokerAccount: (id: string) => void
+  addBrokerAccount: (account: Account) => void
+  updateBrokerAccount: (id: string, patch: BrokerUpdatePatch) => void
+  advanceBrokerAccount: (id: string) => void
+  removeBrokerAccount: (id: string) => void
   addDemoAccount: (tone?: 'profitable' | 'loss') => void
   getTradesForAccount: (account: Account) => Trade[]
   getAllTradesForAccount: (account: Account) => Trade[]
@@ -116,6 +157,11 @@ interface AppContextValue {
   openChallenge: () => void
   openEditChallenge: (account: Account) => void
   closeChallenge: () => void
+  brokerChallengeOpen: boolean
+  editingBrokerAccount: Account | null
+  openBrokerChallenge: () => void
+  openEditBrokerAccount: (account: Account) => void
+  closeBrokerChallenge: () => void
   tradeEditor: TradeEditorState | null
   openTradeEditor: (options?: { trade?: Trade | null; accountId?: string }) => void
   closeTradeEditor: () => void
@@ -148,32 +194,75 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth()
   const cloudUserId = isFirebaseConfigured ? user?.uid ?? null : null
   const [accounts, setAccounts] = useState<Account[]>(() => readAccounts())
+  const [brokerAccounts, setBrokerAccounts] = useState<Account[]>(() => readBrokerAccounts())
   const [trades, setTrades] = useState<Trade[]>(() => readTrades())
   const [notes, setNotes] = useState<NotesByAccount>(() => readNotes())
   const [activeAccountId, setActiveAccountId] = useState<string>(() => readActiveAccountId())
+  const [activeBrokerAccountId, setActiveBrokerAccountId] = useState<string>(() => readActiveBrokerAccountId())
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(isFirebaseConfigured ? 'checking' : 'local')
   const [migrating, setMigrating] = useState(false)
   const [connectionAttempt, setConnectionAttempt] = useState(0)
   const syncedAccounts = useRef<Account[] | null>(null)
+  const syncedBrokerAccounts = useRef<Account[] | null>(null)
   const syncedTrades = useRef<Trade[] | null>(null)
   const syncedNotes = useRef<NotesByAccount | null>(null)
   const bootstrapDone = useRef(false)
   const lastCloudUid = useRef<string | null>(null)
   const [challengeOpen, setChallengeOpen] = useState(false)
   const [editingAccount, setEditingAccount] = useState<Account | null>(null)
+  const [brokerChallengeOpen, setBrokerChallengeOpen] = useState(false)
+  const [editingBrokerAccount, setEditingBrokerAccount] = useState<Account | null>(null)
   const [tradeEditor, setTradeEditor] = useState<TradeEditorState | null>(null)
   const [dayReview, setDayReview] = useState<DayReviewState | null>(null)
   const [commandOpen, setCommandOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [viewingPhaseIndex, setViewingPhaseIndex] = useState<number | null>(null)
+  const [viewingBrokerPhaseIndex, setViewingBrokerPhaseIndex] = useState<number | null>(null)
   const [toasts, setToasts] = useState<ToastItem[]>([])
   const [journalRevision, setJournalRevision] = useState(0)
   const timers = useRef<Map<string, number>>(new Map())
 
-  const baseAccount = useMemo(
-    () => accounts.find((account) => account.id === activeAccountId) ?? accounts[0] ?? null,
-    [accounts, activeAccountId],
+  const allAccounts = useMemo(
+    () => [...accounts, ...brokerAccounts],
+    [accounts, brokerAccounts],
   )
+
+  const baseAccount = useMemo(
+    () => allAccounts.find((account) => account.id === activeAccountId) ?? accounts[0] ?? brokerAccounts[0] ?? null,
+    [allAccounts, accounts, brokerAccounts, activeAccountId],
+  )
+
+  const baseBrokerAccount = useMemo(
+    () => brokerAccounts.find((account) => account.id === activeBrokerAccountId) ?? brokerAccounts[0] ?? null,
+    [brokerAccounts, activeBrokerAccountId],
+  )
+
+  const activeBrokerAccount = useMemo(() => {
+    if (!baseBrokerAccount || viewingBrokerPhaseIndex === null) return baseBrokerAccount
+    const history = effectivePhaseHistory(baseBrokerAccount)
+    const views = [
+      ...history.map((record) => ({
+          stage: record.stage,
+          startingBalance: record.startingBalance,
+          rules: record.rules,
+          endedAt: record.endedAt,
+        })),
+      {
+        stage: baseBrokerAccount.stage,
+        startingBalance: getStartingBalance(baseBrokerAccount),
+        rules: baseBrokerAccount.rules,
+        endedAt: '',
+      },
+    ]
+    const phase = views[viewingBrokerPhaseIndex]
+    if (!phase) return baseBrokerAccount
+    return {
+      ...baseBrokerAccount,
+      stage: phase.stage,
+      startingBalance: phase.startingBalance,
+      rules: phase.rules,
+    }
+  }, [baseBrokerAccount, viewingBrokerPhaseIndex])
 
   const activeAccount = useMemo(() => {
     if (!baseAccount || viewingPhaseIndex === null) return baseAccount
@@ -233,10 +322,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const workspaceTrades = useMemo(
     () =>
-      accounts
+      allAccounts
         .flatMap((account) => tradesForPhase(account, resolveTrades(trades, account)))
         .sort((a, b) => (a.date + a.openTime).localeCompare(b.date + b.openTime)),
-    [accounts, trades],
+    [allAccounts, trades],
   )
 
   useEffect(() => {
@@ -258,14 +347,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [activeAccountId])
 
   useEffect(() => {
-    if (!accounts.length) {
+    writeBrokerAccounts(brokerAccounts)
+  }, [brokerAccounts])
+
+  useEffect(() => {
+    writeActiveBrokerAccountId(activeBrokerAccountId)
+  }, [activeBrokerAccountId])
+
+  useEffect(() => {
+    if (!allAccounts.length) {
       if (activeAccountId) setActiveAccountId('')
       return
     }
-    if (!accounts.some((account) => account.id === activeAccountId)) {
-      setActiveAccountId(accounts[0].id)
+    if (!allAccounts.some((account) => account.id === activeAccountId)) {
+      setActiveAccountId(allAccounts[0].id)
     }
-  }, [accounts, activeAccountId])
+  }, [allAccounts, activeAccountId])
+
+  useEffect(() => {
+    if (!brokerAccounts.length) {
+      if (activeBrokerAccountId) setActiveBrokerAccountId('')
+      return
+    }
+    if (!brokerAccounts.some((account) => account.id === activeBrokerAccountId)) {
+      setActiveBrokerAccountId(brokerAccounts[0].id)
+    }
+  }, [brokerAccounts, activeBrokerAccountId])
 
   // Seed a small notebook for sample accounts the first time they are opened.
   useEffect(() => {
@@ -335,6 +442,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (authLoading) return
     if (!cloudUserId) {
       syncedAccounts.current = null
+      syncedBrokerAccounts.current = null
       syncedTrades.current = null
       syncedNotes.current = null
       setSyncStatus('local')
@@ -344,7 +452,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let cancelled = false
     setSyncStatus('checking')
     const localHasData =
-      accounts.length > 0 || trades.length > 0 || Object.keys(notes).length > 0
+      accounts.length > 0 || brokerAccounts.length > 0 || trades.length > 0 || Object.keys(notes).length > 0
 
     hasCloudWorkspace(cloudUserId)
       .then((hasData) => {
@@ -378,14 +486,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!isFirebaseConfigured || authLoading) return
     if (!cloudUserId && lastCloudUid.current) {
       setAccounts([])
+      setBrokerAccounts([])
       setTrades([])
       setNotes({})
       setActiveAccountId('')
+      setActiveBrokerAccountId('')
       ;[
         STORAGE_KEYS.accounts,
+        STORAGE_KEYS.brokerAccounts,
         STORAGE_KEYS.trades,
         STORAGE_KEYS.notes,
         STORAGE_KEYS.activeAccount,
+        STORAGE_KEYS.activeBrokerAccount,
       ].forEach((key) => {
         try {
           localStorage.removeItem(key)
@@ -401,7 +513,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!cloudUserId || !shouldSubscribe) return
     let cancelled = false
-    const seen = { accounts: false, trades: false, notes: false }
+    const seen = { accounts: false, brokerAccounts: false, trades: false, notes: false }
 
     const fail = (label: string) => (error: Error) => {
       if (cancelled) return
@@ -412,8 +524,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const settle = (key: keyof typeof seen) => {
       if (cancelled) return
       seen[key] = true
-      const loaded = Number(seen.accounts) + Number(seen.trades) + Number(seen.notes)
-      if (loaded === 3) setSyncStatus('ready')
+      const loaded =
+        Number(seen.accounts) +
+        Number(seen.brokerAccounts) +
+        Number(seen.trades) +
+        Number(seen.notes)
+      if (loaded === 4) setSyncStatus('ready')
     }
 
     const unsubscribeAccounts = subscribeAccounts(
@@ -425,6 +541,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         settle('accounts')
       },
       fail('accounts'),
+    )
+    const unsubscribeBrokerAccounts = subscribeBrokerAccounts(
+      cloudUserId,
+      (list) => {
+        syncedBrokerAccounts.current = list
+        if (cancelled) return
+        setBrokerAccounts(list)
+        settle('brokerAccounts')
+      },
+      fail('broker accounts'),
     )
     const unsubscribeTrades = subscribeTrades(
       cloudUserId,
@@ -450,6 +576,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
       unsubscribeAccounts()
+      unsubscribeBrokerAccounts()
       unsubscribeTrades()
       unsubscribeNotes()
     }
@@ -465,6 +592,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       showToast('Accounts not saved', authErrorMessage(error), 'error')
     })
   }, [accounts, cloudUserId, syncStatus, showToast])
+
+  useEffect(() => {
+    if (!cloudUserId || syncStatus !== 'ready') return
+    const previous = syncedBrokerAccounts.current
+    if (!previous || previous === brokerAccounts) return
+    syncedBrokerAccounts.current = brokerAccounts
+    syncBrokerAccounts(cloudUserId, previous, brokerAccounts).catch((error) => {
+      showToast('Broker accounts not saved', authErrorMessage(error), 'error')
+    })
+  }, [brokerAccounts, cloudUserId, syncStatus, showToast])
 
   useEffect(() => {
     if (!cloudUserId || syncStatus !== 'ready') return
@@ -495,12 +632,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (syncStatus !== 'local' && syncStatus !== 'ready') return
     }
     bootstrapDone.current = true
-    if (accounts.length === 0) {
+    if (accounts.length === 0 && brokerAccounts.length === 0) {
       const account = createDemoAccount()
       setAccounts([account])
       setActiveAccountId(account.id)
     }
-  }, [accounts.length, authLoading, syncStatus])
+  }, [accounts.length, brokerAccounts.length, authLoading, syncStatus])
 
   // Repair any previously advanced demo accounts that advanced before demo phase cutoffs were recorded.
   useEffect(() => {
@@ -567,15 +704,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!cloudUserId) return
     setMigrating(true)
     try {
-      await pushWorkspaceToCloud(cloudUserId, accounts, trades, notes)
+      await pushWorkspaceToCloud(cloudUserId, accounts, trades, notes, brokerAccounts)
       writeStorage(`ta-cloud-choice-${cloudUserId}`, 'done')
       syncedAccounts.current = accounts
+      syncedBrokerAccounts.current = brokerAccounts
       syncedTrades.current = trades
       syncedNotes.current = notes
       setSyncStatus('syncing')
+      const totalAccounts = accounts.length + brokerAccounts.length
       showToast(
         'Workspace uploaded',
-        `${accounts.length} account${accounts.length === 1 ? '' : 's'} and ${trades.length} trade${
+        `${totalAccounts} account${totalAccounts === 1 ? '' : 's'} and ${trades.length} trade${
           trades.length === 1 ? '' : 's'
         } now sync to your signed-in account.`,
       )
@@ -584,7 +723,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setMigrating(false)
     }
-  }, [cloudUserId, accounts, trades, notes, showToast])
+  }, [cloudUserId, accounts, brokerAccounts, trades, notes, showToast])
 
   const skipMigration = useCallback(() => {
     if (!cloudUserId) return
@@ -721,7 +860,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     (id: string) => {
       setAccounts((previous) => {
         const next = previous.filter((account) => account.id !== id)
-        if (activeAccountId === id) setActiveAccountId(next[0]?.id ?? '')
+        if (activeAccountId === id) setActiveAccountId(next[0]?.id ?? brokerAccounts[0]?.id ?? '')
         return next
       })
       setNotes((previous) => {
@@ -731,7 +870,148 @@ export function AppProvider({ children }: { children: ReactNode }) {
       })
       setTrades((previous) => previous.filter((trade) => trade.accountId !== id))
     },
-    [activeAccountId],
+    [activeAccountId, brokerAccounts],
+  )
+
+  const openBrokerChallenge = useCallback(() => {
+    setCommandOpen(false)
+    setEditingBrokerAccount(null)
+    setBrokerChallengeOpen(true)
+  }, [])
+
+  const openEditBrokerAccount = useCallback((account: Account) => {
+    setCommandOpen(false)
+    setEditingBrokerAccount(account)
+    setBrokerChallengeOpen(true)
+  }, [])
+
+  const closeBrokerChallenge = useCallback(() => {
+    setBrokerChallengeOpen(false)
+    setEditingBrokerAccount(null)
+  }, [])
+
+  const setViewingBrokerPhase = useCallback((index: number | null) => {
+    setViewingBrokerPhaseIndex(index)
+  }, [])
+
+  const setActiveBrokerAccount = useCallback((id: string) => {
+    setActiveBrokerAccountId(id)
+    setActiveAccountId(id)
+    setViewingPhaseIndex(null)
+    setViewingBrokerPhaseIndex(null)
+    setDayReview(null)
+  }, [])
+
+  const addBrokerAccount = useCallback((account: Account) => {
+    setBrokerAccounts((previous) => [account, ...previous.filter((item) => item.id !== account.id)])
+    setActiveBrokerAccountId(account.id)
+    setActiveAccountId(account.id)
+    setViewingPhaseIndex(null)
+    setViewingBrokerPhaseIndex(null)
+    setDayReview(null)
+  }, [])
+
+  const updateBrokerAccount = useCallback(
+    (id: string, patch: BrokerUpdatePatch) => {
+      setBrokerAccounts((previous) =>
+        previous.map((item) => {
+          if (item.id !== id) return item
+          const next: Account = { ...item, kind: 'broker' }
+          if (patch.name !== undefined) {
+            const trimmed = patch.name.trim()
+            if (trimmed) next.name = trimmed
+            else delete next.name
+          }
+          if (patch.brokerId !== undefined) {
+            const broker = getBroker(patch.brokerId)
+            next.firm = broker.name
+            next.firmBadge = broker.badge
+            next.firmGradient = broker.gradient
+          }
+          if (patch.brokerType !== undefined) next.brokerType = patch.brokerType
+          if (patch.brokerMode !== undefined) next.brokerMode = patch.brokerMode
+          if (patch.platform !== undefined) next.platform = patch.platform
+          if (patch.leverage !== undefined) next.leverage = patch.leverage
+          if (patch.currency !== undefined) next.currency = patch.currency
+          if (patch.rules !== undefined) next.rules = patch.rules
+          if (patch.balance !== undefined) {
+            const nextBalance = Math.max(1, Number(patch.balance) || item.startingBalance || item.size)
+            next.challengeSize = nextBalance
+            next.size = nextBalance
+            next.startingBalance = nextBalance
+          }
+          return next
+        }),
+      )
+    },
+    [],
+  )
+
+  const advanceBrokerAccount = useCallback(
+    (id: string) => {
+      const account = brokerAccounts.find((item) => item.id === id)
+      if (!account) return
+      const nextStage = nextStageFor(account.type, account.stage)
+      if (!nextStage) return
+
+      const phaseTrades = tradesForPhase(account, resolveTrades(trades, account))
+      const cutoff = latestTradeKey(phaseTrades)
+      const funded = nextStage === 'Funded'
+      const nextBalance = funded
+        ? fundedAccountSize(account.challengeSize || account.size, account.type)
+        : account.challengeSize || account.size
+      const completedPhase = {
+        stage: account.stage,
+        startingBalance: account.startingBalance,
+        rules: account.rules,
+        endedAt: cutoff || account.phaseStartedAt || '',
+        status: 'passed' as const,
+      }
+
+      setBrokerAccounts((previous) =>
+        previous.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                stage: nextStage,
+                size: nextBalance,
+                startingBalance: nextBalance,
+                rules: rulesFor(item.type, nextStage) ?? item.rules,
+                phaseStartedAt: cutoff || item.phaseStartedAt,
+                phaseHistory: [...effectivePhaseHistory(item), completedPhase],
+              }
+            : item,
+        ),
+      )
+      setActiveBrokerAccountId(id)
+      showToast(
+        funded ? 'Funded broker account unlocked' : 'Broker phase advanced',
+        `${titleFor(account)} moved to ${nextStage} with ${nextBalance.toLocaleString('en-US', {
+          style: 'currency',
+          currency: 'USD',
+          maximumFractionDigits: 0,
+        })} in starting capital.`,
+      )
+    },
+    [brokerAccounts, trades, showToast],
+  )
+
+  const removeBrokerAccount = useCallback(
+    (id: string) => {
+      setBrokerAccounts((previous) => {
+        const next = previous.filter((account) => account.id !== id)
+        if (activeBrokerAccountId === id) setActiveBrokerAccountId(next[0]?.id ?? '')
+        if (activeAccountId === id) setActiveAccountId(next[0]?.id ?? accounts[0]?.id ?? '')
+        return next
+      })
+      setNotes((previous) => {
+        const next = { ...previous }
+        delete next[id]
+        return next
+      })
+      setTrades((previous) => previous.filter((trade) => trade.accountId !== id))
+    },
+    [activeBrokerAccountId, activeAccountId, accounts],
   )
 
   const addDemoAccount = useCallback(
@@ -773,13 +1053,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return next.sort((a, b) => (a.date + a.openTime).localeCompare(b.date + b.openTime))
       })
       setActiveAccountId(trade.accountId)
-      if (!accounts.some((account) => account.id === trade.accountId) && accounts.length) {
-        setActiveAccountId(accounts[0].id)
+      if (!allAccounts.some((account) => account.id === trade.accountId) && allAccounts.length) {
+        setActiveAccountId(allAccounts[0].id)
+      }
+      if (brokerAccounts.some((account) => account.id === trade.accountId)) {
+        setActiveBrokerAccountId(trade.accountId)
       }
       setJournalRevision((value) => value + 1)
       requestDashboardRangeReset()
     },
-    [accounts],
+    [allAccounts, brokerAccounts],
   )
 
   const deleteTrade = useCallback((id: string) => {
@@ -843,13 +1126,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const openTradeEditor = useCallback(
     (options?: { trade?: Trade | null; accountId?: string }) => {
-      if (!accounts.length) {
-        showToast('No account yet', 'Start a challenge first, then log trades to it.', 'info')
+      if (!allAccounts.length) {
+        showToast('No account yet', 'Create a firm challenge or broker account first, then log trades to it.', 'info')
         return
       }
       setTradeEditor({ trade: options?.trade ?? null, accountId: options?.accountId })
     },
-    [accounts.length, showToast],
+    [allAccounts.length, showToast],
   )
 
   const closeTradeEditor = useCallback(() => setTradeEditor(null), [])
@@ -863,10 +1146,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AppContextValue>(
     () => ({
       accounts,
+      allAccounts,
       activeAccount,
       activeAccountId: activeAccount?.id ?? '',
       viewingPhaseIndex,
       setViewingPhase,
+      brokerAccounts,
+      activeBrokerAccount,
+      activeBrokerAccountId: activeBrokerAccount?.id ?? '',
+      viewingBrokerPhaseIndex,
+      setViewingBrokerPhase,
       activeTrades,
       activeIsDemo,
       activeNotes,
@@ -877,6 +1166,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateAccount,
       advanceAccount,
       removeAccount,
+      setActiveBrokerAccount,
+      addBrokerAccount,
+      updateBrokerAccount,
+      advanceBrokerAccount,
+      removeBrokerAccount,
       addDemoAccount,
       getTradesForAccount,
       getAllTradesForAccount,
@@ -891,6 +1185,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       openChallenge,
       openEditChallenge,
       closeChallenge,
+      brokerChallengeOpen,
+      editingBrokerAccount,
+      openBrokerChallenge,
+      openEditBrokerAccount,
+      closeBrokerChallenge,
       tradeEditor,
       openTradeEditor,
       closeTradeEditor,
@@ -915,9 +1214,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }),
     [
       accounts,
+      allAccounts,
       activeAccount,
       viewingPhaseIndex,
       setViewingPhase,
+      brokerAccounts,
+      activeBrokerAccount,
+      viewingBrokerPhaseIndex,
+      setViewingBrokerPhase,
       activeTrades,
       activeIsDemo,
       activeNotes,
@@ -927,6 +1231,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateAccount,
       advanceAccount,
       removeAccount,
+      setActiveBrokerAccount,
+      addBrokerAccount,
+      updateBrokerAccount,
+      advanceBrokerAccount,
+      removeBrokerAccount,
       addDemoAccount,
       getTradesForAccount,
       getAllTradesForAccount,
@@ -941,6 +1250,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       openChallenge,
       openEditChallenge,
       closeChallenge,
+      brokerChallengeOpen,
+      editingBrokerAccount,
+      openBrokerChallenge,
+      openEditBrokerAccount,
+      closeBrokerChallenge,
       tradeEditor,
       openTradeEditor,
       closeTradeEditor,

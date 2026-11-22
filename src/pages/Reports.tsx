@@ -43,7 +43,7 @@ function reportTabClass(active: boolean) {
 
 export function ReportsPage() {
   const {
-    accounts,
+    allAccounts: accounts,
     getTradesForAccount,
     isDemo,
     showToast,
@@ -132,7 +132,7 @@ export function ReportsPage() {
           title="Reports need a workspace"
           description="Start a challenge or open a demo account. Report periods, breakdowns and exports will populate automatically."
           actions={
-            <Button variant="primary" iconLeft={<Wallet size={14} />} onClick={() => navigate('/accounts')}>
+            <Button variant="primary" iconLeft={<Wallet size={14} />} onClick={() => navigate('/firms')}>
               Go to accounts
             </Button>
           }

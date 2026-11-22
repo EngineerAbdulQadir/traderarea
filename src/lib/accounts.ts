@@ -1,7 +1,33 @@
-import type { Account, AccountType, PhaseRecord, Platform, Rules, Stage, Trade } from '@/lib/types'
+import type {
+  Account,
+  AccountType,
+  BrokerAccountType,
+  BrokerMode,
+  PhaseRecord,
+  Platform,
+  Rules,
+  Stage,
+  Trade,
+} from '@/lib/types'
 import { ACCOUNT_PHASES, STAGES_BY_TYPE, fundedAccountSize, getFirm, rulesFor, TYPE_LABELS } from '@/data/firms'
-import { formatSize } from '@/lib/format'
+import { BROKER_TYPE_LABELS, getBroker } from '@/data/brokers'
+import { formatMoney, formatSize } from '@/lib/format'
 import { todayISO } from '@/lib/dates'
+
+export function isBrokerAccount(account: Account | null | undefined): boolean {
+  return Boolean(account && (account.kind === 'broker' || account.brokerType))
+}
+
+export function accountStageLabel(account: Account): string {
+  if (isBrokerAccount(account)) {
+    return account.brokerMode ?? 'Live'
+  }
+  return account.stage
+}
+
+export function accountRouteFor(account: Account | null | undefined): '/firms' | '/brokers' {
+  return isBrokerAccount(account) ? '/brokers' : '/firms'
+}
 
 export function titleFor(account: Account): string {
   const custom = account.name?.trim()
@@ -18,6 +44,15 @@ export function accountGradient(account: Account): string {
 }
 
 export function accountMeta(account: Account): string {
+  if (isBrokerAccount(account)) {
+    const parts: string[] = []
+    if (account.brokerType && BROKER_TYPE_LABELS[account.brokerType]) {
+      parts.push(BROKER_TYPE_LABELS[account.brokerType])
+    }
+    if (account.brokerMode) parts.push(account.brokerMode)
+    parts.push(formatMoney(account.startingBalance || account.size, account.currency))
+    return parts.join(' · ')
+  }
   const parts: string[] = []
   if (account.type && TYPE_LABELS[account.type]) parts.push(TYPE_LABELS[account.type])
   parts.push(formatSize(account.challengeSize || account.size))
@@ -25,6 +60,13 @@ export function accountMeta(account: Account): string {
 }
 
 export function accountMetaCompact(account: Account): string {
+  if (isBrokerAccount(account)) {
+    const parts: string[] = [account.firm || 'Exness']
+    if (account.brokerType && BROKER_TYPE_LABELS[account.brokerType]) {
+      parts.push(BROKER_TYPE_LABELS[account.brokerType])
+    }
+    return parts.join(' · ')
+  }
   const parts: string[] = []
   if (account.type && TYPE_LABELS[account.type]) parts.push(TYPE_LABELS[account.type])
   return parts.join(' · ')
@@ -66,6 +108,7 @@ export function latestTradeKey(trades: Trade[]): string {
  * is advanced, the last trade of the finished phase becomes the cutoff.
  */
 export function tradesForPhase(account: Account, trades: Trade[]): Trade[] {
+  if (isBrokerAccount(account)) return trades
   const cutoff = account.phaseStartedAt
   if (!cutoff) return trades
   return trades.filter((trade) => tradePhaseKey(trade) > cutoff)
@@ -76,6 +119,7 @@ export function tradesForPhase(account: Account, trades: Trade[]): Trade[] {
  * was stored get one reconstructed record from their phase cutoff.
  */
 export function effectivePhaseHistory(account: Account): PhaseRecord[] {
+  if (isBrokerAccount(account)) return []
   if (account.phaseHistory?.length) return account.phaseHistory
   if (!account.phaseStartedAt) return []
   const stages = STAGES_BY_TYPE[account.type]
@@ -114,6 +158,7 @@ export function createAccountFromDraft(draft: AccountDraft): Account {
   const customName = draft.name?.trim()
   return {
     id: newAccountId(),
+    kind: 'firm',
     ...(customName ? { name: customName } : {}),
     firm: firm.name,
     firmBadge: firm.badge,
@@ -125,6 +170,46 @@ export function createAccountFromDraft(draft: AccountDraft): Account {
     platform: draft.platform,
     startDate: todayISO(),
     currency: 'USD',
+    startingBalance: balance,
+    rules: draft.rules,
+    source: 'manual',
+    createdAt: new Date().toISOString(),
+  }
+}
+
+export interface BrokerAccountDraft {
+  name?: string
+  brokerId: string
+  brokerType: BrokerAccountType
+  brokerMode: BrokerMode
+  platform: Platform
+  leverage: string
+  currency: string
+  balance: number
+  rules: Rules
+}
+
+export function createBrokerAccountFromDraft(draft: BrokerAccountDraft): Account {
+  const broker = getBroker(draft.brokerId)
+  const customName = draft.name?.trim()
+  const balance = Math.max(1, Number(draft.balance) || 0)
+  return {
+    id: newAccountId(),
+    kind: 'broker',
+    ...(customName ? { name: customName } : {}),
+    firm: broker.name,
+    firmBadge: broker.badge,
+    firmGradient: broker.gradient,
+    type: 'instant',
+    brokerType: draft.brokerType,
+    brokerMode: draft.brokerMode,
+    leverage: draft.leverage,
+    size: balance,
+    challengeSize: balance,
+    stage: 'Funded',
+    platform: draft.platform,
+    startDate: todayISO(),
+    currency: draft.currency || 'USD',
     startingBalance: balance,
     rules: draft.rules,
     source: 'manual',

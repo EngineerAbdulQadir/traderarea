@@ -14,7 +14,7 @@ import { Modal, ModalClose } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { useApp } from '@/store/AppStore'
-import { titleFor } from '@/lib/accounts'
+import { accountStageLabel, titleFor } from '@/lib/accounts'
 import { formatNumericDate, todayISO } from '@/lib/dates'
 import { signedMoney } from '@/lib/format'
 import {
@@ -98,6 +98,8 @@ function readStatement(bytes: Uint8Array): string {
 export function ImportTradesModal({ open, onClose, onImported }: ImportTradesModalProps) {
   const {
     accounts,
+    brokerAccounts,
+    allAccounts,
     activeAccount,
     setActiveAccount,
     importTrades,
@@ -108,7 +110,7 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
 
   const inputRef = useRef<HTMLInputElement>(null)
   const wasOpenRef = useRef(false)
-  const [accountId, setAccountId] = useState(activeAccount?.id ?? accounts[0]?.id ?? '')
+  const [accountId, setAccountId] = useState(activeAccount?.id ?? allAccounts[0]?.id ?? '')
   const [scope, setScope] = useState<ImportScope>('today')
   const [fileName, setFileName] = useState('')
   const [result, setResult] = useState<HistoryImportResult | null>(null)
@@ -122,14 +124,14 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
     const justOpened = open && !wasOpenRef.current
     wasOpenRef.current = open
     if (!justOpened) return
-    setAccountId(activeAccount?.id ?? accounts[0]?.id ?? '')
+    setAccountId(activeAccount?.id ?? allAccounts[0]?.id ?? '')
     setScope('today')
     setFileName('')
     setResult(null)
     setBusy(false)
     setError('')
     setDragging(false)
-  }, [open, activeAccount?.id, accounts])
+  }, [open, activeAccount?.id, allAccounts])
 
   const readFile = async (file: File) => {
     setError('')
@@ -229,8 +231,8 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
   )
 
   const targetAccount = useMemo(
-    () => accounts.find((item) => item.id === accountId),
-    [accounts, accountId],
+    () => allAccounts.find((item) => item.id === accountId),
+    [allAccounts, accountId],
   )
 
   const existingAccountTrades = useMemo(() => {
@@ -266,7 +268,7 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
 
   const handleImport = () => {
     if (!result || !accountId) return
-    const account = accounts.find((item) => item.id === accountId)
+    const account = allAccounts.find((item) => item.id === accountId)
     const trades = importPreview.trades
     const scopedDates = scopedTrades.map((trade) => trade.date).filter(Boolean).sort()
     const scopedResult: HistoryImportResult = {
@@ -360,11 +362,24 @@ export function ImportTradesModal({ open, onClose, onImported }: ImportTradesMod
             value={accountId}
             onChange={(event) => setAccountId(event.target.value)}
           >
-            {accounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {titleFor(account)} · {account.stage}
-              </option>
-            ))}
+            {accounts.length > 0 && (
+              <optgroup label="Firms">
+                {accounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {titleFor(account)} · {accountStageLabel(account)}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {brokerAccounts.length > 0 && (
+              <optgroup label="Brokers">
+                {brokerAccounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {titleFor(account)} · {account.firm} · {accountStageLabel(account)}
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
         </div>
 

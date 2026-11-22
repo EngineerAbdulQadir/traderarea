@@ -56,7 +56,7 @@ export function SettingsModal() {
   const {
     settingsOpen,
     closeSettings,
-    accounts,
+    allAccounts,
     workspaceTrades,
     showToast,
     syncStatus,
@@ -118,9 +118,11 @@ export function SettingsModal() {
     }
     ;[
       STORAGE_KEYS.accounts,
+      STORAGE_KEYS.brokerAccounts,
       STORAGE_KEYS.trades,
       STORAGE_KEYS.notes,
       STORAGE_KEYS.activeAccount,
+      STORAGE_KEYS.activeBrokerAccount,
     ].forEach((key) => {
       try {
         localStorage.removeItem(key)
@@ -314,7 +316,7 @@ export function SettingsModal() {
                 <div className="settings-data-stats">
                   <div className="settings-stat">
                     <span>Accounts</span>
-                    <b>{accounts.length}</b>
+                    <b>{allAccounts.length}</b>
                   </div>
                   <div className="settings-stat">
                     <span>Trades</span>
@@ -399,8 +401,8 @@ export function SettingsModal() {
         title="Reset workspace data?"
         description={
           <>
-            This removes <strong>{accounts.length}</strong> account
-            {accounts.length === 1 ? '' : 's'}, <strong>{workspaceTrades.length}</strong> trade
+            This removes <strong>{allAccounts.length}</strong> account
+            {allAccounts.length === 1 ? '' : 's'}, <strong>{workspaceTrades.length}</strong> trade
             {workspaceTrades.length === 1 ? '' : 's'} and every journal note
             {cloudActive ? ' in your Firebase account and this browser' : ' stored in this browser'}.
             Your profile and theme are kept. This cannot be undone.

@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Segmented } from '@/components/ui/Segmented'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { AccountPill } from '@/components/ui/AccountPill'
+import { accountRouteFor } from '@/lib/accounts'
 import { avgOf, computeStats, getStartingBalance } from '@/lib/stats'
 import {
   addDays,
@@ -125,7 +126,7 @@ export function NotesPage() {
           title="A journal begins with an account"
           description="Start a challenge or open a demo workspace. Then every session can carry a note, from the plan to the lesson."
           actions={
-            <Button variant="primary" iconLeft={<Plus size={14} />} onClick={() => navigate('/accounts')}>
+            <Button variant="primary" iconLeft={<Plus size={14} />} onClick={() => navigate('/firms')}>
               Go to accounts
             </Button>
           }
@@ -151,7 +152,7 @@ export function NotesPage() {
         actions={
           <>
             {activeIsDemo && <Badge tone="violet">Sample data</Badge>}
-            <AccountPill account={activeAccount} onClick={() => navigate('/accounts')} />
+            <AccountPill account={activeAccount} onClick={() => navigate(accountRouteFor(activeAccount))} />
             <Button
               variant="primary"
               size="sm"

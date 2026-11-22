@@ -12,6 +12,17 @@ export const PROP_FIRMS: PropFirm[] = [
   },
 ]
 
+export const PROP_BROKERS: PropFirm[] = [
+  {
+    id: 'exness',
+    name: 'Exness',
+    short: 'Exness',
+    badge: 'EX',
+    gradient: 'linear-gradient(135deg, #ff6b00 0%, #cc5500 100%)',
+    meta: 'Global CFD & Forex Broker',
+  },
+]
+
 export const TYPE_LABELS: Record<AccountType, string> = {
   step1: '1 Step',
   step1pro: '1 Step Pro',

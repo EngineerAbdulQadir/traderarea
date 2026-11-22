@@ -5,9 +5,11 @@ import { normalizeTrade } from '@/lib/trades'
 
 export const STORAGE_KEYS = {
   accounts: 'ta-accounts',
+  brokerAccounts: 'ta-broker-accounts',
   trades: 'ta-trades',
   notes: 'ta-notes',
   activeAccount: 'ta-active-account',
+  activeBrokerAccount: 'ta-active-broker-account',
   sidebar: 'ta-ui-sidebar-collapsed',
   dashboardFrom: 'ta-dashboard-from',
   dashboardTo: 'ta-dashboard-to',
@@ -27,12 +29,29 @@ export function writeAccounts(accounts: Account[]): void {
   writeJSON(STORAGE_KEYS.accounts, accounts)
 }
 
+export function readBrokerAccounts(): Account[] {
+  const accounts = readJSON<Account[]>(STORAGE_KEYS.brokerAccounts, [])
+  return Array.isArray(accounts) ? accounts.filter((account) => account && account.id) : []
+}
+
+export function writeBrokerAccounts(accounts: Account[]): void {
+  writeJSON(STORAGE_KEYS.brokerAccounts, accounts)
+}
+
 export function readActiveAccountId(): string {
   return readStorage(STORAGE_KEYS.activeAccount, '')
 }
 
 export function writeActiveAccountId(id: string): void {
   writeStorage(STORAGE_KEYS.activeAccount, id)
+}
+
+export function readActiveBrokerAccountId(): string {
+  return readStorage(STORAGE_KEYS.activeBrokerAccount, '')
+}
+
+export function writeActiveBrokerAccountId(id: string): void {
+  writeStorage(STORAGE_KEYS.activeBrokerAccount, id)
 }
 
 export function readNotes(): NotesByAccount {

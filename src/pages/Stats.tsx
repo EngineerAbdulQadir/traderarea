@@ -46,7 +46,7 @@ import {
   type GroupStats,
 } from '@/lib/stats'
 import { tradeGrade, tradeHoldMinutes, tradeHour } from '@/lib/trades'
-import { accountMetaCompact, titleFor } from '@/lib/accounts'
+import { accountMetaCompact, accountRouteFor, titleFor } from '@/lib/accounts'
 import {
   formatHold,
   formatMoney,
@@ -310,7 +310,7 @@ export function StatsPage() {
           title="Statistics need trades"
           description="Start a challenge to open a journal, then log trades. Trader Area will surface your best hours, markets and habits."
           actions={
-            <Button variant="primary" onClick={() => navigate('/accounts')} iconRight={<ArrowUpRight size={14} />}>
+            <Button variant="primary" onClick={() => navigate('/firms')} iconRight={<ArrowUpRight size={14} />}>
               Go to accounts
             </Button>
           }
@@ -404,7 +404,7 @@ export function StatsPage() {
         actions={
           <>
             {activeIsDemo && <Badge tone="neutral">Sample data</Badge>}
-            <AccountPill account={activeAccount} onClick={() => navigate('/accounts')} />
+            <AccountPill account={activeAccount} onClick={() => navigate(accountRouteFor(activeAccount))} />
             <Segmented
               label="Stats range"
               value={rangeKey}

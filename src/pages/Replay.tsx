@@ -22,7 +22,7 @@ import { ReplayChart } from '@/components/replay/ReplayChart'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Segmented, type SegmentOption } from '@/components/ui/Segmented'
-import { titleFor } from '@/lib/accounts'
+import { accountStageLabel, titleFor } from '@/lib/accounts'
 import { formatShortDate } from '@/lib/dates'
 import { formatR, formatTime, formatUsd2, signedMoney } from '@/lib/format'
 import {
@@ -58,7 +58,7 @@ export function ReplayPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const {
-    accounts,
+    allAccounts: accounts,
     activeAccount,
     activeTrades,
     getTradesForAccount,
@@ -362,7 +362,7 @@ export function ReplayPage() {
                   Switch to {titleFor(alternateAccount)}
                 </Button>
               ) : (
-                <Button variant="secondary" onClick={() => navigate('/accounts')}>
+                <Button variant="secondary" onClick={() => navigate('/firms')}>
                   Manage accounts
                 </Button>
               )}
@@ -602,19 +602,19 @@ export function ReplayPage() {
                   onClick={() => setAccountSwitcherOpen((v) => !v)}
                   aria-expanded={accountSwitcherOpen}
                   aria-haspopup="listbox"
-                  title={`${titleFor(activeAccount)} · ${activeAccount.stage}`}
+                  title={`${titleFor(activeAccount)} · ${accountStageLabel(activeAccount)}`}
                 >
                   <span className="replay-acct-btn-name">{titleFor(activeAccount)}</span>
-                  <span className="replay-acct-btn-stage">{activeAccount.stage}</span>
+                  <span className="replay-acct-btn-stage">{accountStageLabel(activeAccount)}</span>
                   <ChevronDown size={13} className="replay-acct-chev" />
                 </button>
               ) : (
                 <div
                   className="replay-acct-btn is-static"
-                  title={`${titleFor(activeAccount)} · ${activeAccount.stage}`}
+                  title={`${titleFor(activeAccount)} · ${accountStageLabel(activeAccount)}`}
                 >
                   <span className="replay-acct-btn-name">{titleFor(activeAccount)}</span>
-                  <span className="replay-acct-btn-stage">{activeAccount.stage}</span>
+                  <span className="replay-acct-btn-stage">{accountStageLabel(activeAccount)}</span>
                 </div>
               )}
 
@@ -635,7 +635,7 @@ export function ReplayPage() {
                         <span className="replay-acct-option-main">
                           <b>{titleFor(acc)}</b>
                           <span className="num">
-                            {acc.stage} · {count} {count === 1 ? 'trade' : 'trades'}
+                            {accountStageLabel(acc)} · {count} {count === 1 ? 'trade' : 'trades'}
                           </span>
                         </span>
                         {isCurrent && <Check size={14} className="replay-acct-check" />}

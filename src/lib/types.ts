@@ -1,7 +1,19 @@
 export type AccountType = 'step1' | 'step1pro' | 'step2' | 'step2prime' | 'step2pro' | 'step3' | 'instant' | 'exclusive'
 export type Stage = 'Phase 1' | 'Phase 2' | 'Phase 3' | 'Funded'
-export type Platform = 'MT5' | 'cTrader' | 'TradeLocker'
+export type Platform = 'MT5' | 'MT4' | 'Exness Terminal' | 'cTrader' | 'TradeLocker'
 export type Side = 'LONG' | 'SHORT'
+
+export type BrokerAccountType = 'standard' | 'standard_cent' | 'raw_spread' | 'zero' | 'pro'
+export type BrokerMode = 'Live' | 'Demo'
+
+export interface Broker {
+  id: string
+  name: string
+  short: string
+  badge: string
+  gradient: string
+  meta: string
+}
 
 export interface Rules {
   target: number
@@ -20,11 +32,15 @@ export interface PhaseRecord {
 
 export interface Account {
   id: string
+  kind?: 'firm' | 'broker'
   name?: string
   firm: string
   firmBadge: string
   firmGradient: string
   type: AccountType
+  brokerType?: BrokerAccountType
+  brokerMode?: BrokerMode
+  leverage?: string
   size: number
   challengeSize: number
   stage: Stage

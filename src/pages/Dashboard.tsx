@@ -29,7 +29,7 @@ import {
 } from '@/components/charts/MetricsEquityCharts'
 import { usePersistentState } from '@/hooks/usePersistentState'
 import { consumeDashboardRangeReset, STORAGE_KEYS } from '@/lib/persistence'
-import { accountMetaCompact, titleFor } from '@/lib/accounts'
+import { accountMetaCompact, accountRouteFor, accountStageLabel, titleFor } from '@/lib/accounts'
 import {
   buildRules,
   computeEdgeScore,
@@ -267,13 +267,13 @@ export function DashboardPage() {
       <section className="hero-card card card-glow" data-hero={heroVariant}>
         <div className="hero-main">
           <div className="hero-top">
-            <button className="hero-account" type="button" onClick={() => navigate('/accounts')}>
+            <button className="hero-account" type="button" onClick={() => navigate(accountRouteFor(activeAccount))}>
               <span className="hero-account-copy">
                 <b>{titleFor(activeAccount)}</b>
                 <span className="hero-account-meta">
                   <span>{heroMeta}</span>
                   <span className="hero-meta-sep" aria-hidden="true" />
-                  <span className="hero-stage-text">{activeAccount.stage}</span>
+                  <span className="hero-stage-text">{accountStageLabel(activeAccount)}</span>
                   {activeIsDemo && (
                     <>
                       <span className="hero-meta-sep" aria-hidden="true" />

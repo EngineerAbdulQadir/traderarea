@@ -4,9 +4,11 @@ import {
   ArrowRight,
   BarChart3,
   BookOpenText,
+  Building2,
   CalendarDays,
   CirclePlay,
   FileBarChart,
+  Landmark,
   ListOrdered,
   Moon,
   Plus,
@@ -15,15 +17,13 @@ import {
   SlidersHorizontal,
   Sparkles,
   Sun,
-  Wallet,
 } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { useApp } from '@/store/AppStore'
 import { useAuth } from '@/store/AuthProvider'
 import { hasDevOwnerSession, isAuthorizedOwner } from '@/lib/access'
 import { useTheme } from '@/hooks/useTheme'
-import { TYPE_LABELS } from '@/data/firms'
-import { titleFor } from '@/lib/accounts'
+import { accountMetaCompact, accountStageLabel, titleFor } from '@/lib/accounts'
 import { cn } from '@/lib/cn'
 
 interface CommandItem {
@@ -36,7 +36,16 @@ interface CommandItem {
 }
 
 export function CommandPalette() {
-  const { commandOpen, setCommandOpen, accounts, setActiveAccount, openChallenge, openTradeEditor, openSettings } = useApp()
+  const {
+    commandOpen,
+    setCommandOpen,
+    allAccounts,
+    setActiveAccount,
+    openChallenge,
+    openBrokerChallenge,
+    openTradeEditor,
+    openSettings,
+  } = useApp()
   const { user } = useAuth()
   const isOwner = isAuthorizedOwner(user) || hasDevOwnerSession()
   const { isDark, toggleTheme } = useTheme()
@@ -65,7 +74,8 @@ export function CommandPalette() {
       { id: 'page-metrics', label: 'Metrics', hint: 'Performance & KPI dashboard', group: 'Navigate', icon: <BarChart3 size={15} />, run: closeAnd(() => navigate('/metrics')) },
       { id: 'page-journal', label: 'Journal', hint: 'Session calendar & reflections', group: 'Navigate', icon: <CalendarDays size={15} />, run: closeAnd(() => navigate('/journal')) },
       { id: 'page-replay', label: 'Replay', hint: 'Watch bar-by-bar trade entry & exit replays', group: 'Navigate', icon: <CirclePlay size={15} />, run: closeAnd(() => navigate('/replay')) },
-      { id: 'page-accounts', label: 'Accounts', hint: 'Challenges and phases', group: 'Navigate', icon: <Wallet size={15} />, run: closeAnd(() => navigate('/accounts')) },
+      { id: 'page-firms', label: 'Firms', hint: 'Prop firm challenges and phases', group: 'Navigate', icon: <Landmark size={15} />, run: closeAnd(() => navigate('/firms')) },
+      { id: 'page-brokers', label: 'Brokers', hint: 'Exness & live broker accounts', group: 'Navigate', icon: <Building2 size={15} />, run: closeAnd(() => navigate('/brokers')) },
       { id: 'page-stats', label: 'Stats', hint: 'Timing, markets, behaviour', group: 'Navigate', icon: <BarChart3 size={15} />, run: closeAnd(() => navigate('/stats')) },
       { id: 'page-entries', label: 'Entries', hint: 'Every trade in the journal', group: 'Navigate', icon: <ListOrdered size={15} />, run: closeAnd(() => navigate('/entries')) },
       { id: 'page-notes', label: 'Notes', hint: 'Daily session reflections', group: 'Navigate', icon: <BookOpenText size={15} />, run: closeAnd(() => navigate('/notes')) },
@@ -86,7 +96,8 @@ export function CommandPalette() {
     ]
 
     const actions: CommandItem[] = [
-      { id: 'action-challenge', label: 'Start a new challenge', hint: 'Open the challenge builder', group: 'Actions', icon: <Plus size={15} />, run: closeAnd(openChallenge) },
+      { id: 'action-challenge', label: 'Start a new challenge', hint: 'Open the prop firm challenge builder', group: 'Actions', icon: <Plus size={15} />, run: closeAnd(openChallenge) },
+      { id: 'action-broker', label: 'Add broker account', hint: 'Configure an Exness Live or Demo account', group: 'Actions', icon: <Building2 size={15} />, run: closeAnd(openBrokerChallenge) },
       { id: 'action-trade', label: 'Log a trade', hint: 'Add a closed trade to the journal', group: 'Actions', icon: <Sparkles size={15} />, run: closeAnd(() => openTradeEditor()) },
       {
         id: 'action-theme',
@@ -98,10 +109,10 @@ export function CommandPalette() {
       },
     ]
 
-    const accountItems: CommandItem[] = accounts.map((account) => ({
+    const accountItems: CommandItem[] = allAccounts.map((account) => ({
       id: `account-${account.id}`,
       label: titleFor(account),
-      hint: `${TYPE_LABELS[account.type]} · ${account.stage} · ${account.firm}`,
+      hint: `${accountMetaCompact(account)} · ${accountStageLabel(account)}`,
       group: 'Switch account',
       run: closeAnd(() => setActiveAccount(account.id)),
     }))
@@ -110,7 +121,7 @@ export function CommandPalette() {
     const all = [...pages, ...actions, ...accountItems]
     if (!q) return all
     return all.filter((item) => `${item.label} ${item.hint ?? ''} ${item.group}`.toLowerCase().includes(q))
-  }, [accounts, isOwner, navigate, openChallenge, openTradeEditor, openSettings, query, setActiveAccount, setCommandOpen, isDark, toggleTheme])
+  }, [allAccounts, isOwner, navigate, openChallenge, openBrokerChallenge, openTradeEditor, openSettings, query, setActiveAccount, setCommandOpen, isDark, toggleTheme])
 
   useEffect(() => {
     setActiveIndex(0)

@@ -243,7 +243,7 @@ export function ChallengeModal() {
     })
     addAccount(account)
     closeChallenge()
-    navigate('/accounts')
+    navigate('/firms')
     showToast(
       'Challenge created',
       `${titleFor(account)} is ready with ${formatMoney(account.startingBalance)} in starting capital.`,
@@ -273,7 +273,7 @@ export function ChallengeModal() {
         <header className="modal-head challenge-head">
           <div className="modal-head-copy">
             <h2 className="modal-title" id="challenge-title">
-              {isEditing ? `Edit ${titleFor(editingAccount)}` : 'Start new challenge'}
+              {isEditing ? `Edit ${titleFor(editingAccount!)}` : 'Start new challenge'}
             </h2>
             <p className="modal-sub">
               {isEditing
@@ -636,7 +636,7 @@ export function ChallengeModal() {
             <Wallet size={13} />
             <span>
               {isEditing
-                ? `Editing ${titleFor(editingAccount)} · trades & phase history preserved`
+                ? `Editing ${titleFor(editingAccount!)} · trades & phase history preserved`
                 : `${firm?.name ?? 'Eze Funded'} · ${TYPE_LABELS[type]} · ${stage}`}
             </span>
           </div>

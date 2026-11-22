@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
-  Layers,
+  Landmark,
+  Building2,
   BarChart3,
   CirclePlay,
   NotebookPen,
@@ -130,13 +131,23 @@ export function Sidebar({
             <div className="nav-section">Management</div>
             <div className="nav-group-inner">
               <NavLink
-                to="/accounts"
+                to="/firms"
                 className={({ isActive }) => cn('nav-item', isActive && 'active')}
                 onClick={onCloseMobile}
               >
-                <Layers size={16} strokeWidth={1.7} />
-                <span className="nav-label">Accounts</span>
-                {collapsed && !isMobile && <span className="nav-tooltip">Accounts</span>}
+                <Landmark size={16} strokeWidth={1.7} />
+                <span className="nav-label">Firms</span>
+                {collapsed && !isMobile && <span className="nav-tooltip">Firms</span>}
+              </NavLink>
+
+              <NavLink
+                to="/brokers"
+                className={({ isActive }) => cn('nav-item', isActive && 'active')}
+                onClick={onCloseMobile}
+              >
+                <Building2 size={16} strokeWidth={1.7} />
+                <span className="nav-label">Brokers</span>
+                {collapsed && !isMobile && <span className="nav-tooltip">Brokers</span>}
               </NavLink>
             </div>
           </div>

@@ -3,9 +3,11 @@ import { STORAGE_KEYS } from '@/lib/persistence'
 /** Keys included in a downloaded workspace backup. */
 export const BACKUP_KEYS = [
   STORAGE_KEYS.accounts,
+  STORAGE_KEYS.brokerAccounts,
   STORAGE_KEYS.trades,
   STORAGE_KEYS.notes,
   STORAGE_KEYS.activeAccount,
+  STORAGE_KEYS.activeBrokerAccount,
   'ta-profile',
 ]
 

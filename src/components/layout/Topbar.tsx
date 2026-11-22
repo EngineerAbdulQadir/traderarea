@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useApp } from '@/store/AppStore'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
-import { nextStageFor, titleFor } from '@/lib/accounts'
+import { accountRouteFor, accountStageLabel, isBrokerAccount, nextStageFor, titleFor } from '@/lib/accounts'
 import { buildRules, computeStats, evaluateAccount, getStartingBalance } from '@/lib/stats'
 import { signedMoney } from '@/lib/format'
 import { readJSON, writeJSON } from '@/lib/storage'
@@ -15,8 +15,10 @@ const PAGE_META: Record<string, { title: string; group: string }> = {
   '/metrics': { title: 'Metrics', group: 'Analytics' },
   '/journal': { title: 'Journal', group: 'Journal' },
   '/replay': { title: 'Replay', group: 'Review' },
-  '/accounts': { title: 'Accounts', group: 'Workspace' },
-  '/portfolio': { title: 'Accounts', group: 'Workspace' },
+  '/firms': { title: 'Firms', group: 'Workspace' },
+  '/brokers': { title: 'Brokers', group: 'Workspace' },
+  '/accounts': { title: 'Firms', group: 'Workspace' },
+  '/portfolio': { title: 'Firms', group: 'Workspace' },
   '/stats': { title: 'Statistics', group: 'Analytics' },
   '/entries': { title: 'Entries', group: 'Log' },
   '/notes': { title: 'Notes', group: 'Journal' },
@@ -37,7 +39,7 @@ interface NotificationItem {
   title: string
   detail: string
   tone: NotificationTone
-  action: { type: 'route'; route: '/accounts' | '/metrics' }
+  action: { type: 'route'; route: '/firms' | '/brokers' | '/metrics' }
   priority: number
 }
 
@@ -45,7 +47,7 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
   const location = useLocation()
   const navigate = useNavigate()
   const {
-    accounts,
+    allAccounts,
     getTradesForAccount,
     setActiveAccount,
     setCommandOpen,
@@ -62,50 +64,59 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
   const notifications = useMemo<NotificationItem[]>(() => {
     const items: NotificationItem[] = []
 
-    accounts.forEach((account) => {
+    allAccounts.forEach((account) => {
       const starting = getStartingBalance(account)
       const trades = getTradesForAccount(account)
       const stats = computeStats(trades, starting)
       const evaluation = evaluateAccount(account, stats)
       const rulesSummary = buildRules(account, stats)
       const accountName = titleFor(account)
+      const stageLabel = accountStageLabel(account)
+      const accountRoute = accountRouteFor(account)
+      const isBroker = isBrokerAccount(account)
 
       if (evaluation.status === 'passed') {
-        const nextStage = nextStageFor(account.type, account.stage)
+        const nextStage = isBroker ? null : nextStageFor(account.type, account.stage)
         items.push({
-          id: `${account.id}-passed-${account.stage}-${nextStage ?? 'funded'}`,
+          id: `${account.id}-passed-${stageLabel}-${nextStage ?? 'funded'}`,
           accountId: account.id,
           accountName,
-          stage: account.stage,
-          tag: 'Ready',
-          title: nextStage ? `Ready to move to ${nextStage}` : 'Funded milestone reached',
-          detail: nextStage
-            ? `${account.stage} target & min days met · ${signedMoney(evaluation.net, account.currency)}`
-            : `Live performance target reached · ${signedMoney(evaluation.net, account.currency)}`,
+          stage: stageLabel,
+          tag: isBroker ? 'Goal' : 'Ready',
+          title: isBroker
+            ? 'Profit goal reached'
+            : nextStage
+              ? `Ready to move to ${nextStage}`
+              : 'Funded milestone reached',
+          detail: isBroker
+            ? `Personal profit goal met · ${signedMoney(evaluation.net, account.currency)}`
+            : nextStage
+              ? `${account.stage} target & min days met · ${signedMoney(evaluation.net, account.currency)}`
+              : `Live performance target reached · ${signedMoney(evaluation.net, account.currency)}`,
           tone: 'accent',
-          action: { type: 'route', route: '/accounts' },
+          action: { type: 'route', route: accountRoute },
           priority: 1,
         })
       } else if (evaluation.status === 'breached') {
         items.push({
-          id: `${account.id}-breached-${account.stage}`,
+          id: `${account.id}-breached-${stageLabel}`,
           accountId: account.id,
           accountName,
-          stage: account.stage,
-          tag: 'Breached',
-          title: `${account.stage} breached`,
+          stage: stageLabel,
+          tag: isBroker ? 'Limit' : 'Breached',
+          title: isBroker ? 'Risk limit exceeded' : `${account.stage} breached`,
           detail: evaluation.reason,
           tone: 'neg',
-          action: { type: 'route', route: '/accounts' },
+          action: { type: 'route', route: accountRoute },
           priority: 2,
         })
-      } else if (evaluation.targetHit && !evaluation.daysMet) {
+      } else if (!isBroker && evaluation.targetHit && !evaluation.daysMet) {
         const remainingDays = Math.max(1, evaluation.requiredDays - stats.profitableDays)
         items.push({
           id: `${account.id}-days-${account.stage}-${remainingDays}`,
           accountId: account.id,
           accountName,
-          stage: account.stage,
+          stage: stageLabel,
           tag: 'In progress',
           title: 'Profit target reached',
           detail: `${remainingDays} profitable ${remainingDays === 1 ? 'day' : 'days'} remaining in ${account.stage}`,
@@ -119,10 +130,10 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
         )
         if (caution) {
           items.push({
-            id: `${account.id}-caution-${account.stage}-${caution.name}`,
+            id: `${account.id}-caution-${stageLabel}-${caution.name}`,
             accountId: account.id,
             accountName,
-            stage: account.stage,
+            stage: stageLabel,
             tag: 'Alert',
             title: `${caution.name} limit approaching`,
             detail: `${caution.value} ${caution.limit} (${caution.right} used)`,
@@ -137,7 +148,7 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
     return items
       .filter((item) => !dismissedIds.includes(item.id))
       .sort((a, b) => a.priority - b.priority)
-  }, [accounts, dismissedIds, getTradesForAccount])
+  }, [allAccounts, dismissedIds, getTradesForAccount])
 
   const readSet = useMemo(() => new Set(readIds), [readIds])
   const unreadCount = useMemo(

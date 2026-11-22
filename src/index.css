@@ -20580,4 +20580,119 @@ button.calendar-day:hover {
   }
 }
 
+/* ─────────────────────────  Broker modal & cards  ───────────────────────── */
+
+.broker-monogram {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.16), rgba(180, 83, 9, 0.08));
+  color: #f59e0b;
+}
+
+.broker-balance-custom {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.72fr) minmax(0, 0.93fr);
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.broker-balance-custom .field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.broker-balance-custom .input,
+.broker-balance-custom .select {
+  height: 36px;
+  font-size: 12px;
+}
+
+.broker-balance-custom .input.is-error {
+  border-color: var(--neg-border);
+}
+
+.broker-blueprint-specs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.broker-blueprint-spec {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.broker-blueprint-spec span {
+  color: var(--faint);
+  font-size: 9.5px;
+  font-weight: 540;
+}
+
+.broker-blueprint-spec b {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.broker-rules-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.broker-spec-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: auto;
+  margin-bottom: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.broker-spec-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.broker-spec-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 580;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.broker-spec-value {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .broker-balance-custom,
+  .broker-rules-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .broker-spec-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+
 

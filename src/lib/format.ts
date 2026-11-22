@@ -25,8 +25,19 @@ export function formatMoney(amount: number | undefined | null, currency = 'USD')
   }
 }
 
-export function formatUsd2(amount: number | undefined | null): string {
-  return usd2.format(Number(amount) || 0)
+export function formatUsd2(amount: number | undefined | null, currency = 'USD'): string {
+  const value = Number(amount) || 0
+  if (currency === 'USD') return usd2.format(value)
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value)
+  } catch {
+    return `${currency} ${value.toFixed(2)}`
+  }
 }
 
 export function signedMoney(amount: number | undefined | null, currency = 'USD'): string {

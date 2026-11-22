@@ -9,7 +9,7 @@ import { exportWorkspaceBackup } from '@/lib/backup'
  * signed-in Firebase account is empty.
  */
 export function MigrationModal() {
-  const { syncStatus, migrating, migrateWorkspace, skipMigration, accounts, storedTradeCount } =
+  const { syncStatus, migrating, migrateWorkspace, skipMigration, allAccounts, storedTradeCount } =
     useApp()
   const open = syncStatus === 'migration'
 
@@ -36,8 +36,8 @@ export function MigrationModal() {
 
         <div className="migration-stats">
           <div className="migration-stat">
-            <b>{accounts.length}</b>
-            <span>Account{accounts.length === 1 ? '' : 's'}</span>
+            <b>{allAccounts.length}</b>
+            <span>Account{allAccounts.length === 1 ? '' : 's'}</span>
           </div>
           <div className="migration-stat">
             <b>{storedTradeCount}</b>

@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Segmented } from '@/components/ui/Segmented'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { AccountPill } from '@/components/ui/AccountPill'
+import { accountRouteFor } from '@/lib/accounts'
 import type { Trade } from '@/lib/types'
 import { downloadCsv, TRADE_CSV_HEADER, tradeCsvRows } from '@/lib/csv'
 import { formatPrice, formatR, formatTime, plainPercent, signedMoney } from '@/lib/format'
@@ -183,7 +184,7 @@ export function EntriesPage() {
           title="Your ledger needs an account"
           description="Start a challenge or open a demo workspace, then every trade you log lands here with the context around it."
           actions={
-            <Button variant="primary" iconLeft={<Plus size={14} />} onClick={() => navigate('/accounts')}>
+            <Button variant="primary" iconLeft={<Plus size={14} />} onClick={() => navigate('/firms')}>
               Go to accounts
             </Button>
           }
@@ -206,7 +207,7 @@ export function EntriesPage() {
         actions={
           <>
             {activeIsDemo && <Badge tone="violet">Sample data</Badge>}
-            <AccountPill account={activeAccount} onClick={() => navigate('/accounts')} />
+            <AccountPill account={activeAccount} onClick={() => navigate(accountRouteFor(activeAccount))} />
             <Button variant="secondary" size="sm" iconLeft={<Download size={13} />} onClick={exportCsv}>
               Export
             </Button>

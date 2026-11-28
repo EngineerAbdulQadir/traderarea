@@ -135,6 +135,7 @@ export function ReplayPage() {
       { value: '-5', label: 'UTC-5 (New York EST)' },
       { value: '-4', label: 'UTC-4 (New York EDT)' },
       { value: '4', label: 'UTC+4 (Dubai GST)' },
+      { value: '5.5', label: 'UTC+5:30 (IST)' },
       { value: '8', label: 'UTC+8 (Singapore/HK)' },
     ]
     if (!base.some((opt) => opt.value === String(localUtcOffset))) {

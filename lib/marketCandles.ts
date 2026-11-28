@@ -70,14 +70,17 @@ const KNOWN_CRYPTO_BASES = new Set([
   'ATOM',
 ])
 
-const SYMBOL_ALIASES: Record<string, { yahoo: string[]; isProxy: boolean }> = {
-  XAUUSD: { yahoo: ['GC=F', 'XAUUSD=X'], isProxy: true },
-  GOLD: { yahoo: ['GC=F', 'XAUUSD=X'], isProxy: true },
-  XAU: { yahoo: ['GC=F', 'XAUUSD=X'], isProxy: true },
+const SYMBOL_ALIASES: Record<
+  string,
+  { yahoo: string[]; binanceFutures?: string; isProxy: boolean }
+> = {
+  XAUUSD: { yahoo: ['GC=F', 'XAUUSD=X'], binanceFutures: 'XAUUSDT', isProxy: true },
+  GOLD: { yahoo: ['GC=F', 'XAUUSD=X'], binanceFutures: 'XAUUSDT', isProxy: true },
+  XAU: { yahoo: ['GC=F', 'XAUUSD=X'], binanceFutures: 'XAUUSDT', isProxy: true },
   GC: { yahoo: ['GC=F'], isProxy: false },
-  XAGUSD: { yahoo: ['SI=F', 'XAGUSD=X'], isProxy: true },
-  SILVER: { yahoo: ['SI=F', 'XAGUSD=X'], isProxy: true },
-  XAG: { yahoo: ['SI=F', 'XAGUSD=X'], isProxy: true },
+  XAGUSD: { yahoo: ['SI=F', 'XAGUSD=X'], binanceFutures: 'XAGUSDT', isProxy: true },
+  SILVER: { yahoo: ['SI=F', 'XAGUSD=X'], binanceFutures: 'XAGUSDT', isProxy: true },
+  XAG: { yahoo: ['SI=F', 'XAGUSD=X'], binanceFutures: 'XAGUSDT', isProxy: true },
   SI: { yahoo: ['SI=F'], isProxy: false },
   CL: { yahoo: ['CL=F'], isProxy: false },
   USOIL: { yahoo: ['CL=F'], isProxy: true },
@@ -156,7 +159,7 @@ const YAHOO_MAX_AGE_SEC: Record<string, number> = {
 }
 
 const YAHOO_HOSTS = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com']
-const CANDIDATE_TZ_OFFSETS = [0, 2, 3, 1, -5, -4, 4, 5, 8, 9, -6, -7, -8, -3, -2, -1, 6, 7, 10]
+const CANDIDATE_TZ_OFFSETS = [0, 2, 3, 1, -5, -4, 4, 5, 5.5, 8, 9, -6, -7, -8, -3, -2, -1, 6, 7, 10]
 
 function cleanTicker(raw: string): string {
   return raw
@@ -171,6 +174,7 @@ function resolveTargets(rawSymbol: string): {
   cryptoBase: string | null
   preferUsdQuote: boolean
   binanceSymbol: string | null
+  binanceFuturesOnly: boolean
   yahooSymbols: string[]
   isProxy: boolean
 } {
@@ -180,6 +184,7 @@ function resolveTargets(rawSymbol: string): {
       cryptoBase: null,
       preferUsdQuote: false,
       binanceSymbol: null,
+      binanceFuturesOnly: false,
       yahooSymbols: [],
       isProxy: false,
     }
@@ -194,6 +199,7 @@ function resolveTargets(rawSymbol: string): {
           cryptoBase: base,
           preferUsdQuote: quote === 'USD',
           binanceSymbol: `${base}USDT`,
+          binanceFuturesOnly: false,
           yahooSymbols: [`${base}-USD`],
           isProxy: quote === 'USD',
         }
@@ -205,18 +211,21 @@ function resolveTargets(rawSymbol: string): {
       cryptoBase: strippedCrypto,
       preferUsdQuote: false,
       binanceSymbol: `${strippedCrypto}USDT`,
+      binanceFuturesOnly: false,
       yahooSymbols: [`${strippedCrypto}-USD`],
       isProxy: false,
     }
   }
 
   if (SYMBOL_ALIASES[cleaned]) {
+    const alias = SYMBOL_ALIASES[cleaned]
     return {
       cryptoBase: null,
       preferUsdQuote: false,
-      binanceSymbol: null,
-      yahooSymbols: SYMBOL_ALIASES[cleaned].yahoo,
-      isProxy: SYMBOL_ALIASES[cleaned].isProxy,
+      binanceSymbol: alias.binanceFutures ?? null,
+      binanceFuturesOnly: Boolean(alias.binanceFutures),
+      yahooSymbols: alias.yahoo,
+      isProxy: alias.isProxy,
     }
   }
 
@@ -228,6 +237,7 @@ function resolveTargets(rawSymbol: string): {
         cryptoBase: null,
         preferUsdQuote: false,
         binanceSymbol: null,
+        binanceFuturesOnly: false,
         yahooSymbols: [`${cleaned}=X`],
         isProxy: false,
       }
@@ -238,6 +248,7 @@ function resolveTargets(rawSymbol: string): {
     cryptoBase: null,
     preferUsdQuote: false,
     binanceSymbol: null,
+    binanceFuturesOnly: false,
     yahooSymbols: [cleaned],
     isProxy: false,
   }
@@ -368,6 +379,9 @@ function resolveTimezoneWindow(
 
     const distE = priceRangeDistance(entryPrice, eMatch.bar)
     const distX = hasExit ? priceRangeDistance(exitPrice, xMatch.bar) : 0
+    const basisSpread = hasExit
+      ? Math.abs((entryPrice - eMatch.bar.close) - (exitPrice - xMatch.bar.close))
+      : 0
     const deltaErr = hasExit
       ? Math.abs((xMatch.bar.close - eMatch.bar.open) - (exitPrice - entryPrice))
       : 0
@@ -381,7 +395,7 @@ function resolveTimezoneWindow(
       candClose,
       distE,
       distX,
-      score: distE + distX + 0.2 * deltaErr + 0.02 * centerErr,
+      score: distE + distX + 0.35 * basisSpread + 0.2 * deltaErr + 0.02 * centerErr,
     }
   }
 
@@ -489,11 +503,11 @@ function assessPriceMatch(
   const xMatch = closestBar(candles, resolvedCloseSec)
   if (!eMatch || !xMatch) return 'unknown'
 
-  const eTol = Math.max((eMatch.bar.high - eMatch.bar.low) * 0.5, entryPrice * 0.0025)
+  const eTol = Math.max((eMatch.bar.high - eMatch.bar.low) * 0.25, entryPrice * 0.0005)
   const eDist = priceRangeDistance(entryPrice, eMatch.bar)
   const xDist = hasExit ? priceRangeDistance(exitPrice, xMatch.bar) : 0
   const xTol = hasExit
-    ? Math.max((xMatch.bar.high - xMatch.bar.low) * 0.5, exitPrice * 0.0025)
+    ? Math.max((xMatch.bar.high - xMatch.bar.low) * 0.25, exitPrice * 0.0005)
     : eTol
 
   if (eDist <= eTol && xDist <= xTol) {
@@ -501,16 +515,15 @@ function assessPriceMatch(
   }
 
   if (isProxy && hasExit) {
-    const tradeDelta = exitPrice - entryPrice
-    const candleDelta = xMatch.bar.close - eMatch.bar.open
-    const moveTolerance = Math.max(Math.abs(tradeDelta) * 0.45, entryPrice * 0.003)
-    const entryOffset = entryPrice - eMatch.bar.close
-    const exitOffset = exitPrice - xMatch.bar.close
-    const basisSpread = Math.abs(entryOffset - exitOffset)
-    if (
-      Math.abs(tradeDelta - candleDelta) <= moveTolerance ||
-      basisSpread <= moveTolerance
-    ) {
+    const spreadTol = Math.max(eTol, xTol)
+    const entryMinB = entryPrice - eMatch.bar.high - spreadTol
+    const entryMaxB = entryPrice - eMatch.bar.low + spreadTol
+    const exitMinB = exitPrice - xMatch.bar.high - spreadTol
+    const exitMaxB = exitPrice - xMatch.bar.low + spreadTol
+    const overlapMin = Math.max(entryMinB, exitMinB)
+    const overlapMax = Math.min(entryMaxB, exitMaxB)
+    const midBasis = (overlapMin + overlapMax) / 2
+    if (overlapMin <= overlapMax && Math.abs(midBasis) <= entryPrice * 0.015) {
       return 'proxy'
     }
   }
@@ -577,6 +590,7 @@ async function fetchBinanceKlines(
   interval: string,
   openSec: number,
   closeSec: number,
+  options: { futuresOnly?: boolean; isProxy?: boolean } = {},
   explicitTzOffsetHours?: number,
   entryPrice?: number,
   exitPrice?: number,
@@ -594,20 +608,23 @@ async function fetchBinanceKlines(
   const baseOpen = hasManualTz ? openSec - explicitTzOffsetHours * 3600 : openSec
   const baseClose = hasManualTz ? closeSec - explicitTzOffsetHours * 3600 : closeSec
 
-  const lookbackSec = hasPriceHint ? Math.max(step * 20, 12 * 3600) : step * 25
-  const lookaheadSec = hasPriceHint ? Math.max(step * 20, 12 * 3600) : step * 20
+  const lookbackSec = hasPriceHint ? Math.max(step * 20, 14 * 3600) : step * 25
+  const lookaheadSec = hasPriceHint ? Math.max(step * 20, 14 * 3600) : step * 20
   const startMs = Math.max(0, (baseOpen - lookbackSec) * 1000)
   const endMs = Math.min(nowSec, baseClose + lookaheadSec) * 1000
   if (endMs <= startMs) return null
 
-  let candles = await fetchBinanceEndpoint(
-    'https://api.binance.com/api/v3/klines',
-    symbol,
-    binanceInterval,
-    startMs,
-    endMs,
-    step,
-  )
+  let candles: MarketCandle[] = []
+  if (!options.futuresOnly) {
+    candles = await fetchBinanceEndpoint(
+      'https://api.binance.com/api/v3/klines',
+      symbol,
+      binanceInterval,
+      startMs,
+      endMs,
+      step,
+    )
+  }
   if (!candles.length) {
     candles = await fetchBinanceEndpoint(
       'https://fapi.binance.com/fapi/v1/klines',
@@ -632,6 +649,7 @@ async function fetchBinanceKlines(
   const sliced = sliceWindow(candles, resolved.openSec, resolved.closeSec, step)
   if (!sliced.exactWindow || !sliced.slice.length) return null
 
+  const isProxy = Boolean(options.isProxy)
   return {
     ok: true,
     source: 'Binance',
@@ -639,12 +657,12 @@ async function fetchBinanceKlines(
     requestedInterval: interval,
     resolvedInterval: binanceInterval,
     exactWindow: true,
-    isProxy: false,
+    isProxy,
     priceMatch: assessPriceMatch(
       sliced.slice,
       resolved.openSec,
       resolved.closeSec,
-      false,
+      isProxy,
       entryPrice,
       exitPrice,
     ),
@@ -938,7 +956,14 @@ export async function getMarketCandlesDetailed(
     return cached.payload
   }
 
-  const { cryptoBase, preferUsdQuote, binanceSymbol, yahooSymbols, isProxy } = resolveTargets(symbol)
+  const {
+    cryptoBase,
+    preferUsdQuote,
+    binanceSymbol,
+    binanceFuturesOnly,
+    yahooSymbols,
+    isProxy,
+  } = resolveTargets(symbol)
   const { openSec, closeSec } = parseTradeWindow(date, openTime, closeTime, openDate)
   const nowSec = Math.floor(Date.now() / 1000)
 
@@ -970,13 +995,14 @@ export async function getMarketCandlesDetailed(
       interval,
       openSec,
       closeSec,
+      {
+        futuresOnly: binanceFuturesOnly,
+        isProxy: isProxy || preferUsdQuote,
+      },
       tzOffsetHours,
       entry,
       exit,
     )
-    if (result && preferUsdQuote) {
-      result.isProxy = true
-    }
   }
 
   if (!result && cryptoBase && !preferUsdQuote) {

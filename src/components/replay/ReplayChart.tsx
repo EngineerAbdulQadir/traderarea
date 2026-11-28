@@ -170,6 +170,8 @@ export function ReplayChart({
       borderVisible: false,
       wickUpColor: '#089981',
       wickDownColor: '#f23645',
+      priceLineVisible: false,
+      lastValueVisible: false,
       priceFormat: {
         type: 'price',
         precision: sequence.priceDigits,

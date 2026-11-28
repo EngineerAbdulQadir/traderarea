@@ -139,7 +139,13 @@ export function formatUtcClock(utcSeconds: number): string {
 
 export function formatUtcOffset(offsetHours: number): string {
   if (!offsetHours) return 'UTC'
-  return `UTC${offsetHours > 0 ? `+${offsetHours}` : offsetHours}`
+  const sign = offsetHours > 0 ? '+' : '-'
+  const abs = Math.abs(offsetHours)
+  const hrs = Math.trunc(abs)
+  const mins = Math.round((abs - hrs) * 60)
+  return mins > 0
+    ? `UTC${sign}${hrs}:${String(mins).padStart(2, '0')}`
+    : `UTC${sign}${hrs}`
 }
 
 function parseUtcTimestamp(isoDate: string, clockStr: string, fallbackMinute = 9 * 60 + 30): number {
@@ -507,30 +513,27 @@ export function buildRealMarketSequence(
   let basisAligned = false
   let priceAlignment: PriceAlignment = hasPrices ? 'mismatch' : 'no-prices'
 
-  if (hasPrices && entryBar && exitBar) {
-    const entryTol = Math.max((entryBar.high - entryBar.low) * 0.65, entryPrice * 0.0025)
-    const exitTol = Math.max((exitBar.high - exitBar.low) * 0.65, exitPrice * 0.0025)
+  if (hasPrices && entryBar && exitBar && market.priceMatch !== 'mismatch') {
+    const entryTol = Math.max((entryBar.high - entryBar.low) * 0.25, entryPrice * 0.0005)
+    const exitTol = Math.max((exitBar.high - exitBar.low) * 0.25, exitPrice * 0.0005)
     const entryDist = priceDistanceFromBar(entryPrice, entryBar)
     const exitDist = priceDistanceFromBar(exitPrice, exitBar)
 
     if (entryDist <= entryTol && exitDist <= exitTol) {
       priceAlignment = 'exact'
     } else if (market.isProxy) {
-      const entryDiff = entryPrice - entryBar.close
-      const exitDiff = exitPrice - exitBar.close
-      const avgBasis = (entryDiff + exitDiff) / 2
-      const tradeMove = exitPrice - entryPrice
-      const candleMove = exitBar.close - entryBar.close
-      const moveTol = Math.max(Math.abs(tradeMove) * 0.45, entryPrice * 0.003)
+      const spreadTol = Math.max(entryTol, exitTol)
+      const entryMinB = entryPrice - entryBar.high - spreadTol
+      const entryMaxB = entryPrice - entryBar.low + spreadTol
+      const exitMinB = exitPrice - exitBar.high - spreadTol
+      const exitMaxB = exitPrice - exitBar.low + spreadTol
+      const overlapMin = Math.max(entryMinB, exitMinB)
+      const overlapMax = Math.min(entryMaxB, exitMaxB)
+      const midBasis = (overlapMin + overlapMax) / 2
 
-      const shiftedEntryDist = priceDistanceFromBar(entryPrice - avgBasis, entryBar)
-      const shiftedExitDist = priceDistanceFromBar(exitPrice - avgBasis, exitBar)
-      if (
-        Math.abs(tradeMove - candleMove) <= moveTol ||
-        (shiftedEntryDist <= entryTol * 1.5 && shiftedExitDist <= exitTol * 1.5)
-      ) {
-        basisOffset = roundTo(avgBasis, priceDigits)
-        basisAligned = true
+      if (overlapMin <= overlapMax && Math.abs(midBasis) <= entryPrice * 0.015) {
+        basisOffset = roundTo(midBasis, priceDigits)
+        basisAligned = Math.abs(basisOffset) > 0
         priceAlignment = 'proxy-aligned'
       }
     }
@@ -717,6 +720,27 @@ export function computeReplayExcursion(
     if (adv > maePts) {
       maePts = adv
       maePrice = isLong ? bar.low : bar.high
+    }
+  }
+
+  if (
+    cursor >= sequence.exitIndex &&
+    sequence.hasPrices &&
+    (sequence.priceAlignment === 'exact' || sequence.priceAlignment === 'proxy-aligned')
+  ) {
+    const exitFav = isLong
+      ? sequence.alignedExitPrice - refPrice
+      : refPrice - sequence.alignedExitPrice
+    const exitAdv = isLong
+      ? refPrice - sequence.alignedExitPrice
+      : sequence.alignedExitPrice - refPrice
+    if (exitFav > mfePts) {
+      mfePts = exitFav
+      mfePrice = sequence.alignedExitPrice
+    }
+    if (exitAdv > maePts) {
+      maePts = exitAdv
+      maePrice = sequence.alignedExitPrice
     }
   }
 

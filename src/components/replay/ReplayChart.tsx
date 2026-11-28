@@ -501,22 +501,24 @@ export function ReplayChart({
             <>
               <span className="replay-hud-sep" aria-hidden="true">·</span>
               <span className="replay-hud-time">{hudBar.timeLabel} UTC</span>
-              <span className="replay-hud-lvl">
-                O <b>{fmt(hudBar.open)}</b>
-              </span>
-              <span className="replay-hud-lvl">
-                H <b>{fmt(hudBar.high)}</b>
-              </span>
-              <span className="replay-hud-lvl">
-                L <b>{fmt(hudBar.low)}</b>
-              </span>
-              <span
-                className={cn(
-                  'replay-hud-lvl',
-                  hudBar.close >= hudBar.open ? 'is-pos' : 'is-neg',
-                )}
-              >
-                C <b>{fmt(hudBar.close)}</b>
+              <span className="replay-hud-ohlc">
+                <span className="replay-hud-lvl">
+                  O <b>{fmt(hudBar.open)}</b>
+                </span>
+                <span className="replay-hud-lvl">
+                  H <b>{fmt(hudBar.high)}</b>
+                </span>
+                <span className="replay-hud-lvl">
+                  L <b>{fmt(hudBar.low)}</b>
+                </span>
+                <span
+                  className={cn(
+                    'replay-hud-lvl',
+                    hudBar.close >= hudBar.open ? 'is-pos' : 'is-neg',
+                  )}
+                >
+                  C <b>{fmt(hudBar.close)}</b>
+                </span>
               </span>
             </>
           )}
@@ -536,8 +538,8 @@ export function ReplayChart({
             )}
             <span>
               {sequence.marketSymbol}
-              {sequence.priceAlignment === 'proxy-aligned' ? ' · Basis adj.' : ''}
-              {sequence.priceAlignment === 'mismatch' ? ' · Price mismatch' : ''}
+              {sequence.priceAlignment === 'proxy-aligned' ? ' · Adj.' : ''}
+              {sequence.priceAlignment === 'mismatch' ? ' · Mismatch' : ''}
             </span>
           </span>
 

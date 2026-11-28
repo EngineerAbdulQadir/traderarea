@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  AlertTriangle,
   Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Info,
   Layers,
   LogIn,
   LogOut,
@@ -26,17 +26,13 @@ import { Segmented, type SegmentOption } from '@/components/ui/Segmented'
 import { accountStageLabel, titleFor } from '@/lib/accounts'
 import { formatShortDate } from '@/lib/dates'
 import { formatR, formatTime, formatUsd2, signedMoney } from '@/lib/format'
-import { readStorage, writeStorage } from '@/lib/storage'
 import {
   buildRealMarketSequence,
-  computeReplayExcursion,
   fetchRealMarketCandles,
   formatReplayPrice,
-  formatUtcOffset,
   suggestReplayTimeframe,
   type ReplaySequence,
   type ReplayTimeframe,
-  type ReplayTzPreference,
 } from '@/lib/replay'
 import type { Trade } from '@/lib/types'
 import { cn } from '@/lib/cn'
@@ -52,21 +48,6 @@ const PICKER_FILTERS: SegmentOption<PickerFilter>[] = [
 ]
 
 const SPEED_OPTIONS: PlaybackSpeed[] = [1, 2, 4, 8]
-
-const TZ_STORAGE_PREFIX = 'replay:tz:'
-
-function readAccountTz(accountId: string): ReplayTzPreference {
-  if (!accountId) return 'auto'
-  const raw = readStorage(`${TZ_STORAGE_PREFIX}${accountId}`, 'auto')
-  if (!raw || raw === 'auto') return 'auto'
-  const num = Number(raw)
-  return Number.isFinite(num) ? num : 'auto'
-}
-
-function writeAccountTz(accountId: string, tz: ReplayTzPreference): void {
-  if (!accountId) return
-  writeStorage(`${TZ_STORAGE_PREFIX}${accountId}`, String(tz))
-}
 
 function sortNewestFirst(trades: Trade[]): Trade[] {
   return trades
@@ -107,10 +88,6 @@ export function ReplayPage() {
   const [speed, setSpeed] = useState<PlaybackSpeed>(1)
   const [cursor, setCursor] = useState(0)
 
-  const [timeframe, setTimeframe] = useState<ReplayTimeframe>('1m')
-  const [tzPreference, setTzPreference] = useState<ReplayTzPreference>('auto')
-  const lastAutoTradeRef = useRef('')
-
   const [sequence, setSequence] = useState<ReplaySequence | null>(null)
   const [feedLoading, setFeedLoading] = useState(false)
   const [feedError, setFeedError] = useState<string | null>(null)
@@ -119,37 +96,6 @@ export function ReplayPage() {
   const timelineRef = useRef<HTMLDivElement>(null)
   const accountMenuRef = useRef<HTMLDivElement>(null)
   const draggingRef = useRef(false)
-
-  const localUtcOffset = useMemo(() => {
-    const mins = -new Date().getTimezoneOffset()
-    return Math.round((mins / 60) * 2) / 2
-  }, [])
-
-  const tzOptions = useMemo(() => {
-    const base: { value: string; label: string }[] = [
-      { value: 'auto', label: 'Auto (match entry/exit)' },
-      { value: '0', label: 'UTC (0)' },
-      { value: '2', label: 'UTC+2 (MT4/5 EET)' },
-      { value: '3', label: 'UTC+3 (MT4/5 EEST)' },
-      { value: '1', label: 'UTC+1 (CET)' },
-      { value: '-5', label: 'UTC-5 (New York EST)' },
-      { value: '-4', label: 'UTC-4 (New York EDT)' },
-      { value: '4', label: 'UTC+4 (Dubai GST)' },
-      { value: '5.5', label: 'UTC+5:30 (IST)' },
-      { value: '8', label: 'UTC+8 (Singapore/HK)' },
-    ]
-    if (!base.some((opt) => opt.value === String(localUtcOffset))) {
-      base.push({
-        value: String(localUtcOffset),
-        label: `Local (${formatUtcOffset(localUtcOffset)})`,
-      })
-    }
-    return base
-  }, [localUtcOffset])
-
-  useEffect(() => {
-    setTzPreference(readAccountTz(activeAccount?.id ?? ''))
-  }, [activeAccount?.id])
 
   useEffect(() => {
     if (!accountSwitcherOpen) return
@@ -188,17 +134,24 @@ export function ReplayPage() {
     [accountTrades, selectedTradeId],
   )
 
-  // Pick an appropriate default timeframe whenever a different trade is selected
-  useEffect(() => {
-    if (!selectedTrade) {
-      lastAutoTradeRef.current = ''
-      return
-    }
-    if (lastAutoTradeRef.current !== selectedTrade.id) {
-      lastAutoTradeRef.current = selectedTrade.id
-      setTimeframe(suggestReplayTimeframe(selectedTrade))
-    }
-  }, [selectedTrade])
+  const [timeframeState, setTimeframeState] = useState<{
+    tradeId: string
+    tf: ReplayTimeframe
+  }>({ tradeId: '', tf: '1m' })
+
+  const timeframe = useMemo(() => {
+    if (!selectedTrade) return '1m'
+    if (timeframeState.tradeId === selectedTrade.id) return timeframeState.tf
+    return suggestReplayTimeframe(selectedTrade)
+  }, [selectedTrade, timeframeState])
+
+  const handleChangeTimeframe = useCallback(
+    (tf: ReplayTimeframe) => {
+      if (!selectedTrade) return
+      setTimeframeState({ tradeId: selectedTrade.id, tf })
+    },
+    [selectedTrade],
+  )
 
   useEffect(() => {
     if (!selectedTrade) {
@@ -213,7 +166,7 @@ export function ReplayPage() {
     setFeedLoading(true)
     setFeedError(null)
 
-    fetchRealMarketCandles(selectedTrade, timeframe, tzPreference, controller.signal)
+    fetchRealMarketCandles(selectedTrade, timeframe, 'auto', controller.signal)
       .then((payload) => {
         if (controller.signal.aborted) return
         const next = buildRealMarketSequence(selectedTrade, payload, timeframe)
@@ -234,7 +187,7 @@ export function ReplayPage() {
       })
 
     return () => controller.abort()
-  }, [selectedTrade, timeframe, tzPreference, reloadNonce])
+  }, [selectedTrade, timeframe, reloadNonce])
 
   const filteredPickerTrades = useMemo(() => {
     const q = pickerSearch.trim().toLowerCase()
@@ -264,17 +217,6 @@ export function ReplayPage() {
       setSearchParams({}, { replace: true })
     },
     [setActiveAccount, setSearchParams],
-  )
-
-  const handleTzChange = useCallback(
-    (value: string) => {
-      const next: ReplayTzPreference = value === 'auto' ? 'auto' : Number(value)
-      setTzPreference(next)
-      if (activeAccount?.id) {
-        writeAccountTz(activeAccount.id, next)
-      }
-    },
-    [activeAccount?.id],
   )
 
   useEffect(() => {
@@ -346,10 +288,57 @@ export function ReplayPage() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [sequence, cursor])
 
-  const excursion = useMemo(
-    () => computeReplayExcursion(sequence, cursor),
-    [sequence, cursor],
-  )
+  const excursion = useMemo(() => {
+    if (!sequence || !sequence.candles.length || cursor < sequence.entryIndex) {
+      return null
+    }
+    const endIdx = Math.min(cursor, sequence.exitIndex)
+    const slice = sequence.candles.slice(sequence.entryIndex, endIdx + 1)
+    if (!slice.length) return null
+
+    const isLong = sequence.trade.side === 'LONG'
+    const refPrice = sequence.hasPrices ? sequence.entryPrice : slice[0].open
+    if (!refPrice) return null
+
+    let mfePts = 0
+    let maePts = 0
+    let mfePrice = refPrice
+    let maePrice = refPrice
+
+    for (const bar of slice) {
+      const fav = isLong ? bar.high - refPrice : refPrice - bar.low
+      const adv = isLong ? refPrice - bar.low : bar.high - refPrice
+      if (fav > mfePts) {
+        mfePts = fav
+        mfePrice = isLong ? bar.high : bar.low
+      }
+      if (adv > maePts) {
+        maePts = adv
+        maePrice = isLong ? bar.low : bar.high
+      }
+    }
+
+    const mfePct = (mfePts / refPrice) * 100
+    const maePct = (maePts / refPrice) * 100
+    const exitMovePts = sequence.hasPrices
+      ? isLong
+        ? sequence.exitPrice - sequence.entryPrice
+        : sequence.entryPrice - sequence.exitPrice
+      : 0
+    const capturePct =
+      cursor >= sequence.exitIndex && mfePts > 0 && exitMovePts > 0
+        ? Math.min(100, Math.round((exitMovePts / mfePts) * 100))
+        : null
+
+    return {
+      mfePrice,
+      maePrice,
+      mfePct,
+      maePct,
+      capturePct,
+      barsInTrade: slice.length,
+    }
+  }, [sequence, cursor])
 
   if (!activeAccount) {
     return (
@@ -539,7 +528,7 @@ export function ReplayPage() {
 
         <div className="replay-bar-scrubber">
           <span className="replay-bar-time num">
-            {currentBar ? `${currentBar.timeLabel} UTC` : sequence.openTimeLabel}
+            {currentBar?.timeLabel ?? sequence.openTimeLabel}
           </span>
           <div
             ref={timelineRef}
@@ -615,7 +604,7 @@ export function ReplayPage() {
           <ReplayChart
             sequence={sequence}
             timeframe={timeframe}
-            onChangeTimeframe={setTimeframe}
+            onChangeTimeframe={handleChangeTimeframe}
             loading={feedLoading}
             error={feedError}
             cursor={cursor}
@@ -794,13 +783,6 @@ export function ReplayPage() {
               const mfeFill = excursion ? Math.max(8, Math.round((excursion.mfePct / mfeMax) * 100)) : 0
               const maeFill = excursion ? Math.max(8, Math.round((excursion.maePct / mfeMax) * 100)) : 0
 
-              const showStmtClock = Boolean(
-                sequence &&
-                  sequence.tzOffsetHours !== 0 &&
-                  sequence.statementOpenTime &&
-                  sequence.statementOpenTime !== 'Open',
-              )
-
               return (
                 <div className="replay-details-body">
                   <section className="replay-summary">
@@ -810,11 +792,7 @@ export function ReplayPage() {
                         <span aria-hidden="true">·</span>
                         <span>{selectedTrade.side === 'LONG' ? 'Long' : 'Short'}</span>
                         <span aria-hidden="true">·</span>
-                        <span>
-                          {selectedTrade.openDate && selectedTrade.openDate !== selectedTrade.date
-                            ? `${formatShortDate(selectedTrade.openDate)} → ${formatShortDate(selectedTrade.date)}`
-                            : formatShortDate(selectedTrade.date)}
-                        </span>
+                        <span>{formatShortDate(selectedTrade.date)}</span>
                       </div>
                       <span
                         className={cn(
@@ -879,15 +857,6 @@ export function ReplayPage() {
                     ) : null}
                   </section>
 
-                  {sequence && sequence.priceAlignment === 'mismatch' && (
-                    <div className="replay-feed-notice is-warn" role="status">
-                      <AlertTriangle size={13} aria-hidden="true" />
-                      <span>
-                        Trade prices ({formatPrice(selectedTrade.entry)} → {formatPrice(selectedTrade.exit)}) fall outside {sequence.marketSymbol} candles at {sequence.openTimeLabel}. Check the broker timezone below.
-                      </span>
-                    </div>
-                  )}
-
                   {sequence && sequence.candles.length > 0 && (
                     <section className="replay-block">
                       <div className="replay-block-head">
@@ -929,7 +898,6 @@ export function ReplayPage() {
                             </span>
                             <span className="replay-exec-time num">
                               {sequence.openTimeLabel}
-                              {showStmtClock ? ` (${sequence.statementOpenTime})` : ''}
                             </span>
                           </span>
                           <span className="replay-exec-price num">
@@ -965,7 +933,6 @@ export function ReplayPage() {
                             </span>
                             <span className="replay-exec-time num">
                               {sequence.closeTimeLabel}
-                              {showStmtClock ? ` (${sequence.statementCloseTime})` : ''}
                             </span>
                           </span>
                           <span className="replay-exec-price num">
@@ -981,7 +948,7 @@ export function ReplayPage() {
                       <h3 className="replay-block-title">Price excursion</h3>
                       <span className="replay-block-hint num">
                         {excursion
-                          ? `${excursion.barsInTrade} ${excursion.barsInTrade === 1 ? 'bar' : 'bars'} (${sequence?.resolvedInterval ?? timeframe})`
+                          ? `${excursion.barsInTrade} ${excursion.barsInTrade === 1 ? 'bar' : 'bars'}`
                           : 'Pre-entry'}
                       </span>
                     </div>
@@ -1000,9 +967,7 @@ export function ReplayPage() {
                           />
                         </div>
                         <span className="replay-excursion-at">
-                          {excursion
-                            ? `${signedMoney(excursion.mfeUsd)} @ ${formatPrice(excursion.mfePrice)}`
-                            : 'Waiting for entry'}
+                          {excursion ? `@ ${formatPrice(excursion.mfePrice)}` : 'Waiting for entry'}
                         </span>
                       </div>
 
@@ -1020,9 +985,7 @@ export function ReplayPage() {
                           />
                         </div>
                         <span className="replay-excursion-at">
-                          {excursion
-                            ? `${signedMoney(-excursion.maeUsd)} @ ${formatPrice(excursion.maePrice)}`
-                            : 'Waiting for entry'}
+                          {excursion ? `@ ${formatPrice(excursion.maePrice)}` : 'Waiting for entry'}
                         </span>
                       </div>
                     </div>
@@ -1030,7 +993,7 @@ export function ReplayPage() {
 
                   <section className="replay-block replay-block-grow">
                     <div className="replay-block-head">
-                      <h3 className="replay-block-title">Trade &amp; feed details</h3>
+                      <h3 className="replay-block-title">Trade stats</h3>
                     </div>
                     <dl className="replay-stats-rows num">
                       <div className="replay-stats-row">
@@ -1086,36 +1049,6 @@ export function ReplayPage() {
                           <dd className="is-pos">{excursion.capturePct}%</dd>
                         </div>
                       ) : null}
-                      <div className="replay-stats-row">
-                        <dt>
-                          <label htmlFor="replay-tz-select">Broker timezone</label>
-                        </dt>
-                        <dd>
-                          <select
-                            id="replay-tz-select"
-                            className="replay-tz-select num"
-                            value={String(tzPreference)}
-                            onChange={(e) => handleTzChange(e.target.value)}
-                          >
-                            {tzOptions.map((opt) => (
-                              <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
-                        </dd>
-                      </div>
-                      {sequence && (
-                        <div className="replay-stats-row">
-                          <dt>Market feed</dt>
-                          <dd>
-                            {sequence.source} · {sequence.marketSymbol}
-                            {sequence.tzMode === 'auto' && sequence.tzOffsetHours !== 0
-                              ? ` (${formatUtcOffset(sequence.tzOffsetHours)})`
-                              : ''}
-                          </dd>
-                        </div>
-                      )}
                     </dl>
                   </section>
 
@@ -1131,6 +1064,13 @@ export function ReplayPage() {
               )
             })()
           )}
+
+          <footer className="replay-feed-note" role="note" title="Replay may be inaccurate. This will be solved soon with the Broker Sync option.">
+            <Info size={12} className="replay-feed-note-icon" aria-hidden="true" />
+            <p>
+              Replay may be inaccurate. <strong>Broker Sync</strong> soon.
+            </p>
+          </footer>
         </aside>
       </div>
     </div>

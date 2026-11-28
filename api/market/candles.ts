@@ -1,4 +1,4 @@
-import { getMarketCandles } from '../../lib/marketCandles.ts'
+import { getMarketCandlesDetailed } from '../../lib/marketCandles.ts'
 
 interface VercelRequestLike {
   method?: string
@@ -35,31 +35,33 @@ export default async function handler(req: VercelRequestLike, res: VercelRespons
   const symbol = readQueryParam(req, searchParams, 'symbol')
   const interval = readQueryParam(req, searchParams, 'interval') || '5m'
   const date = readQueryParam(req, searchParams, 'date')
+  const openDate = readQueryParam(req, searchParams, 'openDate')
   const openTime = readQueryParam(req, searchParams, 'openTime')
   const closeTime = readQueryParam(req, searchParams, 'closeTime')
   const entryRaw = Number(readQueryParam(req, searchParams, 'entry'))
   const exitRaw = Number(readQueryParam(req, searchParams, 'exit'))
+  const tzOffsetParam = readQueryParam(req, searchParams, 'tzOffset')
+  const tzOffsetRaw = tzOffsetParam !== '' ? Number(tzOffsetParam) : Number.NaN
 
   if (!symbol) {
     res.status(400).json({ ok: false, error: 'Symbol is required.' })
     return
   }
 
-  const result = await getMarketCandles({
+  const result = await getMarketCandlesDetailed({
     symbol,
     interval,
     date,
+    openDate: openDate || undefined,
     openTime,
     closeTime,
     entry: Number.isFinite(entryRaw) && entryRaw > 0 ? entryRaw : undefined,
     exit: Number.isFinite(exitRaw) && exitRaw > 0 ? exitRaw : undefined,
+    tzOffsetHours: Number.isFinite(tzOffsetRaw) ? tzOffsetRaw : undefined,
   })
 
-  if (!result) {
-    res.status(404).json({
-      ok: false,
-      error: `No real market candles available for ${symbol}.`,
-    })
+  if (!result.ok) {
+    res.status(404).json(result)
     return
   }
 

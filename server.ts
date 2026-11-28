@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import express, { type Request, type Response } from 'express'
-import { getMarketCandles, type MarketCandle } from './lib/marketCandles.ts'
+import { getMarketCandlesDetailed, type MarketCandle } from './lib/marketCandles.ts'
 
 export type { MarketCandle }
 
@@ -17,31 +17,33 @@ async function createApp() {
     const symbol = String(req.query.symbol ?? '').trim()
     const interval = String(req.query.interval ?? '5m').trim()
     const date = String(req.query.date ?? '').trim()
+    const openDate = String(req.query.openDate ?? '').trim()
     const openTime = String(req.query.openTime ?? '').trim()
     const closeTime = String(req.query.closeTime ?? '').trim()
     const entryRaw = Number(req.query.entry)
     const exitRaw = Number(req.query.exit)
+    const tzOffsetParam = String(req.query.tzOffset ?? '').trim()
+    const tzOffsetRaw = tzOffsetParam !== '' ? Number(tzOffsetParam) : Number.NaN
 
     if (!symbol) {
       res.status(400).json({ ok: false, error: 'Symbol is required.' })
       return
     }
 
-    const result = await getMarketCandles({
+    const result = await getMarketCandlesDetailed({
       symbol,
       interval,
       date,
+      openDate: openDate || undefined,
       openTime,
       closeTime,
       entry: Number.isFinite(entryRaw) && entryRaw > 0 ? entryRaw : undefined,
       exit: Number.isFinite(exitRaw) && exitRaw > 0 ? exitRaw : undefined,
+      tzOffsetHours: Number.isFinite(tzOffsetRaw) ? tzOffsetRaw : undefined,
     })
 
-    if (!result) {
-      res.status(404).json({
-        ok: false,
-        error: `No real market candles available for ${symbol}.`,
-      })
+    if (!result.ok) {
+      res.status(404).json(result)
       return
     }
 

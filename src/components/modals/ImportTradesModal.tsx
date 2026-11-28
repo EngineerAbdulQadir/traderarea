@@ -50,6 +50,7 @@ function tradeFromImport(
     id,
     accountId,
     date: item.date,
+    ...(item.openDate && item.openDate !== item.date ? { openDate: item.openDate } : {}),
     openTime: item.openTime,
     closeTime: item.closeTime,
     ticker: item.symbol,

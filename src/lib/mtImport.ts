@@ -12,6 +12,7 @@ export interface ImportedTrade {
   pnl: number
   fees: number
   date: string
+  openDate: string
   openTime: string
   closeTime: string
 }
@@ -328,6 +329,7 @@ function tradeFromRow(cells: string[], map: HeaderMap): ImportedTrade | null {
     pnl: round(pnl),
     fees: round(fees),
     date: close?.date || open?.date || '',
+    openDate: open?.date || close?.date || '',
     openTime: open?.time || '',
     closeTime: close?.time || '',
   }

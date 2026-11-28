@@ -16,19 +16,25 @@ import {
   type Time,
   type WhitespaceData,
 } from 'lightweight-charts'
-import { AlertCircle, RefreshCw } from 'lucide-react'
+import { AlertCircle, AlertTriangle, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useTheme } from '@/hooks/useTheme'
 import { formatR, signedMoney } from '@/lib/format'
 import {
   formatReplayPrice,
+  formatUtcOffset,
   type ReplayCandle,
   type ReplaySequence,
+  type ReplayTimeframe,
 } from '@/lib/replay'
 import { cn } from '@/lib/cn'
 
+const TIMEFRAME_OPTIONS: ReplayTimeframe[] = ['1m', '5m', '15m', '1h']
+
 interface ReplayChartProps {
   sequence: ReplaySequence | null
+  timeframe: ReplayTimeframe
+  onChangeTimeframe: (tf: ReplayTimeframe) => void
   loading: boolean
   error: string | null
   cursor: number
@@ -39,6 +45,8 @@ interface ReplayChartProps {
 
 export function ReplayChart({
   sequence,
+  timeframe,
+  onChangeTimeframe,
   loading,
   error,
   cursor,
@@ -244,23 +252,9 @@ export function ReplayChart({
 
     const entryReached = cursor >= sequence.entryIndex
     const exitReached = cursor >= sequence.exitIndex
-    const entryBar = sequence.candles[sequence.entryIndex]
-    const exitBar = sequence.candles[sequence.exitIndex]
 
-    const isSameScale = (price: number, bar: ReplayCandle | undefined) => {
-      if (!bar || !(price > 0) || !(bar.close > 0)) return false
-      return Math.abs(price - bar.close) / bar.close <= 0.1
-    }
-
-    const chartEntryPrice =
-      sequence.hasPrices && isSameScale(sequence.entryPrice, entryBar)
-        ? sequence.entryPrice
-        : (entryBar?.close ?? sequence.entryPrice)
-
-    const chartExitPrice =
-      sequence.hasPrices && isSameScale(sequence.exitPrice, exitBar)
-        ? sequence.exitPrice
-        : (exitBar?.close ?? sequence.exitPrice)
+    const chartEntryPrice = sequence.alignedEntryPrice
+    const chartExitPrice = sequence.alignedExitPrice
 
     const minPriceStep = Math.max(0.0001, Math.pow(10, -sequence.priceDigits) * 2)
     const sameChartLevel =
@@ -268,32 +262,30 @@ export function ReplayChart({
       chartExitPrice > 0 &&
       Math.abs(chartExitPrice - chartEntryPrice) <= minPriceStep
 
-    if (sequence.hasPrices) {
-      if (sequence.stopLossPrice !== null) {
-        priceLinesRef.current.push(
-          candleSeries.createPriceLine({
-            price: sequence.stopLossPrice,
-            color: '#f23645',
-            lineWidth: 1,
-            lineStyle: LineStyle.Dashed,
-            axisLabelVisible: true,
-            title: 'SL',
-          }),
-        )
-      }
+    if (sequence.alignedStopLossPrice !== null) {
+      priceLinesRef.current.push(
+        candleSeries.createPriceLine({
+          price: sequence.alignedStopLossPrice,
+          color: '#f23645',
+          lineWidth: 1,
+          lineStyle: LineStyle.Dashed,
+          axisLabelVisible: true,
+          title: 'SL',
+        }),
+      )
+    }
 
-      if (sequence.takeProfitPrice !== null) {
-        priceLinesRef.current.push(
-          candleSeries.createPriceLine({
-            price: sequence.takeProfitPrice,
-            color: '#089981',
-            lineWidth: 1,
-            lineStyle: LineStyle.Dashed,
-            axisLabelVisible: true,
-            title: 'TP',
-          }),
-        )
-      }
+    if (sequence.alignedTakeProfitPrice !== null) {
+      priceLinesRef.current.push(
+        candleSeries.createPriceLine({
+          price: sequence.alignedTakeProfitPrice,
+          color: '#089981',
+          lineWidth: 1,
+          lineStyle: LineStyle.Dashed,
+          axisLabelVisible: true,
+          title: 'TP',
+        }),
+      )
     }
 
     if (entryReached && chartEntryPrice > 0) {
@@ -412,7 +404,7 @@ export function ReplayChart({
         <div className="replay-no-prices">
           <div className="replay-spinner" aria-hidden="true" />
           <b>Loading market candles…</b>
-          <p>Fetching historical OHLC bars for this trade.</p>
+          <p>Fetching verified historical OHLC bars for this trade window.</p>
         </div>
       </div>
     )
@@ -423,16 +415,27 @@ export function ReplayChart({
       <div className="replay-chart-card is-empty">
         <div className="replay-no-prices">
           <AlertCircle size={22} className="is-neg" />
-          <b>Chart feed unavailable for this symbol</b>
+          <b>Verified candle data unavailable</b>
           <p>{error}</p>
-          <Button
-            variant="secondary"
-            size="sm"
-            iconLeft={<RefreshCw size={13} />}
-            onClick={onRetry}
-          >
-            Retry
-          </Button>
+          <div className="replay-no-prices-actions">
+            {timeframe !== '1h' && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => onChangeTimeframe(timeframe === '1m' ? '5m' : '1h')}
+              >
+                Try {timeframe === '1m' ? '5m' : '1h'} bars
+              </Button>
+            )}
+            <Button
+              variant="secondary"
+              size="sm"
+              iconLeft={<RefreshCw size={13} />}
+              onClick={onRetry}
+            >
+              Retry
+            </Button>
+          </div>
         </div>
       </div>
     )
@@ -447,6 +450,14 @@ export function ReplayChart({
   const hudBar = hoveredCandle ?? currentBar
   const isLong = sequence.trade.side === 'LONG'
   const fmt = (price: number) => formatReplayPrice(price, sequence.priceDigits)
+  const effectiveTf = sequence.resolvedInterval as ReplayTimeframe
+
+  const feedTitle =
+    sequence.priceAlignment === 'mismatch'
+      ? `${sequence.source} · ${sequence.marketSymbol} — trade entry/exit prices fall outside this bar range (${formatUtcOffset(sequence.tzOffsetHours)}). Adjust timezone in the right panel.`
+      : sequence.priceAlignment === 'proxy-aligned'
+        ? `${sequence.source} proxy (${sequence.marketSymbol}) aligned by ${sequence.basisOffset >= 0 ? '+' : ''}${fmt(sequence.basisOffset)} basis`
+        : `${sequence.source} · ${sequence.marketSymbol} · ${formatUtcOffset(sequence.tzOffsetHours)}`
 
   return (
     <div className="replay-chart-card">
@@ -456,7 +467,34 @@ export function ReplayChart({
           <span className={cn('replay-hud-side', isLong ? 'is-long' : 'is-short')}>
             {isLong ? 'Buy' : 'Sell'}
           </span>
-          <span className="replay-hud-tf">{sequence.resolvedInterval}</span>
+
+          <div className="replay-tf-group" role="group" aria-label="Candle timeframe">
+            {TIMEFRAME_OPTIONS.map((tf) => {
+              const isActive = effectiveTf === tf || (timeframe === tf && effectiveTf === tf)
+              const isRequested = timeframe === tf && effectiveTf !== tf
+              return (
+                <button
+                  key={tf}
+                  type="button"
+                  disabled={loading}
+                  className={cn(
+                    'replay-tf-btn',
+                    isActive && 'is-active',
+                    isRequested && 'is-stepped',
+                  )}
+                  title={
+                    isRequested
+                      ? `Requested ${tf}; provider stepped up to ${effectiveTf} for this trade date`
+                      : `Switch to ${tf} candles`
+                  }
+                  onClick={() => onChangeTimeframe(tf)}
+                >
+                  {tf}
+                </button>
+              )
+            })}
+          </div>
+
           {hudBar && (
             <>
               <span className="replay-hud-sep" aria-hidden="true">·</span>
@@ -483,6 +521,26 @@ export function ReplayChart({
         </div>
 
         <div className="replay-hud-right">
+          <span
+            className={cn(
+              'replay-hud-source',
+              sequence.priceAlignment === 'mismatch' && 'is-warn',
+              sequence.priceAlignment === 'proxy-aligned' && 'is-proxy',
+            )}
+            title={feedTitle}
+          >
+            {sequence.priceAlignment === 'mismatch' && (
+              <AlertTriangle size={11} aria-hidden="true" />
+            )}
+            <span>
+              {sequence.marketSymbol}
+              {sequence.priceAlignment === 'proxy-aligned' ? ' · Basis adj.' : ''}
+              {sequence.priceAlignment === 'mismatch' ? ' · Price mismatch' : ''}
+            </span>
+          </span>
+
+          <span className="replay-hud-sep" aria-hidden="true">·</span>
+
           {hudBar && hudBar.phase !== 'pre' ? (
             <span
               className={cn(

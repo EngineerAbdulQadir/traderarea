@@ -32,6 +32,7 @@ export function normalizeTrade(
     id: raw.id || `${accountId}-trade-${index}`,
     accountId: raw.accountId || accountId,
     date,
+    ...(raw.openDate ? { openDate: String(raw.openDate).slice(0, 10) } : {}),
     openTime: raw.openTime ?? raw.time ?? '',
     closeTime: raw.closeTime || '',
     ticker: raw.ticker || raw.symbol || '—',
@@ -188,7 +189,21 @@ export function mergeImportedTrades(
 export function tradeHoldMinutes(trade: Trade): number | null {
   const a = timeToMinutes(trade.openTime)
   const b = timeToMinutes(trade.closeTime)
-  return a !== null && b !== null && b >= a ? b - a : null
+  if (a === null || b === null) return null
+  if (trade.openDate && trade.date && trade.openDate !== trade.date) {
+    const openParts = trade.openDate.split('-').map(Number)
+    const closeParts = trade.date.split('-').map(Number)
+    if (openParts.length === 3 && closeParts.length === 3) {
+      const openDayMs = Date.UTC(openParts[0], openParts[1] - 1, openParts[2])
+      const closeDayMs = Date.UTC(closeParts[0], closeParts[1] - 1, closeParts[2])
+      const dayDiffMins = Math.round((closeDayMs - openDayMs) / 60000)
+      const total = dayDiffMins + (b - a)
+      return total >= 0 ? total : null
+    }
+  }
+  if (b >= a) return b - a
+  // Overnight trade logged with a single date
+  return 24 * 60 - a + b
 }
 
 export function tradeHour(trade: Trade): number | null {

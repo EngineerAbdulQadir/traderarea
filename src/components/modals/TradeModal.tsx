@@ -189,10 +189,12 @@ export function TradeModal() {
       tradeEditor?.trade?.id ||
       `manual-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
 
+    const existingOpenDate = tradeEditor?.trade?.openDate
     const trade: Trade = {
       id,
       accountId: form.accountId,
       date: form.date,
+      ...(existingOpenDate && existingOpenDate !== form.date ? { openDate: existingOpenDate } : {}),
       openTime: form.open ? `${form.open}:00` : '',
       closeTime: form.close ? `${form.close}:00` : '',
       ticker: symbol,

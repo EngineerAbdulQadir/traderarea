@@ -1,9 +1,14 @@
 import type { UTCTimestamp } from 'lightweight-charts'
 import { timeToMinutes } from '@/lib/dates'
 import { formatHold } from '@/lib/format'
+import { tradeHoldMinutes } from '@/lib/trades'
 import type { Trade } from '@/lib/types'
 
 export type ReplayTimeframe = '1m' | '5m' | '15m' | '1h'
+export type ReplaySource = 'Binance' | 'Coinbase' | 'Yahoo Finance'
+export type PriceMatchStatus = 'exact' | 'proxy' | 'mismatch' | 'unknown'
+export type PriceAlignment = 'exact' | 'proxy-aligned' | 'mismatch' | 'no-prices'
+export type ReplayTzPreference = 'auto' | number
 
 export interface RawMarketCandle {
   time: number
@@ -16,10 +21,14 @@ export interface RawMarketCandle {
 
 export interface MarketFeedPayload {
   ok: true
-  source: 'Binance' | 'Yahoo Finance'
+  source: ReplaySource
   marketSymbol: string
+  requestedInterval?: string
   resolvedInterval: string
   exactWindow: boolean
+  isProxy?: boolean
+  priceMatch?: PriceMatchStatus
+  tzMode?: 'manual' | 'auto'
   resolvedOpenSec?: number
   resolvedCloseSec?: number
   tzOffsetHours?: number
@@ -45,17 +54,27 @@ export interface ReplayCandle {
 export interface ReplaySequence {
   trade: Trade
   timeframe: ReplayTimeframe
+  requestedInterval: string
   resolvedInterval: string
-  source: 'Binance' | 'Yahoo Finance'
+  source: ReplaySource
   marketSymbol: string
   exactWindow: boolean
+  isProxy: boolean
+  tzMode: 'manual' | 'auto'
   tzOffsetHours: number
+  basisOffset: number
   basisAligned: boolean
+  priceAlignment: PriceAlignment
   hasPrices: boolean
   entryPrice: number
   exitPrice: number
   stopLossPrice: number | null
   takeProfitPrice: number | null
+  alignedEntryPrice: number
+  alignedExitPrice: number
+  alignedStopLossPrice: number | null
+  alignedTakeProfitPrice: number | null
+  dollarPerPoint: number
   plannedRR: number | null
   entryIndex: number
   exitIndex: number
@@ -64,7 +83,20 @@ export interface ReplaySequence {
   holdLabel: string
   openTimeLabel: string
   closeTimeLabel: string
+  statementOpenTime: string
+  statementCloseTime: string
   priceDigits: number
+}
+
+export interface ReplayExcursion {
+  mfePrice: number
+  maePrice: number
+  mfePct: number
+  maePct: number
+  mfeUsd: number
+  maeUsd: number
+  capturePct: number | null
+  barsInTrade: number
 }
 
 const TF_MINUTES: Record<ReplayTimeframe, number> = {
@@ -98,20 +130,49 @@ function roundTo(value: number, digits: number): number {
   return Math.round(value * factor) / factor
 }
 
-function formatUtcClock(utcSeconds: number): string {
+export function formatUtcClock(utcSeconds: number): string {
   const d = new Date(utcSeconds * 1000)
   const hh = String(d.getUTCHours()).padStart(2, '0')
   const mm = String(d.getUTCMinutes()).padStart(2, '0')
   return `${hh}:${mm}`
 }
 
+export function formatUtcOffset(offsetHours: number): string {
+  if (!offsetHours) return 'UTC'
+  return `UTC${offsetHours > 0 ? `+${offsetHours}` : offsetHours}`
+}
+
 function parseUtcTimestamp(isoDate: string, clockStr: string, fallbackMinute = 9 * 60 + 30): number {
   const parts = isoDate.split('-').map(Number)
   const mins = timeToMinutes(clockStr) ?? fallbackMinute
   if (parts.length === 3 && parts.every((n) => Number.isFinite(n))) {
-    return Math.floor(Date.UTC(parts[0], parts[1] - 1, parts[2], 0, 0, 0) / 1000) + mins * 60
+    return Math.floor(Date.UTC(parts[0], parts[1] - 1, parts[2], 0, 0, 0) / 1000) + Math.round(mins * 60)
   }
   return Math.floor(Date.now() / 1000)
+}
+
+function resolveTradeUtcBounds(trade: Trade): { openSec: number; closeSec: number; holdMinutes: number } {
+  const closeDate = trade.date
+  const openDate = trade.openDate || trade.date
+  let openSec = parseUtcTimestamp(openDate, trade.openTime)
+  let closeSec = parseUtcTimestamp(closeDate, trade.closeTime)
+
+  if (!trade.openDate && trade.openTime && trade.closeTime && closeSec <= openSec) {
+    // Legacy overnight trade where only close date was saved
+    openSec -= 86400
+  }
+
+  if (closeSec <= openSec) {
+    closeSec = openSec + 60
+  }
+
+  const calculatedHold = tradeHoldMinutes(trade)
+  const holdMinutes =
+    calculatedHold !== null && calculatedHold > 0
+      ? calculatedHold
+      : Math.max(0, Math.round((closeSec - openSec) / 60))
+
+  return { openSec, closeSec, holdMinutes }
 }
 
 export function formatReplayPrice(price: number, digits: number): string {
@@ -143,7 +204,7 @@ const CLIENT_CRYPTO_BASES = new Set([
   'ATOM',
 ])
 
-function resolveDirectBinanceSymbol(rawTicker: string): string | null {
+export function resolveDirectBinanceSymbol(rawTicker: string): string | null {
   const cleaned = rawTicker
     .trim()
     .toUpperCase()
@@ -159,58 +220,110 @@ function resolveDirectBinanceSymbol(rawTicker: string): string | null {
   return CLIENT_CRYPTO_BASES.has(cleaned) ? `${cleaned}USDT` : null
 }
 
+export function suggestReplayTimeframe(trade: Trade | null): ReplayTimeframe {
+  if (!trade) return '1m'
+  const { openSec, holdMinutes } = resolveTradeUtcBounds(trade)
+  const ageDays = Math.max(0, (Date.now() / 1000 - openSec) / 86400)
+  const isCrypto = Boolean(resolveDirectBinanceSymbol(trade.ticker))
+
+  if (isCrypto) {
+    if (holdMinutes <= 360) return '1m'
+    if (holdMinutes <= 1800) return '5m'
+    if (holdMinutes <= 5760) return '15m'
+    return '1h'
+  }
+
+  if (ageDays > 55) return '1h'
+  if (ageDays > 6.2) {
+    if (holdMinutes > 1800) return '15m'
+    return '5m'
+  }
+  if (holdMinutes > 240) return '5m'
+  return '1m'
+}
+
 async function fetchDirectBinanceFallback(
   trade: Trade,
   timeframe: ReplayTimeframe,
+  tzPreference: ReplayTzPreference,
   signal?: AbortSignal,
 ): Promise<MarketFeedPayload | null> {
   const binanceSymbol = resolveDirectBinanceSymbol(trade.ticker)
   if (!binanceSymbol) return null
 
   const step = (TF_MINUTES[timeframe] ?? 5) * 60
-  const openSec = parseUtcTimestamp(trade.date, trade.openTime)
-  const closeSec = Math.max(openSec + step * 3, parseUtcTimestamp(trade.date, trade.closeTime))
+  const { openSec: rawOpenSec, closeSec: rawCloseSec } = resolveTradeUtcBounds(trade)
+  const tzOffset = typeof tzPreference === 'number' && Number.isFinite(tzPreference) ? tzPreference : 0
+  const openSec = rawOpenSec - tzOffset * 3600
+  const closeSec = rawCloseSec - tzOffset * 3600
   const nowSec = Math.floor(Date.now() / 1000)
-  const effectiveOpen = Math.min(openSec, nowSec - step * 12)
-  const startMs = (effectiveOpen - step * 10) * 1000
-  const endMs = Math.min(nowSec, closeSec + step * 10) * 1000
+  if (openSec > nowSec + 14 * 3600) return null
 
-  const url = `https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(
-    binanceSymbol,
-  )}&interval=${timeframe}&startTime=${startMs}&endTime=${endMs}&limit=240`
-
-  const res = await fetch(url, { signal })
-  if (!res.ok) return null
-  const raw = (await res.json()) as unknown[]
-  if (!Array.isArray(raw) || !raw.length) return null
+  const startMs = Math.max(0, (openSec - step * 18) * 1000)
+  const endMs = Math.min(nowSec, closeSec + step * 12) * 1000
+  if (endMs <= startMs) return null
 
   const candles: RawMarketCandle[] = []
-  for (const row of raw) {
-    if (!Array.isArray(row) || row.length < 6) continue
-    const time = Math.floor(Number(row[0]) / 1000)
-    const open = Number(row[1])
-    const high = Number(row[2])
-    const low = Number(row[3])
-    const close = Number(row[4])
-    const volume = Number(row[5]) || 0
-    if (
-      Number.isFinite(time) &&
-      Number.isFinite(open) &&
-      Number.isFinite(high) &&
-      Number.isFinite(low) &&
-      Number.isFinite(close)
-    ) {
-      candles.push({ time, open, high, low, close, volume })
+  const seen = new Set<number>()
+  let cursorMs = startMs
+  for (let page = 0; page < 4 && cursorMs < endMs; page++) {
+    const url = `https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(
+      binanceSymbol,
+    )}&interval=${timeframe}&startTime=${cursorMs}&endTime=${endMs}&limit=1000`
+    const res = await fetch(url, { signal })
+    if (!res.ok) break
+    const raw = (await res.json()) as unknown[]
+    if (!Array.isArray(raw) || !raw.length) break
+
+    let lastMs = cursorMs
+    for (const row of raw) {
+      if (!Array.isArray(row) || row.length < 6) continue
+      const openMs = Number(row[0])
+      const time = Math.floor(openMs / 1000)
+      const open = Number(row[1])
+      const high = Number(row[2])
+      const low = Number(row[3])
+      const close = Number(row[4])
+      const volume = Number(row[5]) || 0
+      if (
+        Number.isFinite(time) &&
+        !seen.has(time) &&
+        Number.isFinite(open) &&
+        Number.isFinite(high) &&
+        Number.isFinite(low) &&
+        Number.isFinite(close)
+      ) {
+        seen.add(time)
+        candles.push({ time, open, high, low, close, volume })
+        lastMs = Math.max(lastMs, openMs)
+      }
     }
+    if (raw.length < 1000) break
+    const nextCursor = lastMs + step * 1000
+    if (nextCursor <= cursorMs) break
+    cursorMs = nextCursor
   }
+
   if (!candles.length) return null
+  candles.sort((a, b) => a.time - b.time)
+  const firstTime = candles[0].time
+  const lastTime = candles[candles.length - 1].time
+  if (openSec < firstTime - step * 6 || openSec > lastTime + step * 6) {
+    return null
+  }
 
   return {
     ok: true,
     source: 'Binance',
     marketSymbol: binanceSymbol,
+    requestedInterval: timeframe,
     resolvedInterval: timeframe,
-    exactWindow: openSec <= nowSec,
+    exactWindow: true,
+    isProxy: false,
+    tzMode: typeof tzPreference === 'number' ? 'manual' : 'auto',
+    resolvedOpenSec: openSec,
+    resolvedCloseSec: closeSec,
+    tzOffsetHours: tzOffset,
     candles,
   }
 }
@@ -218,6 +331,7 @@ async function fetchDirectBinanceFallback(
 export async function fetchRealMarketCandles(
   trade: Trade,
   timeframe: ReplayTimeframe,
+  tzPreference: ReplayTzPreference = 'auto',
   signal?: AbortSignal,
 ): Promise<MarketFeedPayload> {
   const params = new URLSearchParams({
@@ -227,8 +341,13 @@ export async function fetchRealMarketCandles(
     openTime: trade.openTime || '',
     closeTime: trade.closeTime || '',
   })
+  if (trade.openDate) params.set('openDate', trade.openDate)
   if (trade.entry > 0) params.set('entry', String(trade.entry))
   if (trade.exit > 0) params.set('exit', String(trade.exit))
+  if (typeof tzPreference === 'number' && Number.isFinite(tzPreference)) {
+    params.set('tzOffset', String(tzPreference))
+  }
+
   const res = await fetch(`/api/market/candles?${params.toString()}`, {
     signal,
     headers: { Accept: 'application/json' },
@@ -246,9 +365,12 @@ export async function fetchRealMarketCandles(
   }
 
   if (!data) {
-    const directCrypto = await fetchDirectBinanceFallback(trade, timeframe, signal).catch(
-      () => null,
-    )
+    const directCrypto = await fetchDirectBinanceFallback(
+      trade,
+      timeframe,
+      tzPreference,
+      signal,
+    ).catch(() => null)
     if (directCrypto) return directCrypto
     throw new Error(
       `Market data endpoint returned an unexpected response for ${trade.ticker}. Please retry in a moment.`,
@@ -259,10 +381,16 @@ export async function fetchRealMarketCandles(
     throw new Error(
       'error' in data && data.error
         ? data.error
-        : `No market data available for ${trade.ticker}.`,
+        : `No verified market candles available for ${trade.ticker}.`,
     )
   }
   return data
+}
+
+function priceDistanceFromBar(price: number, bar: RawMarketCandle): number {
+  if (price < bar.low) return bar.low - price
+  if (price > bar.high) return price - bar.high
+  return 0
 }
 
 export function buildRealMarketSequence(
@@ -271,7 +399,6 @@ export function buildRealMarketSequence(
   timeframe: ReplayTimeframe,
 ): ReplaySequence {
   const rawCandles = market.candles
-  const tfMinutes = TF_MINUTES[timeframe]
   const entryPrice = Number(trade.entry) || 0
   const exitPrice = Number(trade.exit) || 0
   const hasPrices = entryPrice > 0 && exitPrice > 0
@@ -290,96 +417,79 @@ export function buildRealMarketSequence(
         })()
       : null
 
-  const openMinutesRaw = timeToMinutes(trade.openTime)
-  const closeMinutesRaw = timeToMinutes(trade.closeTime)
-  const holdMinutes =
-    openMinutesRaw !== null && closeMinutesRaw !== null && closeMinutesRaw > openMinutesRaw
-      ? closeMinutesRaw - openMinutesRaw
-      : 0
-  const openTimeLabel = trade.openTime ? trade.openTime.slice(0, 5) : 'Open'
-  const closeTimeLabel = trade.closeTime ? trade.closeTime.slice(0, 5) : 'Close'
+  const { openSec, closeSec, holdMinutes } = resolveTradeUtcBounds(trade)
+  const statementOpenTime = trade.openTime ? trade.openTime.slice(0, 5) : 'Open'
+  const statementCloseTime = trade.closeTime ? trade.closeTime.slice(0, 5) : 'Close'
   const holdLabel = holdMinutes > 0 ? formatHold(holdMinutes) : '—'
 
   const tradePriceSamples = [entryPrice, exitPrice]
   if (stopLossPrice !== null) tradePriceSamples.push(stopLossPrice)
   if (takeProfitPrice !== null) tradePriceSamples.push(takeProfitPrice)
   const priceDigits = inferPriceDigits(tradePriceSamples, rawCandles[0]?.close ?? 100)
+  const tzOffsetHours = market.tzOffsetHours ?? 0
 
   if (!rawCandles.length) {
     return {
       trade,
       timeframe,
+      requestedInterval: market.requestedInterval ?? timeframe,
       resolvedInterval: market.resolvedInterval,
       source: market.source,
       marketSymbol: market.marketSymbol,
       exactWindow: market.exactWindow,
-      tzOffsetHours: market.tzOffsetHours ?? 0,
+      isProxy: Boolean(market.isProxy),
+      tzMode: market.tzMode ?? 'auto',
+      tzOffsetHours,
+      basisOffset: 0,
       basisAligned: false,
+      priceAlignment: hasPrices ? 'mismatch' : 'no-prices',
       hasPrices,
       entryPrice,
       exitPrice,
       stopLossPrice,
       takeProfitPrice,
+      alignedEntryPrice: entryPrice,
+      alignedExitPrice: exitPrice,
+      alignedStopLossPrice: stopLossPrice,
+      alignedTakeProfitPrice: takeProfitPrice,
+      dollarPerPoint: 1,
       plannedRR,
       entryIndex: 0,
       exitIndex: 0,
       candles: [],
       holdMinutes,
       holdLabel,
-      openTimeLabel,
-      closeTimeLabel,
+      openTimeLabel: statementOpenTime,
+      closeTimeLabel: statementCloseTime,
+      statementOpenTime,
+      statementCloseTime,
       priceDigits,
     }
   }
 
   const PRE_BARS = 15
   const POST_BARS = 8
-  let entryIndex = Math.min(rawCandles.length - 2, Math.floor(rawCandles.length * 0.3))
-  let exitIndex = Math.min(rawCandles.length - 1, entryIndex + Math.max(2, Math.min(12, Math.round((holdMinutes || tfMinutes * 6) / tfMinutes))))
+  const targetOpenSec = market.resolvedOpenSec ?? openSec
+  const targetCloseSec = market.resolvedCloseSec ?? closeSec
 
-  if (market.exactWindow) {
-    const targetOpenSec = market.resolvedOpenSec ?? parseUtcTimestamp(trade.date, trade.openTime)
-    const targetCloseSec = market.resolvedCloseSec ?? parseUtcTimestamp(trade.date, trade.closeTime)
+  let entryIndex = 0
+  let bestDist = Infinity
+  for (let i = 0; i < rawCandles.length; i++) {
+    const dist = Math.abs(rawCandles[i].time - targetOpenSec)
+    if (dist < bestDist) {
+      bestDist = dist
+      entryIndex = i
+    }
+  }
 
-    let bestDist = Infinity
-    for (let i = 0; i < rawCandles.length; i++) {
-      const dist = Math.abs(rawCandles[i].time - targetOpenSec)
-      if (dist < bestDist) {
-        bestDist = dist
-        entryIndex = i
-      }
+  let exitIndex = entryIndex
+  let bestExitDist = Infinity
+  for (let i = entryIndex; i < rawCandles.length; i++) {
+    const dist = Math.abs(rawCandles[i].time - targetCloseSec)
+    if (dist < bestExitDist) {
+      bestExitDist = dist
+      exitIndex = i
     }
-    if (entryIndex >= rawCandles.length - 1) {
-      entryIndex = Math.max(0, rawCandles.length - 4)
-    }
-
-    let bestExitDist = Infinity
-    exitIndex = Math.min(rawCandles.length - 1, entryIndex + 1)
-    for (let i = entryIndex; i < rawCandles.length; i++) {
-      const dist = Math.abs(rawCandles[i].time - targetCloseSec)
-      if (dist < bestExitDist) {
-        bestExitDist = dist
-        exitIndex = i
-      }
-    }
-    if (exitIndex <= entryIndex && entryIndex < rawCandles.length - 1) {
-      exitIndex = entryIndex + 1
-    }
-  } else {
-    const targetMod = openMinutesRaw ?? 9 * 60 + 30
-    let bestModDist = Infinity
-    const maxStart = Math.max(0, rawCandles.length - 8)
-    for (let i = Math.min(PRE_BARS, maxStart); i <= maxStart; i++) {
-      const d = new Date(rawCandles[i].time * 1000)
-      const mod = d.getUTCHours() * 60 + d.getUTCMinutes()
-      const dist = Math.abs(mod - targetMod)
-      if (dist < bestModDist) {
-        bestModDist = dist
-        entryIndex = i
-      }
-    }
-    const barSpan = Math.max(3, Math.min(14, Math.round((holdMinutes || tfMinutes * 6) / tfMinutes)))
-    exitIndex = Math.min(rawCandles.length - 1, entryIndex + barSpan)
   }
 
   const sliceStart = Math.max(0, entryIndex - PRE_BARS)
@@ -388,24 +498,77 @@ export function buildRealMarketSequence(
   entryIndex -= sliceStart
   exitIndex -= sliceStart
 
-  // Keep raw real market OHLC candles unmodified
-  const refPrice = croppedCandles[entryIndex]?.close || croppedCandles[0].close
-  const basisOffset = 0
-  const basisAligned = false
+  const entryBar = croppedCandles[entryIndex] ?? croppedCandles[0]
+  const exitBar = croppedCandles[exitIndex] ?? entryBar
+
+  // Evaluate whether the trade's entry/exit prices match the market candles,
+  // are a steady futures/index proxy basis offset, or do not match the window.
+  let basisOffset = 0
+  let basisAligned = false
+  let priceAlignment: PriceAlignment = hasPrices ? 'mismatch' : 'no-prices'
+
+  if (hasPrices && entryBar && exitBar) {
+    const entryTol = Math.max((entryBar.high - entryBar.low) * 0.65, entryPrice * 0.0025)
+    const exitTol = Math.max((exitBar.high - exitBar.low) * 0.65, exitPrice * 0.0025)
+    const entryDist = priceDistanceFromBar(entryPrice, entryBar)
+    const exitDist = priceDistanceFromBar(exitPrice, exitBar)
+
+    if (entryDist <= entryTol && exitDist <= exitTol) {
+      priceAlignment = 'exact'
+    } else if (market.isProxy) {
+      const entryDiff = entryPrice - entryBar.close
+      const exitDiff = exitPrice - exitBar.close
+      const avgBasis = (entryDiff + exitDiff) / 2
+      const tradeMove = exitPrice - entryPrice
+      const candleMove = exitBar.close - entryBar.close
+      const moveTol = Math.max(Math.abs(tradeMove) * 0.45, entryPrice * 0.003)
+
+      const shiftedEntryDist = priceDistanceFromBar(entryPrice - avgBasis, entryBar)
+      const shiftedExitDist = priceDistanceFromBar(exitPrice - avgBasis, exitBar)
+      if (
+        Math.abs(tradeMove - candleMove) <= moveTol ||
+        (shiftedEntryDist <= entryTol * 1.5 && shiftedExitDist <= exitTol * 1.5)
+      ) {
+        basisOffset = roundTo(avgBasis, priceDigits)
+        basisAligned = true
+        priceAlignment = 'proxy-aligned'
+      }
+    }
+  }
 
   const isLong = trade.side === 'LONG'
   const signedDir = isLong ? 1 : -1
   const feesAbs = Math.abs(trade.fees) || 0
   const grossVal = trade.gross !== 0 ? trade.gross : trade.pnl + feesAbs
   const netDelta = Math.abs(exitPrice - entryPrice)
-  const entryRefClose = croppedCandles[entryIndex]?.close ?? refPrice
-  const exitRefClose = croppedCandles[exitIndex]?.close ?? entryRefClose
 
-  const candleMatchesTradePath =
-    market.exactWindow &&
+  let dollarPerPoint = 1
+  const priceMoveMatchesSide =
     hasPrices &&
-    netDelta > 1e-6 &&
-    Math.abs(exitRefClose - exitPrice) <= Math.max(netDelta * 0.5, refPrice * 0.004)
+    netDelta > 1e-8 &&
+    ((isLong && (exitPrice - entryPrice) * grossVal >= -1e-6) ||
+      (!isLong && (entryPrice - exitPrice) * grossVal >= -1e-6))
+
+  if (priceMoveMatchesSide && Math.abs(grossVal) > 0) {
+    dollarPerPoint = Math.abs(grossVal) / netDelta
+  } else {
+    const riskDenom =
+      Math.abs(trade.risk || 0) ||
+      (trade.rMultiple && Math.abs(trade.rMultiple) > 1e-6
+        ? Math.abs(trade.pnl / trade.rMultiple)
+        : 0)
+    let maxSwing = 0
+    for (let i = entryIndex; i <= exitIndex; i++) {
+      const bar = croppedCandles[i]
+      if (!bar) continue
+      maxSwing = Math.max(maxSwing, Math.abs(bar.close - entryBar.close))
+    }
+    const excursionBudget = Math.max(riskDenom * 1.4, Math.abs(trade.pnl) * 1.25, 10)
+    dollarPerPoint =
+      trade.volume > 0 && maxSwing > 0 && trade.volume * maxSwing <= excursionBudget * 3
+        ? trade.volume
+        : excursionBudget / Math.max(maxSwing, entryBar.close * 0.002, 0.25)
+  }
 
   const riskDenom =
     Math.abs(trade.risk || 0) ||
@@ -413,30 +576,26 @@ export function buildRealMarketSequence(
       ? Math.abs(trade.pnl / trade.rMultiple)
       : 0)
 
-  let dollarPerPoint = 1
-  if (candleMatchesTradePath) {
-    dollarPerPoint = Math.abs(grossVal) / netDelta
-  } else {
-    let maxSwing = 0
-    for (let i = entryIndex; i <= exitIndex; i++) {
-      const bar = croppedCandles[i]
-      if (!bar) continue
-      maxSwing = Math.max(maxSwing, Math.abs(bar.close - entryRefClose))
-    }
-    const excursionBudget = Math.max(riskDenom * 1.4, Math.abs(trade.pnl) * 1.25, 10)
-    const rawPerPoint =
-      netDelta > 1e-6 && Math.abs(grossVal) > 0
-        ? Math.abs(grossVal) / netDelta
-        : trade.volume > 0 && maxSwing > 0 && trade.volume * maxSwing <= excursionBudget * 2
-          ? trade.volume
-          : excursionBudget / Math.max(maxSwing, refPrice * 0.002, 0.25)
-    dollarPerPoint =
-      maxSwing > 1e-6
-        ? Math.min(rawPerPoint, excursionBudget / maxSwing)
-        : rawPerPoint
-  }
-
-  const pnlBasePrice = candleMatchesTradePath ? entryPrice : entryRefClose
+  const alignedEntryPrice =
+    priceAlignment === 'exact'
+      ? entryPrice
+      : priceAlignment === 'proxy-aligned'
+        ? entryPrice
+        : roundTo(entryBar.close, priceDigits)
+  const alignedExitPrice =
+    priceAlignment === 'exact'
+      ? exitPrice
+      : priceAlignment === 'proxy-aligned'
+        ? exitPrice
+        : roundTo(exitBar.close, priceDigits)
+  const alignedStopLossPrice =
+    stopLossPrice !== null && (priceAlignment === 'exact' || priceAlignment === 'proxy-aligned')
+      ? stopLossPrice
+      : null
+  const alignedTakeProfitPrice =
+    takeProfitPrice !== null && (priceAlignment === 'exact' || priceAlignment === 'proxy-aligned')
+      ? takeProfitPrice
+      : null
 
   const candles: ReplayCandle[] = croppedCandles.map((raw, i) => {
     const open = roundTo(raw.open + basisOffset, priceDigits)
@@ -451,12 +610,9 @@ export function buildRealMarketSequence(
     if (phase === 'in') {
       if (i === exitIndex) {
         unrealizedPnl = trade.pnl
-      } else if (i === entryIndex) {
-        unrealizedPnl = roundTo(-feesAbs, 2)
       } else {
-        const refClose = candleMatchesTradePath ? close : raw.close
         unrealizedPnl = roundTo(
-          (refClose - pnlBasePrice) * signedDir * dollarPerPoint - feesAbs,
+          (close - alignedEntryPrice) * signedDir * dollarPerPoint - feesAbs,
           2,
         )
       }
@@ -490,20 +646,33 @@ export function buildRealMarketSequence(
     }
   })
 
+  const openTimeLabel = candles[entryIndex] ? `${candles[entryIndex].timeLabel} UTC` : statementOpenTime
+  const closeTimeLabel = candles[exitIndex] ? `${candles[exitIndex].timeLabel} UTC` : statementCloseTime
+
   return {
     trade,
     timeframe,
+    requestedInterval: market.requestedInterval ?? timeframe,
     resolvedInterval: market.resolvedInterval,
     source: market.source,
     marketSymbol: market.marketSymbol,
     exactWindow: market.exactWindow,
-    tzOffsetHours: market.tzOffsetHours ?? 0,
+    isProxy: Boolean(market.isProxy),
+    tzMode: market.tzMode ?? 'auto',
+    tzOffsetHours,
+    basisOffset,
     basisAligned,
+    priceAlignment,
     hasPrices,
     entryPrice,
     exitPrice,
     stopLossPrice,
     takeProfitPrice,
+    alignedEntryPrice,
+    alignedExitPrice,
+    alignedStopLossPrice,
+    alignedTakeProfitPrice,
+    dollarPerPoint,
     plannedRR,
     entryIndex,
     exitIndex,
@@ -512,6 +681,68 @@ export function buildRealMarketSequence(
     holdLabel,
     openTimeLabel,
     closeTimeLabel,
+    statementOpenTime,
+    statementCloseTime,
     priceDigits,
+  }
+}
+
+export function computeReplayExcursion(
+  sequence: ReplaySequence | null,
+  cursor: number,
+): ReplayExcursion | null {
+  if (!sequence || !sequence.candles.length || cursor < sequence.entryIndex) {
+    return null
+  }
+  const endIdx = Math.min(cursor, sequence.exitIndex)
+  const slice = sequence.candles.slice(sequence.entryIndex, endIdx + 1)
+  if (!slice.length) return null
+
+  const isLong = sequence.trade.side === 'LONG'
+  const refPrice = sequence.alignedEntryPrice || slice[0].open
+  if (!refPrice) return null
+
+  let mfePts = 0
+  let maePts = 0
+  let mfePrice = refPrice
+  let maePrice = refPrice
+
+  for (const bar of slice) {
+    const fav = isLong ? bar.high - refPrice : refPrice - bar.low
+    const adv = isLong ? refPrice - bar.low : bar.high - refPrice
+    if (fav > mfePts) {
+      mfePts = fav
+      mfePrice = isLong ? bar.high : bar.low
+    }
+    if (adv > maePts) {
+      maePts = adv
+      maePrice = isLong ? bar.low : bar.high
+    }
+  }
+
+  const mfePct = (mfePts / refPrice) * 100
+  const maePct = (maePts / refPrice) * 100
+  const mfeUsd = roundTo(mfePts * sequence.dollarPerPoint, 2)
+  const maeUsd = roundTo(maePts * sequence.dollarPerPoint, 2)
+
+  const exitMovePts = sequence.hasPrices
+    ? isLong
+      ? sequence.alignedExitPrice - sequence.alignedEntryPrice
+      : sequence.alignedEntryPrice - sequence.alignedExitPrice
+    : 0
+  const capturePct =
+    cursor >= sequence.exitIndex && mfePts > 0 && exitMovePts > 0
+      ? Math.min(100, Math.round((exitMovePts / mfePts) * 100))
+      : null
+
+  return {
+    mfePrice,
+    maePrice,
+    mfePct,
+    maePct,
+    mfeUsd,
+    maeUsd,
+    capturePct,
+    barsInTrade: slice.length,
   }
 }

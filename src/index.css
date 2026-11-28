@@ -19795,6 +19795,14 @@ button.calendar-day:hover {
   color: var(--muted);
 }
 
+.replay-no-prices-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
 .replay-hud {
   flex-shrink: 0;
   height: 38px;
@@ -19885,6 +19893,66 @@ button.calendar-day:hover {
 .replay-hud-tf {
   font-weight: 600;
   color: var(--accent-strong);
+}
+
+.replay-tf-group {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  gap: 1px;
+}
+
+.replay-tf-btn {
+  height: 20px;
+  padding: 0 5.5px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 580;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+
+.replay-tf-btn:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.replay-tf-btn.is-active {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.replay-tf-btn.is-stepped {
+  color: var(--warn-text);
+  text-decoration: underline dotted;
+}
+
+.replay-tf-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.replay-hud-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 560;
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+.replay-hud-source.is-proxy {
+  color: var(--accent-strong);
+}
+
+.replay-hud-source.is-warn {
+  color: var(--warn-text);
 }
 
 .replay-spinner {
@@ -20526,6 +20594,44 @@ button.calendar-day:hover {
 
 .replay-stats-row dd.is-neg {
   color: var(--neg-text);
+}
+
+.replay-feed-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 14px;
+  margin-top: 9px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--warn-border);
+  background: var(--warn-soft);
+  color: var(--warn-text);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.replay-feed-notice svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.replay-tz-select {
+  max-width: 162px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 560;
+  cursor: pointer;
+}
+
+.replay-tz-select:focus-visible {
+  outline: 2px solid var(--accent-border);
+  outline-offset: 1px;
 }
 
 .replay-note-clean {

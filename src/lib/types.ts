@@ -62,6 +62,7 @@ export interface Trade {
   id: string
   accountId: string
   date: string
+  openDate?: string
   openTime: string
   closeTime: string
   ticker: string
